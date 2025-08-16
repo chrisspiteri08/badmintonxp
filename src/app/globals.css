@@ -1,0 +1,125 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  background-color: hsl(var(--background));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='hsl(var(--pattern-color))' stroke-width='0.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z'/%3E%3Cline x1='16' x2='2' y1='8' y2='22'/%3E%3Cline x1='17.5' x2='9' y1='15' y2='15'/%3E%3C/svg%3E");
+  background-size: 60px 60px; /* Adjust size for desired density */
+}
+
+@layer base {
+  :root {
+    /* Updated based on image */
+    --background: 260 20% 11%; /* Dark Royal Purple */
+    --foreground: 0 0% 100%; /* White */
+
+    --card: 260 20% 16%; /* Slightly lighter purple for cards */
+    --card-foreground: 0 0% 100%;
+
+    --popover: 260 20% 14%; 
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 267 98% 50%; /* Vibrant Purple for primary actions/highlights */
+    --primary-foreground: 0 0% 100%; 
+
+    --secondary: 285 96% 53%; /* Lighter/Pinkish Purple */
+    --secondary-foreground: 270 95% 15%;
+
+    --muted: 260 20% 25%;
+    --muted-foreground: 260 10% 70%;
+
+    --accent: 45 100% 55%; /* Gold/Yellow for main accent */
+    --accent-foreground: 45 100% 15%;
+
+    --destructive: 0 70% 55%; 
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 260 20% 30%; 
+    --input: 260 20% 20%; 
+    --ring: 267 98% 60%; 
+    --radius: 0.75rem;
+
+    /* Sidebar specific colors */
+    --sidebar-background: 260 20% 11%; /* Same as body background */
+    --sidebar-foreground: 260 10% 88%;
+    --sidebar-primary: 45 100% 55%; /* Gold for active items */
+    --sidebar-primary-foreground: 45 100% 15%;
+    --sidebar-accent: 267 98% 50%; /* Purple for hover */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 260 20% 25%;
+    --sidebar-ring: 45 100% 55%; /* Gold for ring */
+    
+    /* New variables for header gradient and pattern */
+    --sidebar-header-grad-start: 267 98% 50%; /* Vibrant Purple for gradient */
+    --sidebar-header-grad-end: 285 96% 53%;   /* Lighter Purple for gradient */
+    --pattern-color: 0 0% 100% / 0.05; /* Very subtle white for pattern elements */
+
+
+    --chart-1: 267 98% 50%; /* Vibrant Purple */
+    --chart-2: 45 100% 55%;  /* Accent - Gold */
+    --chart-3: 285 96% 65%; /* Lighter Purple */
+    --chart-4: 210 90% 58%; /* A contrasting blue */
+    --chart-5: 320 80% 65%; /* A magenta/pink */
+  }
+
+  .dark {
+    /* Ensure dark theme aligns */
+    --background: 260 20% 11%;
+    --foreground: 0 0% 100%;
+    --card: 260 20% 16%;
+    --card-foreground: 0 0% 100%;
+    --popover: 260 20% 14%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 267 98% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 285 96% 53%;
+    --secondary-foreground: 270 95% 15%;
+    --muted: 260 20% 25%;
+    --muted-foreground: 260 10% 70%;
+    --accent: 45 100% 55%;
+    --accent-foreground: 45 100% 15%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 260 20% 30%;
+    --input: 260 20% 20%;
+    --ring: 267 98% 60%;
+    
+    --chart-1: 267 98% 50%;
+    --chart-2: 45 100% 55%;
+    --chart-3: 285 96% 65%;
+    --chart-4: 210 90% 58%;
+    --chart-5: 320 80% 65%;
+
+    --sidebar-background: 260 20% 11%;
+    --sidebar-foreground: 260 10% 88%;
+    --sidebar-primary: 45 100% 55%;
+    --sidebar-primary-foreground: 45 100% 15%;
+    --sidebar-accent: 267 98% 50%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 260 20% 25%;
+    --sidebar-ring: 45 100% 55%;
+
+    --sidebar-header-grad-start: 267 98% 50%;
+    --sidebar-header-grad-end: 285 96% 53%;
+    --pattern-color: 0 0% 100% / 0.05;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  /* Game-like button style */
+  .btn-game {
+    @apply bg-gradient-to-r from-primary to-secondary text-primary-foreground font-bold shadow-lg transform transition hover:scale-105 active:scale-95;
+  }
+  .btn-game-accent {
+     @apply bg-gradient-to-r from-accent to-yellow-400 text-accent-foreground font-bold shadow-lg transform transition hover:scale-105 active:scale-95;
+  }
+}
