@@ -1,4 +1,3 @@
-
 {
   "name": "nextn",
   "version": "0.1.0",
@@ -10,7 +9,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/demo.test.mjs",
+    "test:e2e": "playwright test",
+    "lint:demo": "eslint src/demo src/app/demo src/app/layout.tsx",
+    "dev:demo": "next dev --hostname 127.0.0.1 --port 3100",
+    "typecheck:demo": "tsc -p tsconfig.demo.json"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
@@ -59,11 +63,15 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.2.3",
     "genkit-cli": "^1.8.0",
     "postcss": "^8",
+    "prettier": "^3.9.10",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }

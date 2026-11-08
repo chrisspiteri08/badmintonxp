@@ -2,12 +2,14 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  devIndicators: false,
+  // Keep dev browser checks separate from production build artifacts.
+  distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   images: {
     remotePatterns: [
