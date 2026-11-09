@@ -50,6 +50,9 @@ export function DemoApp({ screen }: { screen: Screen }) {
     eventRows = totals(state, "event", "players");
   const own = rows.find((r) => r.you)!;
   const eventOwn = eventRows.find((r) => r.you)!;
+  const teamEvent = totals(state, "event", "teams").find((r) => r.you)!;
+  const level = Math.floor(xp / 250) + 1;
+  const levelXP = xp % 250;
   const attempt = state.attempt;
   const complete = !!attempt?.complete;
   const feedback = !!attempt?.awaitingNext;
@@ -84,7 +87,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
           />
           <span>
             BADMINTON<span>XP</span>
-            <small>THE FAN ARENA</small>
+            <small className="demo-badge">Fictional demo</small>
           </span>
         </Link>
         <Link
@@ -93,7 +96,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
           aria-label={`Lifetime demo XP: ${xp}`}
         >
           <strong data-testid="lifetime-xp">{xp} XP</strong>
-          <small>GUEST · LOCAL</small>
+          <small>YOUR XP</small>
         </Link>
       </header>
       <nav className="demo-nav" aria-label="Guest demo">
@@ -125,7 +128,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
                 alt="Illustrated badminton athletes playing in a dramatic floodlit arena"
               />
               <div className="hero-top">
-                <span className="eyebrow">CURRENT FICTIONAL EVENT / 01</span>
+                <span className="eyebrow">CURRENT EVENT / 01</span>
                 <h1 id="event-title">
                   BIRMINGHAM
                   <br />
@@ -138,12 +141,33 @@ export function DemoApp({ screen }: { screen: Screen }) {
                 </p>
               </div>
               <div className="hero-bottom">
-                <span className="live-label">● PLAYABLE GUEST DEMO</span>
+                <span className="live-label">● YOUR NEXT RALLY</span>
                 <h2>Every rally counts.</h2>
                 <p>
                   Neon Shuttles <span> / </span> Supporting Malaysia
                 </p>
               </div>
+            </section>
+            <section className="level-card" aria-label="Your level progress">
+              <div>
+                <span>LEVEL {level}</span>
+                <strong>
+                  {levelXP} <small>/ 250 XP</small>
+                </strong>
+              </div>
+              <div
+                className="level-track"
+                role="progressbar"
+                aria-label={`Level ${level} progress`}
+                aria-valuenow={levelXP}
+                aria-valuemin={0}
+                aria-valuemax={250}
+              >
+                <span style={{ width: `${(levelXP / 250) * 100}%` }} />
+              </div>
+              <small>
+                {250 - levelXP} XP to level {level + 1}
+              </small>
             </section>
             <div className="arena-grid">
               <section className="play-cards" aria-label="Play challenges">
@@ -163,7 +187,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
                 </Link>
                 <Link className="action-card" href="/demo/prediction">
                   <span>
-                    <small>EMBER vs KITE · FICTIONAL</small>
+                    <small>EMBER vs KITE</small>
                     <strong>MAKE YOUR CALL</strong>
                     <span>
                       {state.settled
@@ -186,7 +210,12 @@ export function DemoApp({ screen }: { screen: Screen }) {
                   <div>
                     <small>YOUR PEOPLE</small>
                     <strong>NEON SHUTTLES</strong>
-                    <span>Fixed demo team · Malaysia</span>
+                    <span>
+                      Malaysia ·{" "}
+                      <b data-testid="team-event-rank">
+                        Event rank #{teamEvent.rank}
+                      </b>
+                    </span>
                   </div>
                   <Link
                     href="/demo/standings"
@@ -220,13 +249,12 @@ export function DemoApp({ screen }: { screen: Screen }) {
                 </ol>
                 <div className="own-rank" data-testid="home-own-rank">
                   <span>
-                    Your actual event position <strong>#{eventOwn.rank}</strong>
+                    Your event position <strong>#{eventOwn.rank}</strong>
                   </span>
                   <b>{eventOwn.xp} XP</b>
                 </div>
                 <p className="muted">
-                  Same scores as the full table. Your new gains:{" "}
-                  <strong>+{gain} XP</strong>.
+                  Your latest gains: <strong>+{gain} XP</strong>.
                 </p>
               </section>
             </div>
@@ -242,7 +270,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
                 alt="Imaginative illustrated city and badminton arena montage"
               />
               <div>
-                <span className="eyebrow">FICTIONAL EVENT</span>
+                <span className="eyebrow">CURRENT EVENT</span>
                 <strong>BIRMINGHAM DEMO CUP</strong>
                 <span>
                   New gains +{gain} XP · Lifetime {xp} XP
@@ -268,15 +296,12 @@ export function DemoApp({ screen }: { screen: Screen }) {
                       <span className="eyebrow">3 QUESTIONS · UP TO 30 XP</span>
                       <h2>Ready for your first rally?</h2>
                       <p>
-                        15 seconds per question. Your first tap locks your
-                        answer. Correct: 10 XP. Wrong or unanswered: 0 XP. No
-                        speed bonus.
+                        Three questions. 15 seconds each. Tap once to lock your
+                        answer. Earn 10 XP for every correct call.
                       </p>
                       <p className="muted">
-                        The clock keeps running through navigation and reloads.
-                        Unanswered questions advance in consecutive 15-second
-                        windows while you are away. After a locked answer,
-                        Continue starts the next question.
+                        Keep your eye on the clock — it keeps running if you
+                        leave.
                       </p>
                       <button
                         className="primary wide"
@@ -287,15 +312,15 @@ export function DemoApp({ screen }: { screen: Screen }) {
                     </>
                   ) : complete ? (
                     <div className="quiz-result" role="status">
-                      <span className="eyebrow">ATTEMPT COMPLETE · LOCKED</span>
+                      <span className="eyebrow">RALLY COMPLETE</span>
                       <h2>That’s your rally.</h2>
-                      <strong className="big-xp" data-testid="quiz-score">
+                      <strong
+                        className="big-xp xp-pop"
+                        data-testid="quiz-score"
+                      >
                         +{quizScore} XP
                       </strong>
-                      <p>
-                        Your actual score is on the ledger. This quiz cannot
-                        award XP again until a full demo reset.
-                      </p>
+                      <p>Nice rally. Here’s how you played.</p>
                       <ol className="answer-review">
                         {attempt.answers.map((a, i) => (
                           <li key={i}>
@@ -317,7 +342,14 @@ export function DemoApp({ screen }: { screen: Screen }) {
                       </Link>
                     </div>
                   ) : feedback && last ? (
-                    <div role="status">
+                    <div
+                      key={lastIndex}
+                      role="status"
+                      className={`answer-reveal ${last.xp ? "is-correct" : "is-wrong"}`}
+                    >
+                      <span className="reveal-icon" aria-hidden="true">
+                        {last.xp ? "✓" : "×"}
+                      </span>
                       <span className="eyebrow">
                         QUESTION {lastIndex + 1} / 3 · ANSWER LOCKED
                       </span>
@@ -326,7 +358,33 @@ export function DemoApp({ screen }: { screen: Screen }) {
                           ? "Clean winner."
                           : "Keep your head in the game."}
                       </h2>
-                      <strong className="big-xp">+{last.xp} XP</strong>
+                      <span className="reveal-label">
+                        {last.xp ? "CORRECT ANSWER" : "WRONG ANSWER"}
+                      </span>
+                      <strong className="big-xp xp-pop">+{last.xp} XP</strong>
+                      <div className="reveal-options">
+                        {QUESTIONS[lastIndex].options.map((option, i) => (
+                          <div
+                            key={option}
+                            className={
+                              i === QUESTIONS[lastIndex].correct
+                                ? "correct-option"
+                                : i === last.option
+                                  ? "wrong-option"
+                                  : ""
+                            }
+                          >
+                            <span>{option}</span>
+                            <strong>
+                              {i === QUESTIONS[lastIndex].correct
+                                ? "✓ Correct"
+                                : i === last.option
+                                  ? "× Your pick"
+                                  : ""}
+                            </strong>
+                          </div>
+                        ))}
+                      </div>
                       <p>{QUESTIONS[lastIndex].explanation}</p>
                       <p>Attempt score so far: {quizScore} XP</p>
                       <button
@@ -348,12 +406,27 @@ export function DemoApp({ screen }: { screen: Screen }) {
                           aria-label={`${remaining} seconds remaining`}
                           data-testid="quiz-timer"
                         >
-                          {remaining}s
+                          <svg viewBox="0 0 80 80" aria-hidden="true">
+                            <circle
+                              className="countdown-track"
+                              cx="40"
+                              cy="40"
+                              r="34"
+                            />
+                            <circle
+                              className="countdown-arc"
+                              cx="40"
+                              cy="40"
+                              r="34"
+                              pathLength="100"
+                              strokeDasharray="100"
+                              strokeDashoffset={100 - (remaining / 15) * 100}
+                            />
+                          </svg>
+                          <span>{remaining}s</span>
                         </strong>
                       </div>
-                      <div className="clock-track" aria-hidden="true">
-                        <div style={{ width: `${(remaining / 15) * 100}%` }} />
-                      </div>
+
                       <h2 data-testid="quiz-question">{question.text}</h2>
                       <div className="answer-grid">
                         {question.options.map((option, i) => (
@@ -368,12 +441,9 @@ export function DemoApp({ screen }: { screen: Screen }) {
                           </button>
                         ))}
                       </div>
-                      <p className="muted">
-                        Tap once to lock. No confirmation step. No replay for
-                        XP.
-                      </p>
+                      <p className="muted">First tap. Final answer.</p>
                       <span className="score-line">
-                        ACTUAL ATTEMPT SCORE <strong>{quizScore} XP</strong>
+                        YOUR SCORE <strong>{quizScore} XP</strong>
                       </span>
                     </>
                   )}
@@ -395,10 +465,10 @@ export function DemoApp({ screen }: { screen: Screen }) {
                             ? "ENTRIES CLOSED"
                             : "ENTRIES OPEN"}
                     </span>
-                    <span className="muted">Free · no stakes</span>
+                    <span className="muted">20 XP to win</span>
                   </div>
                   <h2>Who takes the win?</h2>
-                  <p>Fictional singles exhibition · Ember vs Kite</p>
+                  <p>Singles exhibition · Ember vs Kite</p>
                   <div className="fixture-art" aria-hidden="true">
                     <Image
                       unoptimized
@@ -412,11 +482,10 @@ export function DemoApp({ screen }: { screen: Screen }) {
                     </strong>
                   </div>
                   <p className="deadline">
-                    Entries close strictly before{" "}
-                    <strong>{deadline} UTC</strong> on the demo clock.
+                    Entries close at <strong>{deadline} UTC</strong>.
                     <br />
                     <span>
-                      Demo clock:{" "}
+                      Time:{" "}
                       {new Date(now).toLocaleTimeString("en-GB", {
                         timeZone: "UTC",
                       })}{" "}
@@ -443,15 +512,13 @@ export function DemoApp({ screen }: { screen: Screen }) {
                         <small>
                           {state.entry?.option === name
                             ? "YOUR LOCKED PICK ✓"
-                            : "FICTIONAL ATHLETE"}
+                            : "MAKE YOUR CALL"}
                         </small>
                       </button>
                     ))}
                   </div>
                   <p className="muted">
-                    One entry. Entry earns 0 XP. A correct simulated result
-                    earns 20 XP; incorrect earns 0. No real match, prizes or
-                    results.
+                    Pick once. A correct call earns 20 XP.
                   </p>
                   <div
                     role="status"
@@ -459,19 +526,18 @@ export function DemoApp({ screen }: { screen: Screen }) {
                     className="prediction-status"
                   >
                     {state.settled
-                      ? `Simulated-settled: Ember wins. ${state.entry ? `Your pick: ${state.entry.option} · +${state.entry.option === "Ember" ? 20 : 0} XP. Award recorded once.` : "No entry · 0 XP."}`
+                      ? `Simulated-settled: Ember wins. ${state.entry ? `Your pick: ${state.entry.option} · +${state.entry.option === "Ember" ? 20 : 0} XP.` : "No entry · 0 XP."}`
                       : state.entry
-                        ? `Pending · Your ${state.entry.option} entry is locked. No XP awarded yet.`
+                        ? `Pending · Your ${state.entry.option} entry is locked.`
                         : closed
                           ? "Entries closed. No guest entry."
-                          : "Choose an athlete to lock your one demo entry."}
+                          : "Choose an athlete to lock your pick."}
                   </div>
-                  <details className="simulation" open>
-                    <summary>Simulation controls · fictional only</summary>
+                  <details className="simulation">
+                    <summary>Demo: settle result</summary>
                     <p>
-                      Advance the local demo clock to the deadline, then reveal
-                      the fixed result: Ember wins. Advancing time also expires
-                      any running quiz questions.
+                      Close entries, then reveal the result: Ember wins. This
+                      also advances any running quiz clock.
                     </p>
                     <div className="button-row">
                       <button
@@ -494,9 +560,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
             )}
             {screen === "standings" && (
               <section className="standings-section">
-                <span className="eyebrow">
-                  FRIENDLY RIVALRY / ALL SCORES FICTIONAL
-                </span>
+                <span className="eyebrow">FRIENDLY RIVALRY</span>
                 <h1>Never rise alone.</h1>
                 <div className="filter-row" aria-label="Standings period">
                   {(["event", "season"] as const).map((s) => (
@@ -511,9 +575,8 @@ export function DemoApp({ screen }: { screen: Screen }) {
                 </div>
                 <p className="muted">
                   {scope === "event"
-                    ? "Birmingham Demo Cup only."
-                    : "Demo season: earlier Harbour Cup + current Birmingham Demo Cup."}{" "}
-                  Lifetime XP stays {xp}.
+                    ? "Birmingham Demo Cup"
+                    : "Harbour Cup + Birmingham Demo Cup"}
                 </p>
                 <div
                   className="filter-row leagues"
@@ -590,11 +653,6 @@ export function DemoApp({ screen }: { screen: Screen }) {
                     </tbody>
                   </table>
                 </div>
-                <p className="muted">
-                  Ties share rank; stable IDs set display order only. Teams and
-                  countries sum attributed awards. This is a demo aggregation,
-                  not an approved team-size fairness or prize rule.
-                </p>
               </section>
             )}
             {screen === "progress" && (
@@ -606,7 +664,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
                   <span>Shared pride.</span>
                 </h1>
                 <div className="panel">
-                  <span className="eyebrow">NEW DEMO GAINS</span>
+                  <span className="eyebrow">YOUR LATEST GAINS</span>
                   <strong className="big-xp">+{gain} XP</strong>
                   <p>
                     Lifetime: <strong>{xp} XP</strong> · Current event:{" "}
@@ -614,13 +672,10 @@ export function DemoApp({ screen }: { screen: Screen }) {
                     <strong>#{eventOwn.rank}</strong>
                   </p>
                   <p>
-                    Fixed team: {PEOPLE[0].team} · Country: {PEOPLE[0].country}
+                    Team: {PEOPLE[0].team} · Country: {PEOPLE[0].country}
                   </p>
                   <p className="muted">
-                    Your team and country receive the same attributed gains.
-                    They are not extra personal XP. Earlier fictional season
-                    activity contributes 100 guest XP; the current event starts
-                    with 40.
+                    Every point lifts your team and country too.
                   </p>
                   <div className="progress-line">
                     <span>Shuttle IQ</span>
@@ -652,15 +707,18 @@ export function DemoApp({ screen }: { screen: Screen }) {
                   </div>
                 </div>
                 <details className="ledger">
-                  <summary>
-                    Local score ledger · {state.ledger.length} awards
-                  </summary>
+                  <summary>XP history</summary>
                   <ul>
                     {state.ledger
                       .filter((a) => a.user === "guest")
                       .map((a) => (
                         <li key={a.id}>
-                          {a.challenge} · {a.event} <strong>+{a.xp} XP</strong>
+                          {a.challenge === "shuttle-iq"
+                            ? "Shuttle IQ"
+                            : a.challenge === "ember-kite"
+                              ? "Match call"
+                              : "Earlier rallies"}{" "}
+                          <strong>+{a.xp} XP</strong>
                         </li>
                       ))}
                   </ul>
@@ -671,12 +729,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
         )}
       </main>
       <footer>
-        <strong>INDEPENDENT FAN GAME · FICTIONAL DEMO</strong>
-        <p>
-          No official or sponsor affiliation. No accounts, live results, real
-          prizes or stakes. Local state is editable and not trustworthy for
-          production competition. Monthly/yearly cadence is undecided.
-        </p>
+        <p>Independent fan game. No live results or real prizes.</p>
         <button className="text-button" onClick={() => setConfirmReset(true)}>
           Full demo reset
         </button>

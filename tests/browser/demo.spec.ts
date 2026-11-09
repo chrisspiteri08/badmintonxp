@@ -21,6 +21,15 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
   await page.goto("/demo");
   await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
   const capture = async (name: string) => {
+    // Capture complete artwork, including images initially below the fold.
+    await page.locator("img").evaluateAll(async (images) => {
+      await Promise.all(
+        images.map(async (image) => {
+          image.loading = "eager";
+          await image.decode();
+        }),
+      );
+    });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -29,8 +38,13 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
     await page.screenshot({
       path: path.join(output, `${testInfo.project.name}-${name}.png`),
       fullPage: true,
+      animations: "disabled",
     });
   };
+  await expect(
+    page.getByRole("progressbar", { name: "Level 1 progress" }),
+  ).toHaveAttribute("aria-valuenow", "140");
+  await expect(page.getByTestId("team-event-rank")).toContainText("#1");
   await capture("home");
   const originalTop = await page.getByTestId("home-top-three").innerText();
   expect(originalTop).toContain("Net Nomad");
@@ -38,6 +52,14 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
   await page.getByRole("link", { name: /PLAY QUIZ/ }).click();
   await page.getByRole("button", { name: "Start quiz" }).click();
   await expect(page.getByTestId("quiz-question")).toContainText("feathers");
+  await expect(page.locator(".countdown-arc")).toBeVisible();
+  const answerBox = await page
+    .getByRole("button", { name: "C 16", exact: true })
+    .boundingBox();
+  expect(answerBox!.height).toBeGreaterThanOrEqual(88);
+  expect(answerBox!.y + answerBox!.height).toBeLessThanOrEqual(
+    testInfo.project.use.viewport!.height,
+  );
   await capture("quiz");
   const deadline = await page.evaluate(
     (k) => JSON.parse(localStorage.getItem(k)!).attempt.deadline,
@@ -64,6 +86,7 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
   await expect(
     page.getByRole("heading", { name: "Clean winner." }),
   ).toBeVisible();
+  await capture("quiz-correct");
   expect(
     await page.evaluate(
       (k) => JSON.parse(localStorage.getItem(k)!).attempt.answers.length,
@@ -72,6 +95,8 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
   ).toBe(1);
   await page.getByRole("button", { name: "Next question" }).click();
   await page.getByRole("button", { name: "A One point", exact: true }).click();
+  await expect(page.locator(".answer-reveal.is-wrong")).toBeVisible();
+  await capture("quiz-wrong");
   await page.getByRole("button", { name: "Next question" }).click();
   await page.clock.runFor(16000);
   await expect(page.getByTestId("quiz-score")).toHaveText("+10 XP");
@@ -85,6 +110,7 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
   await expect(page.getByTestId("prediction-status")).toContainText("Pending");
   await expect(page.getByTestId("lifetime-xp")).toHaveText("150 XP");
   await expect(page.getByRole("button", { name: /02 Kite/ })).toBeDisabled();
+  await page.getByText("Demo: settle result", { exact: true }).click();
   await page
     .getByRole("button", { name: "Close entries / advance demo time" })
     .click();
@@ -93,9 +119,11 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
     "Simulated-settled: Ember wins",
   );
   await expect(page.getByTestId("lifetime-xp")).toHaveText("170 XP");
+  await page.getByText("Demo: settle result", { exact: true }).click();
   await capture("settlement");
   await page.reload();
   await expect(page.getByTestId("lifetime-xp")).toHaveText("170 XP");
+  await page.getByText("Demo: settle result", { exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Settle fictional result" }),
   ).toBeDisabled();
@@ -145,6 +173,7 @@ test("reload after unanswered absence catches up; late entry and direct-route re
   await expect(page.getByTestId("quiz-score")).toHaveText("+0 XP");
   await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
   await page.goto("/demo/prediction");
+  await page.getByText("Demo: settle result", { exact: true }).click();
   await page
     .getByRole("button", { name: "Close entries / advance demo time" })
     .click();
@@ -170,6 +199,7 @@ test("keyboard final answer includes final XP; reduced motion and corrupt-store 
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("quiz-score")).toHaveText("+10 XP");
   await expect(page.getByTestId("lifetime-xp")).toHaveText("150 XP");
+  await expect(page.locator(".xp-pop")).toHaveCSS("animation-name", "none");
   await page.reload();
   await expect(page.getByTestId("lifetime-xp")).toHaveText("150 XP");
   await page.evaluate((k) => localStorage.setItem(k, '{"version":99}'), key);
