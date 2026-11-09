@@ -10,11 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn, ShieldCheck, UserCircle, Feather, UserPlus, FileText, Heart, Phone, Globe as GlobeIcon, Loader2 } from 'lucide-react';
+import { LogIn, UserCircle, Feather, UserPlus, FileText, Heart, Phone, Globe as GlobeIcon, Loader2 } from 'lucide-react';
 import type { User } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SupabaseConfigErrorDisplay } from '@/components/layout/config-error-display';
-import { supabase } from '@/lib/supabaseClient';
 
 const countries = [
   { code: "AF", name: "Afghanistan" }, { code: "AL", name: "Albania" }, { code: "DZ", name: "Algeria" },
@@ -204,77 +203,6 @@ function LoginLogic() {
     }
   };
 
-  const handleAdminLogin = async () => {
-    setIsSubmitting(true);
-    const adminEmail = 'admin@badmintonxp.com';
-    const adminPassword = 'adminpassword';
-    
-    // First, try to log in
-    const { success: loginSuccess, error: loginError } = await loginWithPassword({ email: adminEmail, password: adminPassword });
-
-    // If login fails, it might be because the user doesn't exist. Try to sign them up.
-    if (!loginSuccess && loginError && (loginError.message.includes('Invalid login credentials') || loginError.message.includes('User not found'))) {
-        console.log("Admin user not found or invalid credentials, attempting to create admin...");
-        const { success: signUpSuccess, error: signUpError } = await signUpUser(
-            { email: adminEmail, password: adminPassword },
-            {
-                name: 'Admin User',
-                firstName: 'Admin',
-                lastName: 'User',
-                country: 'System',
-                avatarUrl: `https://placehold.co/100x100.png?text=A`,
-                continent: 'System',
-                referralCode: 'ADMIN',
-                mobile: '',
-                favouritePlayer: '',
-                agreedToTerms: true,
-            },
-            true // Pass a flag to indicate this is an admin signup
-        );
-
-        if (signUpSuccess) {
-            toast({ title: "Admin Account Created", description: "Admin account has been created. Logging in..." });
-            // After successful signup, try logging in again.
-            await loginWithPassword({ email: adminEmail, password: adminPassword });
-        } else {
-            toast({
-                title: "Admin Setup Failed",
-                description: `Could not create the admin account: ${signUpError?.message}`,
-                variant: "destructive",
-                duration: 10000
-            });
-        }
-    } else if (loginError) {
-        toast({
-            title: "Admin Login Failed",
-            description: `Could not log in as admin: ${loginError.message}`,
-            variant: "destructive",
-            duration: 10000
-        });
-    }
-    
-    // Check if the now-logged-in user has the admin role. If not, update them.
-    // This handles the case where the admin user was somehow created as a 'player'.
-    const { data: { session } } = await supabase.auth.getSession();
-    if(session?.user) {
-        const {data: profile, error: profileError} = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-        if (profile && profile.role !== 'admin') {
-            console.log("User exists but is not an admin. Updating role...");
-            await supabase.from('profiles').update({ role: 'admin' }).eq('id', session.user.id);
-            // Re-fetch user in auth context to get updated role
-             const { data: { session: newSession } } = await supabase.auth.getSession();
-             if (newSession?.user) {
-                // Manually trigger a refresh of the user profile in the auth context
-                // This part depends on how your AuthProvider is structured. Assuming a function exists.
-                // For this app, the onAuthStateChange listener should handle it, but a manual call might be safer.
-                router.refresh(); // This can help reload server components and contexts
-             }
-        }
-    }
-
-    setIsSubmitting(false);
-  };
-
 
   if (isLoading && !user) {
     return (
@@ -395,7 +323,7 @@ function LoginLogic() {
                 </CardContent>
                 <CardFooter className="flex flex-col space-y-4">
                 <Button type="submit" className="w-full text-lg py-6 btn-game" disabled={isSubmitting}>
-                    {isSubmitting && loginEmail !== 'admin@badmintonxp.com' ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <LogIn className="mr-2 h-6 w-6" />}
+                    {isSubmitting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <LogIn className="mr-2 h-6 w-6" />}
                     Login as Player
                 </Button>
                 <div className="text-center w-full">
@@ -411,10 +339,7 @@ function LoginLogic() {
                     </Button>
                     </p>
                 </div>
-                <Button onClick={handleAdminLogin} variant="outline" className="w-full text-lg py-6 border-primary text-primary hover:bg-primary/10 hover:text-primary font-semibold" disabled={isSubmitting}>
-                    {isSubmitting && loginEmail === 'admin@badmintonxp.com' ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <ShieldCheck className="mr-2 h-6 w-6" />}
-                     Login as Admin
-                </Button>
+
                 </CardFooter>
             </form>
         )}

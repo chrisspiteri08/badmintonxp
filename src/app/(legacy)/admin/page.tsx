@@ -70,10 +70,10 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>New user 'PlayerX123' registered.</li>
-                    <li>Team 'Alpha Shuttlers' created by 'CaptainSmash'.</li>
-                    <li>Challenge 'Weekend Warrior Quiz' published.</li>
-                    <li>Report received for user 'ToxicPlayer01'.</li>
+                    <li>New user &apos;PlayerX123&apos; registered.</li>
+                    <li>Team &apos;Alpha Shuttlers&apos; created by &apos;CaptainSmash&apos;.</li>
+                    <li>Challenge &apos;Weekend Warrior Quiz&apos; published.</li>
+                    <li>Report received for user &apos;ToxicPlayer01&apos;.</li>
                 </ul>
             </CardContent>
         </Card>

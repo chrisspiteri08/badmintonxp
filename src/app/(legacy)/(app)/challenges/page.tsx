@@ -137,7 +137,7 @@ export default function ChallengesPage() {
       setChallenges(prevChallenges =>
         prevChallenges.map(c =>
           c.id === completedChallengeId && (c.type !== 'prediction' || challengeTypeFromQuery === 'quiz') 
-            ? { ...c, status: 'completed' } 
+            ? { ...c, status: 'completed' as const }
             : c
         )
       );
@@ -202,7 +202,7 @@ export default function ChallengesPage() {
       updateUserPoints(challenge.pointsValue); 
       setChallenges(prevChallenges =>
         prevChallenges.map(c =>
-          c.id === challenge.id ? { ...c, status: 'completed' } : c
+          c.id === challenge.id ? { ...c, status: 'completed' as const } : c
         )
       );
       toast({
@@ -214,7 +214,7 @@ export default function ChallengesPage() {
       updateUserPoints(challenge.pointsValue);
       setChallenges(prevChallenges =>
         prevChallenges.map(c =>
-          c.id === challenge.id ? { ...c, status: 'completed' } : c
+          c.id === challenge.id ? { ...c, status: 'completed' as const } : c
         )
       );
       toast({

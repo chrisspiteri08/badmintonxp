@@ -34,24 +34,24 @@ const TeamCard = ({ team }: { team: Team }) => (
     <CardContent className="pt-12 flex-grow"> {/* pt-12 to make space for overlapping avatar */}
       <CardTitle className="text-xl font-bold text-primary mb-1">{team.name}</CardTitle>
       <div className="flex items-center text-sm text-muted-foreground mb-2">
-        <ShieldCheck className="h-4 w-4 mr-1 text-green-500" /> Captain: {team.members.find(m => m.id === team.captainId)?.name || 'N/A'}
+        <ShieldCheck className="h-4 w-4 mr-1 text-green-500" /> Captain: {(team.members ?? []).find(m => m.id === team.captainId)?.name || 'N/A'}
       </div>
       <div className="flex items-center text-sm text-muted-foreground mb-2">
-        <Users className="h-4 w-4 mr-1 text-blue-500" /> {team.members.length} / 10 Members
+        <Users className="h-4 w-4 mr-1 text-blue-500" /> {(team.members ?? []).length} / 10 Members
       </div>
       <div className="flex items-center text-sm text-accent mb-4">
         <Star className="h-4 w-4 mr-1" /> {team.points.toLocaleString()} Team Points
       </div>
       <div className="flex -space-x-2 overflow-hidden mb-2">
-        {team.members.slice(0, 5).map(member => (
+        {(team.members ?? []).slice(0, 5).map(member => (
           <Avatar key={member.id} className="inline-block h-8 w-8 rounded-full ring-2 ring-background">
             <AvatarImage src={member.avatarUrl} data-ai-hint="profile avatar" />
             <AvatarFallback>{member.name.substring(0,1)}</AvatarFallback>
           </Avatar>
         ))}
-        {team.members.length > 5 && (
+        {(team.members ?? []).length > 5 && (
           <Avatar className="inline-block h-8 w-8 rounded-full ring-2 ring-background">
-            <AvatarFallback>+{team.members.length - 5}</AvatarFallback>
+            <AvatarFallback>+{(team.members ?? []).length - 5}</AvatarFallback>
           </Avatar>
         )}
       </div>

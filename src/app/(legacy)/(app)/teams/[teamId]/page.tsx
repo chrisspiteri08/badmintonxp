@@ -164,7 +164,7 @@ export default function TeamDetailsPage() {
 
   const isUserDefinitelyMemberOfThisTeamPage = currentUser.teamId === team.id; 
   const isUserCaptainOfThisTeam = isUserDefinitelyMemberOfThisTeamPage && currentUser.id === team.captainId;
-  const canUserJoinThisTeam = !currentUser.teamId && team.members.length < 10;
+  const canUserJoinThisTeam = !currentUser.teamId && (team.members ?? []).length < 10;
 
 
   const updateTeamInLocalStorage = (updatedTeam: Team) => {
@@ -186,7 +186,7 @@ export default function TeamDetailsPage() {
       allTeams.push(updatedTeam); 
     }
     localStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(allTeams));
-    console.log(`TeamDetailsPage (updateTeamInLocalStorage): Updated team ${updatedTeam.id} in localStorage. New members count: ${updatedTeam.members.length}`);
+    console.log(`TeamDetailsPage (updateTeamInLocalStorage): Updated team ${updatedTeam.id} in localStorage. New members count: ${(updatedTeam.members ?? []).length}`);
   };
 
 
@@ -195,7 +195,7 @@ export default function TeamDetailsPage() {
     
     assignTeamToUser(teamData.id); 
     
-    const newMembersList = teamData.members.filter(m => m.id !== currentUser.id); 
+    const newMembersList = (teamData.members ?? []).filter(m => m.id !== currentUser.id);
     newMembersList.push({...currentUser, teamId: teamData.id}); // Add user with updated teamId
 
     const updatedTeamForStorage = { 
@@ -218,7 +218,7 @@ export default function TeamDetailsPage() {
     
     removeUserFromTeam(); 
     
-    const newMembersList = teamData.members.filter(m => m.id !== currentUser.id);
+    const newMembersList = (teamData.members ?? []).filter(m => m.id !== currentUser.id);
     const updatedTeamForStorage: Team = { 
         ...teamData, 
         members: newMembersList, 
@@ -270,12 +270,12 @@ export default function TeamDetailsPage() {
             </div>
             <div className="flex flex-col items-center md:items-start p-4 bg-background rounded-lg shadow">
                 <Users className="h-8 w-8 text-primary mb-2" />
-                <p className="text-2xl font-bold text-primary">{team.members.length} / 10</p>
+                <p className="text-2xl font-bold text-primary">{(team.members ?? []).length} / 10</p>
                 <p className="text-sm text-muted-foreground">Members</p>
             </div>
             <div className="flex flex-col items-center md:items-start p-4 bg-background rounded-lg shadow">
                 <ShieldCheck className="h-8 w-8 text-green-500 mb-2" />
-                <p className="text-xl font-semibold text-primary">{team.members.find(m => m.id === team.captainId)?.name || 'N/A'}</p>
+                <p className="text-xl font-semibold text-primary">{(team.members ?? []).find(m => m.id === team.captainId)?.name || 'N/A'}</p>
                 <p className="text-sm text-muted-foreground">Captain</p>
             </div>
         </CardContent>
@@ -313,9 +313,9 @@ export default function TeamDetailsPage() {
             )}
             
             {!isUserDefinitelyMemberOfThisTeamPage && currentUser.teamId && currentUser.teamId !== team.id && (
-                 <Button disabled variant="outline">You're in another team</Button>
+                 <Button disabled variant="outline">You&apos;re in another team</Button>
             )}
-            {!isUserDefinitelyMemberOfThisTeamPage && !currentUser.teamId && team.members.length >= 10 && (
+            {!isUserDefinitelyMemberOfThisTeamPage && !currentUser.teamId && (team.members ?? []).length >= 10 && (
                  <Button disabled variant="outline">Team Full</Button>
             )}
         </CardFooter>
@@ -326,9 +326,9 @@ export default function TeamDetailsPage() {
           <CardTitle className="text-2xl text-primary">Team Members</CardTitle>
         </CardHeader>
         <CardContent>
-          {team.members.length > 0 ? (
+          {(team.members ?? []).length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {team.members.map(member => (
+              {(team.members ?? []).map(member => (
                 <div key={member.id} className="flex items-center gap-3 p-3 bg-background rounded-lg shadow-sm border border-border">
                   <Avatar className="h-12 w-12">
                     <AvatarImage src={member.avatarUrl} alt={member.name} data-ai-hint="profile avatar"/>
@@ -337,7 +337,7 @@ export default function TeamDetailsPage() {
                   <div>
                     <p className="font-semibold text-foreground flex items-center">
                       {member.name}
-                      {member.id === team.captainId && <Crown className="ml-2 h-4 w-4 text-yellow-500" title="Captain"/>}
+                      {member.id === team.captainId && <Crown className="ml-2 h-4 w-4 text-yellow-500" aria-label="Captain"/>}
                     </p>
                     <p className="text-xs text-muted-foreground">Level {member.level} - {member.points.toLocaleString()} XP</p>
                   </div>

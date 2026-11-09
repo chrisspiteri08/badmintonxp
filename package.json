@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/demo.test.mjs",
+    "test": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test",
     "lint:demo": "eslint src/demo src/app/demo src/app/layout.tsx",
     "dev:demo": "next dev --hostname 127.0.0.1 --port 3100",

@@ -1,6 +1,6 @@
 
 "use client";
-import { useState, useMemo, FormEvent, ChangeEvent, useEffect } from 'react';
+import { useState, useMemo, FormEvent, ChangeEvent, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,13 +65,12 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [currentUserFormData, setCurrentUserFormData] = useState<typeof initialUserFormData>({...initialUserFormData});
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const fetchUsers = useCallback(async () => {
+    const client = supabase;
+    if (!client) { setIsLoading(false); return; }
 
-  const fetchUsers = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
     if (error) {
       toast({ title: "Error fetching users", description: error.message, variant: "destructive" });
       setUsers([]);
@@ -79,7 +78,9 @@ export default function AdminUsersPage() {
       setUsers(data as UserType[]);
     }
     setIsLoading(false);
-  };
+  }, [toast]);
+
+  useEffect(() => { void fetchUsers(); }, [fetchUsers]);
 
   const filteredUsers = useMemo(() => {
     return users.filter(user =>
@@ -129,6 +130,11 @@ export default function AdminUsersPage() {
   
   const handleUserFormSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const client = supabase;
+    if (!client) {
+      toast({ title: "Backend unavailable", description: "Configure the backend before using this action.", variant: "destructive" });
+      return;
+    }
     if (!currentUserFormData.name || (editingUser ? false : (!currentUserFormData.email || !currentUserFormData.password)) ) {
       toast({ title: "Error", description: "Name is required. Email and Password are required for new users.", variant: "destructive" });
       return;
@@ -153,7 +159,7 @@ export default function AdminUsersPage() {
 
     if (editingUser) {
       // Update existing user's profile
-      const { error } = await supabase
+      const { error } = await client
         .from('profiles')
         .update(profileUpdateData)
         .eq('id', editingUser.id);
@@ -168,7 +174,7 @@ export default function AdminUsersPage() {
       }
     } else {
       // Create new user via Supabase Auth, then profile is created by trigger
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { data: authData, error: authError } = await client.auth.signUp({
         email: currentUserFormData.email!,
         password: currentUserFormData.password!,
         options: {
@@ -186,7 +192,7 @@ export default function AdminUsersPage() {
         // For admin creation, usually auto-confirm or set user as confirmed.
         // We assume profile trigger works.
         // If user is created but profile trigger might be slow, or if manual profile update is needed:
-        // await supabase.from('profiles').update(profileUpdateData).eq('id', authData.user.id);
+        // await client.from('profiles').update(profileUpdateData).eq('id', authData.user.id);
         
         toast({ title: "User Added", description: `User "${profileUpdateData.name}" has been created. They might need to confirm their email.` });
         fetchUsers(); // Refresh list
@@ -198,6 +204,9 @@ export default function AdminUsersPage() {
   };
 
   const handleDeleteUser = async (userIdToDelete: string) => {
+    const client = supabase;
+    if (!client) return;
+
     const userBeingDeleted = users.find(u => u.id === userIdToDelete);
     if (!userBeingDeleted) return;
 
@@ -217,7 +226,7 @@ export default function AdminUsersPage() {
     // For this client-side prototype, we will only delete from 'profiles'.
     // The user will still exist in auth.users.
 
-    const { error: profileError } = await supabase.from('profiles').delete().eq('id', userIdToDelete);
+    const { error: profileError } = await client.from('profiles').delete().eq('id', userIdToDelete);
 
     if (profileError) {
       toast({ title: "Deletion Failed", description: `Could not delete profile: ${profileError.message}`, variant: "destructive" });
@@ -437,7 +446,7 @@ export default function AdminUsersPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will delete the user's profile data. The Auth user may still exist in Supabase Auth if not deleted via server-side logic.
+                            This will delete the user&apos;s profile data. The Auth user may still exist in Supabase Auth if not deleted via server-side logic.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

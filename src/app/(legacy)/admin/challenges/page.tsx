@@ -239,7 +239,7 @@ export default function AdminChallengesPage() {
      setCurrentQuestion(prev => {
       const newCurrentQuestion = { ...prev };
       if (type === 'checkbox') {
-        newCurrentQuestion[name as keyof typeof newCurrentQuestion] = checked as any;
+        if (name === 'isBonus') newCurrentQuestion.isBonus = checked;
       } else if (name === 'points') {
         newCurrentQuestion.points = parseInt(value) || 0;
       } else {
@@ -770,7 +770,7 @@ export default function AdminChallengesPage() {
                                 <Card key={opt.id} className="p-2 bg-card/70">
                                     <div className="flex justify-between items-center">
                                         <p className="text-sm">{idx + 1}. {opt.text}</p>
-                                        <Button type="button" variant="destructive" size="icon-sm" onClick={() => handleRemovePredictionOptionFromChallenge(opt.id)}>
+                                        <Button type="button" variant="destructive" size="icon" onClick={() => handleRemovePredictionOptionFromChallenge(opt.id)}>
                                             <Trash2 className="h-3.5 w-3.5" />
                                         </Button>
                                     </div>
@@ -900,7 +900,7 @@ export default function AdminChallengesPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action will permanently delete the challenge "{challenge.title}". This cannot be undone.
+                            This action will permanently delete the challenge &quot;{challenge.title}&quot;. This cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

@@ -124,7 +124,7 @@ export default function LeaderboardsPage() {
       .map(team => ({
         ...team,
         // Ensure points are calculated if not already correctly stored by creation/join logic
-        points: team.members.reduce((sum, member) => {
+        points: (team.members ?? []).reduce((sum, member) => {
             // Find full member details from allUsers if members array only contains IDs
             const fullMember = allUsers.find(u => u.id === (typeof member === 'string' ? member : member.id));
             return sum + (fullMember?.points || 0);
@@ -202,7 +202,7 @@ export default function LeaderboardsPage() {
             World Champions
           </CardTitle>
           <CardDescription className="text-xl text-muted-foreground mt-2">
-            See who's dominating the courts globally and locally.
+            See who&apos;s dominating the courts globally and locally.
           </CardDescription>
         </CardHeader>
       </Card>

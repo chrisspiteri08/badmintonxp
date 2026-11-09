@@ -104,7 +104,7 @@ export default function QuizChallengePage() {
     return challenge?.questions?.[currentQuestionIndex];
   }, [challenge, currentQuestionIndex]);
 
-  const progressPercentage = challenge?.questions ? ((currentQuestionIndex + 1 ) / challenge.questions.length) * 100 : 0;
+  const progressPercentage = challenge?.questions ? ((currentQuestionIndex + 1 ) / (challenge.questions?.length ?? 0)) * 100 : 0;
   const timerProgress = (timeLeft / QUIZ_TIMER_SECONDS) * 100;
 
   
@@ -126,7 +126,7 @@ export default function QuizChallengePage() {
             if (storedChallenges && challenge) {
                 try {
                     let allChallengesFromStorage: Challenge[] = JSON.parse(storedChallenges);
-                    allChallengesFromStorage = allChallengesFromStorage.map(c => c.id === challenge.id ? { ...c, status: 'completed' } : c);
+                    allChallengesFromStorage = allChallengesFromStorage.map(c => c.id === challenge.id ? { ...c, status: 'completed' as const } : c);
                     localStorage.setItem(LOCAL_STORAGE_CHALLENGES_KEY, JSON.stringify(allChallengesFromStorage));
                 } catch (e) { console.error("Failed to update challenge status globally", e); }
             }
@@ -256,7 +256,7 @@ export default function QuizChallengePage() {
           <Award className="h-28 w-28 text-accent mx-auto mb-4 animate-bounce" />
           <CardTitle className="text-4xl font-bold text-primary">Quiz Mastered!</CardTitle>
           <CardDescription className="text-lg text-muted-foreground">
-            You've conquered the "{challenge.title}" quiz!
+            You&apos;ve conquered the &quot;{challenge.title}&quot; quiz!
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -292,7 +292,7 @@ export default function QuizChallengePage() {
           </div>
           <CardTitle className="text-2xl md:text-3xl font-bold text-primary">{challenge.title}</CardTitle>
           <CardDescription className="text-muted-foreground mt-1">
-            Question {currentQuestionIndex + 1} of {challenge.questions.length}
+            Question {currentQuestionIndex + 1} of {(challenge.questions?.length ?? 0)}
             {currentQuestion.isBonus && <Badge variant="destructive" className="ml-2 animate-pulse py-0.5 px-2 text-xs">BONUS!</Badge>}
           </CardDescription>
           <Progress value={progressPercentage} className="w-full h-1.5 mt-3 rounded-full" indicatorClassName="bg-gradient-to-r from-primary to-secondary rounded-full"/>
@@ -379,7 +379,7 @@ export default function QuizChallengePage() {
             {showFeedback ? (
                 <Loader2 className="h-6 w-6 mr-2"/>
             ) : (
-                currentQuestionIndex === (challenge.questions.length - 1) ? 'Finish Quiz' : 'Submit & Next Question'
+                currentQuestionIndex === ((challenge.questions?.length ?? 0) - 1) ? 'Finish Quiz' : 'Submit & Next Question'
             )}
           </Button>
         </CardFooter>

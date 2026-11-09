@@ -141,8 +141,8 @@ export default function AdminTeamsPage() {
                     </Avatar>
                   </TableCell>
                   <TableCell className="font-medium">{team.name}</TableCell>
-                  <TableCell>{team.members.find(m => m.id === team.captainId)?.name || 'N/A'}</TableCell>
-                  <TableCell className="text-center">{team.members.length} / 10</TableCell>
+                  <TableCell>{(team.members ?? []).find(m => m.id === team.captainId)?.name || 'N/A'}</TableCell>
+                  <TableCell className="text-center">{(team.members ?? []).length} / 10</TableCell>
                   <TableCell className="text-right">{(team.points || 0).toLocaleString()}</TableCell>
                   <TableCell className="text-center">
                      <AlertDialog>
@@ -169,7 +169,7 @@ export default function AdminTeamsPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action will permanently delete the team "{team.name}" and all associated data from localStorage. This cannot be undone.
+                            This action will permanently delete the team &quot;{team.name}&quot; and all associated data from localStorage. This cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

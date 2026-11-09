@@ -4,16 +4,14 @@ const output = path.resolve(
   process.env.DEMO_SCREENSHOT_DIR || "../../outputs/screenshots",
 );
 const key = "badmintonxp:guest:v1";
+const origin = process.env.DEMO_BASE_URL || "http://127.0.0.1:3100";
 test("guest journey, persisted clocks, actual ledger, settlement and matching rankings", async ({
   page,
 }, testInfo) => {
   const network: string[] = [],
     errors: string[] = [];
   page.on("request", (r) => {
-    if (
-      !r.url().startsWith("http://127.0.0.1:3100/") &&
-      !r.url().startsWith("data:")
-    )
+    if (!r.url().startsWith(`${origin}/`) && !r.url().startsWith("data:"))
       network.push(r.url());
   });
   page.on("pageerror", (e) => errors.push(e.message));
@@ -25,8 +23,10 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
     await page.locator("img").evaluateAll(async (images) => {
       await Promise.all(
         images.map(async (image) => {
-          image.loading = "eager";
-          await image.decode();
+          if (image instanceof HTMLImageElement) {
+            image.loading = "eager";
+            await image.decode();
+          }
         }),
       );
     });
@@ -67,7 +67,7 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
   );
   await page.clock.runFor(4000);
   await page.getByRole("link", { name: "Arena", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/demo");
+  await expect(page).toHaveURL(`${origin}/demo`);
   await page.reload();
   await page.getByRole("link", { name: /RESUME QUIZ/ }).click();
   expect(
@@ -116,7 +116,7 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
     .click();
   await page.getByRole("button", { name: "Settle fictional result" }).click();
   await expect(page.getByTestId("prediction-status")).toContainText(
-    "Simulated-settled: Ember wins",
+    "Ember wins! You called it. +20 XP",
   );
   await expect(page.getByTestId("lifetime-xp")).toHaveText("170 XP");
   await page.getByText("Demo: settle result", { exact: true }).click();
@@ -211,4 +211,80 @@ test("keyboard final answer includes final XP; reduced motion and corrupt-store 
     .getByRole("button", { name: "Full demo reset", exact: true })
     .click();
   await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
+});
+
+test("prediction countdown and losing copy match the fixed simulated winner", async ({
+  page,
+}, testInfo) => {
+  await page.clock.install();
+  await page.goto("/demo/prediction");
+  await expect(page.getByTestId("prediction-countdown")).toContainText(
+    "Closes in",
+  );
+  await expect(page.getByTestId("prediction-countdown")).not.toContainText(
+    "UTC",
+  );
+  page.on("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: /02 Kite/ }).click();
+  await expect(page.getByRole("button", { name: /01 Ember/ })).toContainText(
+    "Not picked",
+  );
+  await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
+  await page.getByText("Demo: settle result", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Close entries / advance demo time" })
+    .click();
+  await expect(page.getByTestId("prediction-countdown")).toHaveText(
+    "Entries closed",
+  );
+  await page.getByRole("button", { name: "Settle fictional result" }).click();
+  await expect(page.getByTestId("prediction-status")).toHaveText(
+    "Ember wins. Better luck next time.",
+  );
+  await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
+  await page.getByText("Demo: settle result", { exact: true }).click();
+  await page.locator("img").evaluateAll(async (images) => {
+    await Promise.all(
+      images.map(async (image) => {
+        if (image instanceof HTMLImageElement) {
+          image.loading = "eager";
+          await image.decode();
+        }
+      }),
+    );
+  });
+  await page.screenshot({
+    path: path.join(output, `${testInfo.project.name}-prediction-wrong.png`),
+    fullPage: true,
+    animations: "disabled",
+  });
+  await page.reload();
+  await expect(page.getByTestId("prediction-status")).toHaveText(
+    "Ember wins. Better luck next time.",
+  );
+  await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
+});
+
+test("legacy login fails safely without backend configuration and exposes no admin shortcut", async ({
+  page,
+}) => {
+  const external: string[] = [],
+    errors: string[] = [];
+  await page.route("**/*", (route) => {
+    if (!route.request().url().startsWith(`${origin}/`)) {
+      external.push(route.request().url());
+      return route.abort();
+    }
+    return route.continue();
+  });
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/login");
+  await expect(
+    page.getByText("Application Configuration Error", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Login as Admin", exact: true }),
+  ).toHaveCount(0);
+  expect(external).toEqual([]);
+  expect(errors).toEqual([]);
 });

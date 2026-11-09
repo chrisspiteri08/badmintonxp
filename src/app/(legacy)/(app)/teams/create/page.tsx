@@ -1,5 +1,6 @@
 
 "use client";
+import Image from "next/image";
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
@@ -143,7 +144,7 @@ export default function CreateTeamPage() {
               <Label htmlFor="teamAvatarFile" className="text-base font-medium">Team Avatar/Logo (Optional)</Label>
               <div className="flex items-center gap-4">
                 {avatarPreview ? (
-                  <img src={avatarPreview} alt="Team Avatar Preview" className="h-20 w-20 rounded-full object-cover border-2 border-primary" />
+                  <Image unoptimized width={80} height={80} src={avatarPreview} alt="Team Avatar Preview" className="h-20 w-20 rounded-full object-cover border-2 border-primary" />
                 ) : (
                   <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center border-2 border-dashed border-primary">
                     <Shield className="h-10 w-10 text-muted-foreground" />

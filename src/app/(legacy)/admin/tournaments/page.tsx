@@ -297,9 +297,6 @@ export default function AdminTournamentsPage() {
                   
                   <div className="space-y-2">
                     <Label className="text-base font-medium flex items-center"><ListChecks className="mr-2 h-5 w-5 text-primary"/> Select Challenges</Label>
-                    {
-                      console.log('[AdminTournamentsDialog Render] currentTournamentFormData.challengeIds:', currentTournamentFormData.challengeIds)
-                    }
                     {availableChallenges.length > 0 ? (
                       <ScrollArea className="h-40 rounded-md border p-2 bg-muted/30">
                         {availableChallenges.map(challenge => {
@@ -359,7 +356,7 @@ export default function AdminTournamentsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge variant="secondary">{(Array.isArray(tournament.challengeIds) ? tournament.challengeIds : []).length}</Badge>
+                    <Badge variant="secondary">{(Array.isArray((tournament.challengeIds ?? [])) ? (tournament.challengeIds ?? []) : []).length}</Badge>
                   </TableCell>
                   <TableCell className="text-center">
                     <AlertDialog>
@@ -378,7 +375,7 @@ export default function AdminTournamentsPage() {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>This action will permanently delete the tournament "{tournament.name}".</AlertDialogDescription>
+                          <AlertDialogDescription>This action will permanently delete the tournament &quot;{tournament.name}&quot;.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>

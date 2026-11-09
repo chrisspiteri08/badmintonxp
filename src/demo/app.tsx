@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useDemo } from "./store";
+import { closesIn, predictionResult } from "./prediction-copy";
 import {
   demoNow,
   earnedXP,
@@ -64,10 +65,6 @@ export function DemoApp({ screen }: { screen: Screen }) {
   const last = attempt?.answers[lastIndex];
   const quizScore = attempt?.answers.reduce((sum, a) => sum + a.xp, 0) || 0;
   const closed = now >= state.predictionDeadline;
-  const deadline = new Date(state.predictionDeadline).toLocaleTimeString(
-    "en-GB",
-    { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "UTC" },
-  );
   const remaining = attempt
     ? Math.max(0, Math.ceil((attempt.deadline - now) / 1000))
     : 15;
@@ -481,16 +478,8 @@ export function DemoApp({ screen }: { screen: Screen }) {
                       EMBER <span>VS</span> KITE
                     </strong>
                   </div>
-                  <p className="deadline">
-                    Entries close at <strong>{deadline} UTC</strong>.
-                    <br />
-                    <span>
-                      Time:{" "}
-                      {new Date(now).toLocaleTimeString("en-GB", {
-                        timeZone: "UTC",
-                      })}{" "}
-                      UTC
-                    </span>
+                  <p className="deadline" data-testid="prediction-countdown">
+                    <strong>{closesIn(state.predictionDeadline, now)}</strong>
                   </p>
                   <div className="answer-grid prediction-grid">
                     {(["Ember", "Kite"] as const).map((name, i) => (
@@ -512,7 +501,9 @@ export function DemoApp({ screen }: { screen: Screen }) {
                         <small>
                           {state.entry?.option === name
                             ? "YOUR LOCKED PICK ✓"
-                            : "MAKE YOUR CALL"}
+                            : state.entry
+                              ? "Not picked"
+                              : "MAKE YOUR CALL"}
                         </small>
                       </button>
                     ))}
@@ -526,7 +517,10 @@ export function DemoApp({ screen }: { screen: Screen }) {
                     className="prediction-status"
                   >
                     {state.settled
-                      ? `Simulated-settled: Ember wins. ${state.entry ? `Your pick: ${state.entry.option} · +${state.entry.option === "Ember" ? 20 : 0} XP.` : "No entry · 0 XP."}`
+                      ? predictionResult(
+                          state.entry?.option ?? null,
+                          RULES.predictionXP,
+                        )
                       : state.entry
                         ? `Pending · Your ${state.entry.option} entry is locked.`
                         : closed

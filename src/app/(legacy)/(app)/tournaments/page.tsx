@@ -61,7 +61,7 @@ const TournamentCard = ({ tournament }: { tournament: Tournament }) => {
         </div>
         <div className="flex items-center text-sm text-muted-foreground">
           <ListChecks className="h-4 w-4 mr-2 text-primary" />
-          <span>{tournament.challengeIds.length} Challenges</span>
+          <span>{(tournament.challengeIds ?? []).length} Challenges</span>
         </div>
       </CardContent>
       <CardFooter>

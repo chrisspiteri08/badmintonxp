@@ -23,10 +23,10 @@ export const SupabaseConfigErrorDisplay = ({ error }: { error: string }) => (
         <div className="p-4 bg-muted rounded-lg space-y-2 border border-border">
             <p className="font-semibold text-foreground">How to fix this:</p>
             <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-                <li>In the file explorer, find the <strong><code>.env.local</code></strong> file in the project's root directory.</li>
+                <li>In the file explorer, find the <strong><code>.env.local</code></strong> file in the project&apos;s root directory.</li>
                 <li>Ensure it contains the correct values for <strong><code>NEXT_PUBLIC_SUPABASE_URL</code></strong> and <strong><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></strong> from your Supabase project dashboard.</li>
                 <li>
-                  <strong>You must restart the server after saving changes.</strong> Use the "Restart Preview" button or stop and start the `npm run dev` command.
+                  <strong>You must restart the server after saving changes.</strong> Use the &quot;Restart Preview&quot; button or stop and start the `npm run dev` command.
                 </li>
             </ol>
         </div>

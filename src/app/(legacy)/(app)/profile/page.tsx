@@ -119,7 +119,7 @@ export default function ProfilePage() {
         <Card className="shadow-lg">
             <CardHeader>
                 <CardTitle className="text-2xl text-primary flex items-center"><BarChartHorizontalBig className="mr-3 h-7 w-7 text-accent"/>Achievements</CardTitle>
-                <CardDescription>Milestones you've reached on your journey.</CardDescription>
+                <CardDescription>Milestones you&apos;ve reached on your journey.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {/* Placeholder achievements */}

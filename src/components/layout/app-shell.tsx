@@ -89,7 +89,7 @@ const MobileBottomNav = ({ isAdminRoute }: { isAdminRoute: boolean }) => {
     return (
         <div className="fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border z-40 flex md:hidden items-center justify-around">
             {currentNavItems.filter(item => item.href).map((item) => {
-                 const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== (isAdminRoute ? "/admin" : "/dashboard"));
+                 const isActive = pathname === item.href || ((!!item.href && pathname.startsWith(item.href)) && item.href !== (isAdminRoute ? "/admin" : "/dashboard"));
                 return (
                     <Link href={item.href!} key={item.href} legacyBehavior>
                         <a className={cn(
@@ -192,7 +192,7 @@ export function AppShell({ children, isAdminRoute = false }: { children: ReactNo
               <SidebarMenuItem key={item.href}>
                 <Link href={item.href} legacyBehavior passHref>
                   <SidebarMenuButton
-                    isActive={pathname.startsWith(item.href)}
+                    isActive={(!!item.href && pathname.startsWith(item.href))}
                     tooltip={{ children: item.label, className: "bg-accent text-accent-foreground" }}
                     className="text-base"
                   >
@@ -216,7 +216,7 @@ export function AppShell({ children, isAdminRoute = false }: { children: ReactNo
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 md:px-6 shadow-sm">
             <div className="flex-1 flex items-center gap-4">
                  <h1 className="text-xl md:text-2xl font-semibold text-foreground">
-                    {mainNavItems.find(item => item.href && pathname.startsWith(item.href))?.label || 
+                    {mainNavItems.find(item => item.href && (!!item.href && pathname.startsWith(item.href)))?.label ||
                      mainNavItems.find(item => item.subItems?.some(sub => pathname.startsWith(sub.href!)))?.label || 
                      (isAdminRoute ? "Admin" : "BadmintonXP")}
                 </h1>

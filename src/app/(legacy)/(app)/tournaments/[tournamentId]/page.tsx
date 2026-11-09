@@ -263,8 +263,8 @@ export default function TournamentDetailsPage() {
         console.log(`[TournamentDetailsPage] Loaded All Challenges:`, loadedChallenges);
         
         const associatedChallenges = loadedChallenges.filter(ch => {
-            const isIncluded = foundTournament?.challengeIds.includes(ch.id);
-            console.log(`[TournamentDetailsPage] Challenge Filter: ID ${ch.id} (${ch.title}), Is in tournament challengeIds (${foundTournament?.challengeIds.join(', ')}): ${isIncluded}`);
+            const isIncluded = foundTournament?.challengeIds?.includes(ch.id);
+            console.log(`[TournamentDetailsPage] Challenge Filter: ID ${ch.id} (${ch.title}), Is in tournament challengeIds (${foundTournament?.challengeIds?.join(', ')}): ${isIncluded}`);
             return isIncluded;
         });
         setTournamentLinkedChallenges(associatedChallenges);
@@ -288,7 +288,7 @@ export default function TournamentDetailsPage() {
       let userTournamentPoints = 0;
       const userParticipatedTournamentChallengeIds = tournamentCompletions[tournamentId]?.[user.id] || [];
 
-      foundTournament?.challengeIds.forEach(tournamentChallengeId => {
+      foundTournament?.challengeIds?.forEach(tournamentChallengeId => {
         const challenge = loadedChallenges.find(c => c.id === tournamentChallengeId);
         if (!challenge) return;
 
@@ -332,7 +332,7 @@ export default function TournamentDetailsPage() {
     const newTeamLeaderboard = allTeams
       .map(team => {
         let teamTournamentPoints = 0;
-        team.members.forEach(member => {
+        (team.members ?? []).forEach(member => {
           teamTournamentPoints += playerPointsMap[member.id] || 0;
         });
         return {
@@ -388,7 +388,7 @@ export default function TournamentDetailsPage() {
         updateUserPoints(challenge.pointsValue); 
 
         const updatedAllChallenges = allChallenges.map(c =>
-          c.id === challenge.id ? { ...c, status: 'completed' } : c 
+          c.id === challenge.id ? { ...c, status: 'completed' as const } : c
         );
         setAllChallenges(updatedAllChallenges);
         localStorage.setItem(LOCAL_STORAGE_CHALLENGES_KEY, JSON.stringify(updatedAllChallenges));
@@ -400,7 +400,7 @@ export default function TournamentDetailsPage() {
         
         
         toast({ title: "Social Challenge Complete!", description: `You earned ${challenge.pointsValue} XP! Tournament leaderboard will update.` });
-        setTournament(prev => prev ? {...prev, challengeIds: [...prev.challengeIds]} : null); 
+        setTournament(prev => prev ? {...prev, challengeIds: [...(prev.challengeIds ?? [])]} : null);
 
 
     } else if (challenge.type === 'quiz') {
@@ -441,7 +441,7 @@ export default function TournamentDetailsPage() {
               <CalendarDays className="h-5 w-5" /> Ends: {formattedEndDate}
             </div>
             <div className="flex items-center gap-1.5">
-              <ListChecks className="h-5 w-5" /> {tournament.challengeIds.length} Challenges
+              <ListChecks className="h-5 w-5" /> {(tournament.challengeIds ?? []).length} Challenges
             </div>
           </div>
         </CardHeader>

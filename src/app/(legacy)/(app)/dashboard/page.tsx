@@ -18,10 +18,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user) {
       const fetchRank = async () => {
+        const client = supabase;
+        if (!client) { setIsRankingLoading(false); return; }
+
         setIsRankingLoading(true);
         // This is a simplified ranking. For a large number of users, 
         // a dedicated database function or view would be more efficient.
-        const { data: allPlayers, error } = await supabase
+        const { data: allPlayers, error } = await client
           .from('profiles')
           .select('id, points')
           .eq('role', 'player')

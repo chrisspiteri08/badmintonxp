@@ -119,6 +119,12 @@ export default function AdminSettingsPage() {
   };
   
   const handleSeedUsers = async () => {
+    const client = supabase;
+    if (!client) {
+      toast({ title: "Backend unavailable", description: "Configure the backend before using this action.", variant: "destructive" });
+      return;
+    }
+
     setIsSeedingUsers(true);
     toast({ title: "Starting User Seeding...", description: "Generating 1000 users. This may take a moment." });
 
@@ -136,11 +142,11 @@ export default function AdminSettingsPage() {
         const domain = emailProviders[Math.floor(Math.random() * emailProviders.length)];
         const email = `${sanitizedName}${i}@${domain}`;
 
-        const password = "password123";
+        const password = crypto.randomUUID() + crypto.randomUUID();
         const points = Math.floor(Math.random() * 50000) + 100;
         const level = Math.floor(points / 250) + 1;
 
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await client.auth.signUp({
             email,
             password,
             options: {
@@ -188,10 +194,16 @@ export default function AdminSettingsPage() {
   };
 
   const handleSeedTeams = async () => {
+    const client = supabase;
+    if (!client) {
+      toast({ title: "Backend unavailable", description: "Configure the backend before using this action.", variant: "destructive" });
+      return;
+    }
+
     setIsSeedingTeams(true);
     toast({ title: "Starting Team Seeding...", description: "Generating 100 teams and assigning users." });
 
-    const { data: users, error: userError } = await supabase.from('profiles').select('id, country, teamId').eq('role', 'player');
+    const { data: users, error: userError } = await client.from('profiles').select('id, country, teamId').eq('role', 'player');
 
     if (userError || !users) {
         toast({ title: "Error", description: `Could not fetch users to form teams: ${userError?.message}`, variant: "destructive" });
@@ -241,7 +253,7 @@ export default function AdminSettingsPage() {
             avatarUrl: `https://placehold.co/100x100.png?text=${country.substring(0,2).toUpperCase()}`
         };
 
-        const { data: insertedTeam, error: teamInsertError } = await supabase.from('teams').insert(newTeamForDb).select().single();
+        const { data: insertedTeam, error: teamInsertError } = await client.from('teams').insert(newTeamForDb).select().single();
         if(teamInsertError || !insertedTeam) {
             console.error('Failed to insert team, skipping:', teamInsertError);
             continue;
@@ -263,7 +275,7 @@ export default function AdminSettingsPage() {
     const chunkSize = 100;
     for (let i = 0; i < teamMemberUpdates.length; i += chunkSize) {
         const chunk = teamMemberUpdates.slice(i, i + chunkSize);
-        const updates = chunk.map(u => supabase.from('profiles').update({ teamId: u.teamId }).eq('id', u.id));
+        const updates = chunk.map(u => client.from('profiles').update({ teamId: u.teamId }).eq('id', u.id));
         await Promise.all(updates);
     }
     
