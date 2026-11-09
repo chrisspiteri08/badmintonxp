@@ -6,12 +6,18 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import config from "../next.config.ts";
 
-test("cPanel configuration enables standalone output and a temporary guest redirect", async () => {
+test("cPanel configuration enables standalone output and canonical www and account redirects", async () => {
   assert.equal(config.output, "standalone");
   assert.equal(config.typescript.ignoreBuildErrors, false);
   assert.equal(config.eslint.ignoreDuringBuilds, false);
   assert.deepEqual(await config.redirects(), [
-    { source: "/", destination: "/demo", permanent: false },
+    {
+      source: "/:path*",
+      has: [{ type: "host", value: "www.badmintonxp.com" }],
+      destination: "https://badmintonxp.com/:path*",
+      permanent: false,
+    },
+    { source: "/", destination: "/play", permanent: false },
   ]);
 });
 test("cPanel build refuses dotenv files before any build can inline their values", () => {

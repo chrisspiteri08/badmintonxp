@@ -1,6 +1,6 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 const db = new PGlite();
 const alice = "10000000-0000-0000-0000-000000000001",
@@ -32,12 +32,12 @@ before(async () => {
  create table auth.users(id uuid primary key,email text);
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  grant usage on schema auth to anon,authenticated; grant execute on function auth.uid() to anon,authenticated;`);
-  await db.exec(
-    await readFile(
-      new URL("../supabase/migrations/202611090001_v1.sql", import.meta.url),
-      "utf8",
-    ),
-  );
+  const migrationDir = new URL("../supabase/migrations/", import.meta.url);
+  for (const file of (await readdir(migrationDir))
+    .filter((f) => f.endsWith(".sql"))
+    .sort()) {
+    await db.exec(await readFile(new URL(file, migrationDir), "utf8"));
+  }
   await db.query(
     "insert into auth.users(id,email) values($1,$2),($3,$4),($5,$6)",
     [
@@ -352,4 +352,75 @@ test("v1: published content cannot change and draft events are invisible to play
       ),
     );
   });
+});
+
+test("v1: World Tour Finals 2026 remains private and cannot be published even by admin RPC", async () => {
+  let held;
+  await asUser(admin, async () => {
+    held = await rpc("v1_admin_save", [
+      "tournament",
+      {
+        name: "World Tour Finals 2026",
+        season_id: season,
+        starts_at: "2026-01-01",
+        ends_at: "2099-01-01",
+      },
+    ]);
+    await rpc("v1_admin_save", [
+      "match",
+      {
+        tournament_id: held,
+        athlete_a: "Hold player A",
+        athlete_b: "Hold player B",
+        closes_at: "2099-01-01",
+      },
+    ]);
+    const q = await rpc("v1_admin_save", [
+      "quiz",
+      {
+        tournament_id: held,
+        title: "Hold test quiz",
+        opens_at: "2026-01-01",
+        closes_at: "2099-01-01",
+      },
+    ]);
+    await rpc("v1_admin_save", [
+      "question",
+      {
+        quiz_id: q,
+        position: 0,
+        prompt: "Is this only a test?",
+        options: ["Yes", "No", "Maybe", "Later"],
+        correct_option: 0,
+        explanation: "Local test only.",
+      },
+    ]);
+    await rpc("v1_admin_save", ["publish_quiz", { id: q }]);
+    await assert.rejects(
+      rpc("v1_admin_save", ["publish_tournament", { id: held }]),
+      /publication is on hold/,
+    );
+  });
+  const row = await scalar(
+    "select published,active from public.tournaments where id=$1",
+    [held],
+  );
+  assert.equal(row.published, false);
+  assert.equal(row.active, false);
+  await asUser(
+    null,
+    async () => {
+      assert.equal(
+        (await db.query("select * from public.tournaments where id=$1", [held]))
+          .rows.length,
+        0,
+      );
+      assert.deepEqual(
+        (await db.query("select * from public.v1_leaderboard($1)", [held]))
+          .rows,
+        [],
+      );
+    },
+    "anon",
+  );
 });

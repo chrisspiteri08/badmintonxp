@@ -1,31 +1,118 @@
-# BadmintonXP v1: isolated test setup
+# BadmintonXP v1 — badmintonxp.com upload and Supabase setup
 
-This branch adds `/play` (real accounts and database scores). `/demo` stays a fictional, browser-local guest game. `/` still redirects to `/demo`. Nothing in this guide requires changing badmintonxp.com or its production Supabase project.
+This package is for the existing Node 22 app at **https://badmintonxp.com**. The homepage redirects to `/play`; `/demo` remains the fictional guest game. **www redirects to the HTTPS apex domain**, preserving the path/query, so sign-in and email recovery use one origin.
 
-## What the owner needs to provide/configure
+Use a **NEW Supabase project for v1**, never the old legacy project. The developer has not deployed this package, changed DNS, or connected to either cloud database. The feature branch is pushed without merging to main.
 
-Create a **new Supabase project named BadmintonXP-v1-test**, in an Asia region near the intended players (Singapore is a sensible choice). Keep its database password in your password manager. Use a separate test-site hostname or a platform-generated test URL. Tell the developer only the test hostname, project name/reference, intended first admin email, and confirmed tournament name/dates/season. **Do not paste passwords, API keys, database connection strings or service keys into chat.** The app needs no service-role key.
+## 1. Create and configure the NEW Supabase project
 
-Configure these runtime environment variables yourself in the test site's hosting control panel:
+1. Create a new project named **BadmintonXP-v1**, in an Asia region near the audience (Singapore is a reasonable choice). Keep the database password privately. Do not paste keys, passwords or connection strings into chat.
+2. In the **new project's SQL Editor**, run the combined `BADMINTONXP_V1_SCHEMA.sql` included in this ZIP **once on the empty project**. It contains migrations `202611090001_v1.sql` and `202611090002_world_tour_finals_hold.sql`, in that order. Alternatively apply those two repo migrations in order with the CLI linked only to this NEW project. If migration 001 was already applied to a separately created v1 project, apply only 002 there. Never apply these to the legacy project.
+3. Under **Authentication → Sign In / Providers → Email**, enable email/password signup and **Confirm email**. Set minimum password length to **12**. Leave anonymous sign-ins off. Configure Auth rate limits for your intended audience.
+4. Under **Authentication → URL Configuration**, set **Site URL** to:
 
-| Variable | Where its value comes from |
+   ```text
+   https://badmintonxp.com
+   ```
+
+   Add these four exact **Redirect URLs**:
+
+   ```text
+   https://badmintonxp.com/play/account
+   https://www.badmintonxp.com/play/account
+   https://badmintonxp.com/play/reset
+   https://www.badmintonxp.com/play/reset
+   ```
+
+   No wildcard is needed. Site URL is the fallback; the app explicitly requests `/play/account` for confirmation and `/play/reset` for recovery. Requests originating on www use apex email links. www callback requests redirect to apex with the `code` query parameter intact.
+5. Configure **custom SMTP** with a sender you control. Enter SMTP credentials only in Supabase's settings, never source files or chat. Verify confirmation and recovery mail delivery before inviting players; the built-in sender has recipient/rate restrictions.
+6. Under **Authentication → Email Templates**, keep the verification link using `{{ .ConfirmationURL }}`. For example:
+
+   Signup confirmation:
+
+   ```html
+   <a href="{{ .ConfirmationURL }}">Confirm your BadmintonXP account</a>
+   ```
+
+   Password recovery:
+
+   ```html
+   <a href="{{ .ConfirmationURL }}">Reset your BadmintonXP password</a>
+   ```
+
+   Do not replace these with a plain Site URL link: that would discard the Auth verification step. Open the email link in the same browser that requested it; this flow uses PKCE. Avoid email-provider link rewriting/tracking if it breaks verification links.
+7. Leave the Data API enabled for **public** only. Never expose **private**, disable RLS, or grant players direct score/ledger writes. No Storage bucket, service key, Google OAuth, live feed or Edge Function is needed. Google sign-in remains deferred.
+
+## 2. Runtime variables — enter them yourself in cPanel
+
+In **Setup Node.js App → badmintonxp-node → Environment variables**, enter:
+
+| Name | Value |
 | --- | --- |
-| `V1_ISOLATED_TEST_PROJECT` | Set to `true` only on this isolated test site |
-| `V1_SUPABASE_URL` | New test project's Project URL |
-| `V1_SUPABASE_PUBLISHABLE_KEY` | New test project's publishable key (or legacy anon key); never a secret/service-role key |
+| `V1_NEW_PROJECT_CONFIRMED` | `true`, after checking you selected the NEW v1 project |
+| `V1_SUPABASE_URL` | Project URL from the NEW project's settings |
+| `V1_SUPABASE_PUBLISHABLE_KEY` | Publishable key from the NEW project; a legacy anon key from that NEW project is also accepted |
 
-These values are intentionally not in source files or the upload package. The public project URL and publishable key are delivered at runtime by `/api/v1/config`; this is normal Supabase browser configuration. Database RLS and guarded functions enforce access. The configuration endpoint rejects service-role JWTs and modern secret keys. It does not use the legacy `NEXT_PUBLIC_SUPABASE_*` settings. The explicit flag cannot identify a project for you: double-check that you selected the new test project.
+The old `V1_ISOLATED_TEST_PROJECT` switch is no longer used. Do not add a service-role/secret key, database password or legacy `NEXT_PUBLIC_SUPABASE_*` values. The app does not fall back to legacy configuration. No key values are included in the ZIP. Save and restart only after the files below have been installed.
 
-## Supabase Dashboard, step by step
+The explicit new-project flag is an owner confirmation, not automatic proof of project identity: check the project name/reference in Supabase before copying its public settings. You do not need to send those values to the developer.
 
-1. In Supabase, create the new project. Do not select the existing production project. Wait until the new project's database is ready.
-2. Open **SQL Editor → New query** in that new project. Paste and run `supabase/migrations/202611090001_v1.sql` from this branch. Run it once, as a migration, on the empty project. Do not disable RLS or grant direct client writes to fix an error. If you use the Supabase CLI instead, link only this new test project and run `supabase db push`; inspect the selected project before approving.
-3. Open **Authentication → Sign In / Providers → Email**. Enable email/password sign-up and **Confirm email**. Set minimum password length to **12**. Leave anonymous sign-ins off. Configure password recovery/email delivery.
-4. Under **Authentication → URL Configuration**, set Site URL to `https://YOUR-TEST-HOST/play`. Add these exact redirect URLs: `https://YOUR-TEST-HOST/play/account` and `https://YOUR-TEST-HOST/play/reset`. Add localhost equivalents only if you will use that separate cloud project locally. Avoid wildcard production redirects.
-5. Under authentication email/SMTP settings, configure a sender you control for sending confirmation and reset messages to real testers. Supabase's built-in email sender has delivery restrictions and rate limits; verify delivery before inviting players. Configure Auth rate limits appropriately, and enable supported bot protection before opening sign-up broadly.
-6. Leave the Data API enabled for **public**. Do **not** add `private` to exposed schemas. No Storage buckets, live data feed, Edge Functions, Google OAuth or service-role environment variable are needed. Google sign-in is deferred because it requires separate provider credentials and redirect setup.
-7. Open the test site's `/play/account`, sign up with your intended admin email, follow its confirmation link in the same browser, and save the player profile.
-8. In that **test project's SQL Editor**, replace the email placeholder below and run it. This is the only admin bootstrap; no automatic admin creation or promotion exists:
+## 3. Cookies, www and HTTPS
+
+- This version uses `supabase-js` browser **localStorage** (storage key `badmintonxp-v1-auth`), not server-side Auth cookies. There is **no cookie Domain setting** or shared `.badmintonxp.com` Auth cookie to configure. Do not add `COOKIE_DOMAIN` or custom cookie middleware.
+- localStorage/PKCE state is origin-specific. Canonicalizing www to apex before the account screens load avoids two separate sessions and mismatched recovery verifiers. The www host remains usable by redirecting to apex; it is not a second independent app.
+- In **cPanel → Domains**, ensure www is an alias of badmintonxp.com pointing to the same site/app. Do not create a competing Node application for www. In **SSL/TLS Status**, confirm the certificate covers **both** names. Enable the domain's **Force HTTPS Redirect** if not already enabled. If www is not attached to the same virtual host, ask NEOSERV to attach the alias; the developer has not changed DNS.
+- Keep the working Passenger routing in `/home/shuttles/badmintonxp.com/.htaccess`. No cookie/domain rewrite or port-3000 proxy is needed. Domain routing must reach the existing `badmintonxp-node` app for both names before the application's canonical redirect can run.
+- The app redirects www temporarily (307) rather than storing an irreversible browser redirect, helping rollback. Supabase auth callbacks retain their query parameters through this redirect.
+
+## 4. Upload with rollback preserved
+
+Use **BadmintonXP-v1-main-domain-Node22.zip**, not a previous test-host ZIP.
+
+1. Open **cPanel → Setup Node.js App → badmintonxp-node**. Confirm Node **22.23.4** (or supported newer Node 22), **Production**, Application root **badmintonxp-node**, URL **badmintonxp.com/**, startup **app.js**. Click **Stop**.
+2. Open **File Manager → Settings → Show Hidden Files**. Go to `/home/shuttles/badmintonxp-node`.
+3. **Before extracting anything, rename `runtime` to `runtime-demo-backup`.** If that backup name already exists, preserve it under a dated name first. Never merge new files into the backup.
+4. Create a sibling folder named `deployment-demo-backup` in the app root. **Copy** the current `app.js`, `package.json`, `package-lock.json`, `.npmrc`, and `PACKAGE-INFO.json` into it when present. Also keep a private copy of the working domain-root `.htaccess`. Record any prior app environment settings privately; do not export key values into the upload package or chat. Keep all backups outside the domain's document root.
+5. Upload the ZIP to `/home/shuttles` and extract **there**. It already contains the top-level `badmintonxp-node` folder; this creates a fresh `/home/shuttles/badmintonxp-node/runtime` alongside `runtime-demo-backup`. Allow replacement of app/package metadata when prompted. Do **not** extract into the app root and create `badmintonxp-node/badmintonxp-node`.
+6. Check these paths before starting:
+
+   ```text
+   /home/shuttles/badmintonxp-node/app.js
+   /home/shuttles/badmintonxp-node/runtime/server.js
+   /home/shuttles/badmintonxp-node/runtime/.next/BUILD_ID
+   /home/shuttles/badmintonxp-node/runtime/.next/server
+   /home/shuttles/badmintonxp-node/runtime/.next/static
+   /home/shuttles/badmintonxp-node/runtime/public
+   /home/shuttles/badmintonxp-node/runtime-demo-backup
+   ```
+
+   `.next` is hidden and belongs under `runtime`. HTML, manifests, JS and CSS must all come from this one package. Preserve cPanel's `node_modules` symlink; the ZIP contains no node_modules folder.
+7. Back in **Setup Node.js App**, click **Run NPM Install**. This is required because the dependency versions/override changed from the older guest package. The generated runtime manifest preserves patched PostCSS. Do not upload Mac native modules or run a build on shared hosting.
+8. Enter only the three NEW-project settings above. Click **Save**, **Start**, then **Restart**. If restarting seems ineffective, edit/save `/home/shuttles/badmintonxp-node/tmp/restart.txt` to request a fresh process.
+9. Open a private browser window. Verify:
+   - `https://badmintonxp.com/` redirects to `/play`.
+   - `https://www.badmintonxp.com/` ends at `https://badmintonxp.com/play`.
+   - `https://www.badmintonxp.com/demo` ends at the apex `/demo` and the guest game works.
+   - `/play/account` sends confirmation mail; the email returns to the apex account screen.
+   - Password recovery returns to `https://badmintonxp.com/play/reset`, saves the new password and signs out sessions.
+   - All JS/CSS requests return 200; Console has no errors. If old hashed filenames appear, restart the Node app and clear/purge enabled page caches before uploading anything again.
+   - No tournament is public until explicitly published. World Tour Finals 2026 must remain a draft.
+
+### Roll back if any upload check fails
+
+1. Stop the Node app.
+2. Rename the new `runtime` to `runtime-v1-failed` (or another unused name).
+3. Rename **`runtime-demo-backup` back to `runtime`**.
+4. Copy the backed-up `app.js`, `package.json`, `package-lock.json`, `.npmrc` and package metadata back from `deployment-demo-backup`. Restore the previous environment settings, removing the new V1 variables if they were absent before.
+5. Run **NPM Install** again to restore the old package-lock versions. Preserve the managed node_modules symlink.
+6. Start/restart and check `/demo` and the homepage. The old runtime includes its old redirect behavior. Restore `.htaccess` only if you changed it; this upload does not require altering the working Passenger block.
+
+Rollback restores the guest application; it does not delete or alter the NEW Supabase project. Keep its data until the owner decides what to do. Never point the old guest runtime at the legacy or new project's service key.
+
+## 5. Admin account and World Tour Finals 2026 — leave unpublished
+
+1. Sign up at `https://badmintonxp.com/play/account`, confirm the email in the same browser, and save your profile.
+2. In the **NEW project's SQL Editor**, substitute your confirmed admin email and run:
 
    ```sql
    insert into private.admins(user_id)
@@ -35,73 +122,38 @@ These values are intentionally not in source files or the upload package. The pu
    on conflict do nothing;
    ```
 
-   Check that one row was inserted, or verify the existing membership with a SQL Editor query. A profile field or user-editable Auth metadata cannot grant admin rights. Refresh the profile page and open **Tournament admin** (`/play/admin`). To revoke a role, remove that user's membership from `private.admins` in SQL Editor.
+   No passwords or service key are involved. Verify membership in SQL Editor, refresh `/play/profile`, then open **Tournament admin**.
+3. Create the 2026 season, teams and a draft tournament named **World Tour Finals 2026**, using confirmed dates/times. No real fixture list or dates have been invented or pre-seeded by this package. Add matches and quiz questions only after verifying them. Date inputs use your device timezone and are stored in UTC.
+4. **Do not publish the tournament.** Migration 002 installs a database trigger that blocks publishing/activating World Tour Finals 2026, even through a direct admin RPC. The admin publish button also shows **Publication on hold**. Drafts are not visible to players or anonymous rankings.
+5. Do not remove or bypass the hold during setup. Releasing it requires a separate owner-approved change after the owner explicitly says to publish. Question/fixture publication and results are otherwise final in v1; review carefully before a future release.
 
-## Add the first real tournament, keeping it unpublished
+## 6. Reproduce the checks locally
 
-No real tournament has been invented or pre-published. The account arena starts empty.
+Use Node 22 and Docker Desktop. The repo-local Supabase project is `badmintonxp-v1-local`, deliberately unlinked from cloud projects. No main-domain request is sent by the browser tests; www checks use local requests with a Host header and do not follow the external redirect.
 
-1. Open `/play/admin`. Expand **Create a season** and save the season name.
-2. Create the teams players may join.
-3. Create the tournament with its confirmed name, season and start/end times. Inputs use your device's timezone; dates are stored in UTC.
-4. Add its matches with the actual athletes/pairs. Set each prediction deadline before play begins. Do not publish an unconfirmed fixture list.
-5. Create its quiz, including when players may start it. Add each question in consecutive order starting at question number 1, four answers, one correct answer and an explanation.
-6. Review the questions and fixture details. **Stop here to keep the tournament unpublished.** Draft data and answer keys are admin-only.
-7. Once the owner approves all details, publish the quiz, then publish the tournament. Publishing the tournament makes it the single current event. Published questions/fixtures are frozen; v1 does not provide correction/reversal tools. Carefully review drafts before publishing.
-8. After a match's prediction deadline passes and its real result is verified, select the winner in **Enter match results** and confirm. A result is final; repeated settlement with the same winner is harmless and never awards twice. Conflicting results are rejected.
+```sh
+npm ci
+npm audit --omit=dev
+npm audit
+npx supabase start
+npm test
+npm run typecheck
+npm run lint
+npx supabase db lint --level warning
+npm run test:v1:integration
+npm run build:cpanel
+npm run start:v1:local
+```
 
-## Test copy on cPanel (separate from the live site)
+In another terminal, sequentially run `npm run test:e2e`, then `npm run test:v1:browser`. The local launcher passes only local configuration in process memory. Test credentials are random, ephemeral and never committed. Stop the app and run `npx supabase stop --no-backup` afterward.
 
-1. Ask the host for a separate test hostname/document root, or create one in cPanel **Domains**. Do not reuse badmintonxp.com's current document root or Node application. Any required DNS work is an owner/host step; none has been performed by this implementation.
-2. Create a **new** Setup Node.js App: Node **22**, Production, application root **`badmintonxp-v1-test`**, Application URL the test hostname at `/`, startup **`app.js`**.
-3. Extract the supplied v1 Node 22 ZIP in a temporary folder in your cPanel home. Its top folder is `badmintonxp-node` because the packaging tooling preserves the tested runtime layout. Move its **contents** into `/home/YOUR-ACCOUNT/badmintonxp-v1-test`. Do not overwrite the existing live `badmintonxp-node` directory.
-4. The app root must contain `app.js`, `runtime/server.js`, `runtime/.next/BUILD_ID`, `runtime/.next/server`, `runtime/.next/static`, `runtime/public`, `package.json`, `package-lock.json` and `.npmrc`. Show hidden files in File Manager. Keep the build and static files together; replace the full runtime as one unit on later updates.
-5. Run **NPM Install** in the new Node app. Preserve its managed `node_modules` symlink. Never upload a Mac `node_modules` folder.
-6. Add only the three runtime settings from the table above in this test app's environment-variable section. Save and restart. No Supabase service key or database password belongs here.
-7. In **Domains**, note the test hostname's actual Document Root. Its `.htaccess` must have cPanel's generated Passenger mapping for this **new app root**. If cPanel leaves it empty, adapt this block using the exact Node path shown in this test app's activation command:
+Rebuild an upload folder with `npm run build:cpanel` then `npm run package:v1`; it is generated at `../cpanel-upload/badmintonxp-node`. Build refuses dotenv files and strips provider configuration. Never put keys into a build, source file or archive.
 
-   ```apache
-   PassengerAppRoot "/home/YOUR-ACCOUNT/badmintonxp-v1-test"
-   PassengerBaseURI "/"
-   PassengerNodejs "/home/YOUR-ACCOUNT/nodevenv/badmintonxp-v1-test/22/bin/node"
-   PassengerAppType node
-   PassengerStartupFile app.js
-   PassengerAppEnv production
-   ```
+## References and limits
 
-   Derive `PassengerNodejs` by replacing `/bin/activate` with `/bin/node` in the actual activation-script path. Do not copy a guessed version path or change the live domain's working `.htaccess`.
-8. Visit `https://YOUR-TEST-HOST/play`. The root still redirects to `/demo` intentionally. Verify sign-up/confirmation, profile save, quiz score after reload and another device/login, prediction lock, manual result settlement, and anonymous rankings. Check browser Network for all JS/CSS returning 200 and Console for errors. Test `/demo` separately: its scores must remain fictional and local.
+- [Supabase redirect configuration](https://supabase.com/docs/guides/auth/redirect-urls)
+- [Auth email template variables](https://supabase.com/docs/guides/auth/auth-email-templates)
+- [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security)
+- [Next.js redirects](https://nextjs.org/docs/app/api-reference/config/next-config-js/redirects)
 
-A Vercel test project is an alternative: import this feature branch into a **new** project, set the three runtime settings, and add its generated URL to Supabase Auth redirects. The feature branch is now pushed to GitHub. Deploy only after the owner chooses to deploy it; no deployment has been performed.
-
-## Reproduce checks locally without any cloud project
-
-Use Node 22 and Docker Desktop. The committed local Supabase configuration has project ID `badmintonxp-v1-local` and ports 54321–54324. It is deliberately unlinked from all cloud projects. Do not link it to production.
-
-1. `npm ci`
-2. `npx supabase start` (downloads local Docker images). Do not share its configuration output; use local Studio/email UI on your own machine.
-3. `npm test` — existing guest/security unit tests plus embedded PostgreSQL migration, scoring and RLS tests.
-4. `npm run typecheck` and `npm run lint`.
-5. `npx supabase db lint --level warning` — local function/schema lint.
-6. `npm run test:v1:integration` — real local Supabase Auth/Data API, RLS and concurrency tests.
-7. `npm run build:cpanel` — secret-free production build; refuses local dotenv files and strips provider variables from the build process.
-8. `npm run start:v1:local` — serves the standalone app on 127.0.0.1:3100, passing only local publishable configuration in child-process memory.
-9. In another terminal, `npm run test:e2e` (guest regression suite), then `npm run test:v1:browser` (real local Auth/account, quiz, predictions, public rankings and admin checks at 360px/1440px). Run these sequentially; v1 fixture setup changes the local active test tournament.
-10. Stop the local app. To discard the isolated stack, `npx supabase stop --no-backup` from this checkout. It affects only this local project. Browser-test fixture passwords are random, ephemeral, local-only and never stored in repo files.
-
-To build another cPanel ZIP, run `npm run build:cpanel` followed by `npm run package:v1`; package the generated `../cpanel-upload/badmintonxp-node` folder. Do not build while dotenv files or keys are present. Configure runtime settings only on the separate test host.
-
-## Current limits
-
-Real tournament details await owner confirmation. Google OAuth, live feeds, referral rewards, moderation, email deliverability at the host, and correction/reversal of published questions or match results are outside this v1. The test copy needs owner-supplied project settings and a separate hostname before external players can use it. The existing static ChatGPT guest preview cannot host this server/database app and is unchanged.
-
-## Reference documentation
-
-- [Supabase row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security)
-- [Database function security](https://supabase.com/docs/guides/database/functions)
-- [Email/password Auth](https://supabase.com/docs/guides/auth/passwords)
-- [Local development](https://supabase.com/docs/guides/local-development)
-
-## Dependency audit status
-
-The dependency-remediation update reduces both `npm audit --omit=dev` and the full `npm audit` to zero findings. See `DEPENDENCY_AUDIT.md` for the removed unused scaffolding, patched versions, scoped overrides and actual verification. The generated cPanel runtime package also preserves the PostCSS security override; rebuild the package from this branch rather than reusing the earlier ZIP.
+See `DEPENDENCY_AUDIT.md` for the zero-finding dependency remediation. Tests run against local Supabase; real SMTP delivery, the NEW cloud project's configuration, www TLS/alias routing and the actual cPanel upload must be verified by the owner after upload. Google sign-in, live result feeds, prizes and payments remain absent. The static ChatGPT guest preview is unchanged.

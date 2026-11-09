@@ -41,7 +41,7 @@ const child = spawn(
       ...process.env,
       HOSTNAME: "127.0.0.1",
       PORT: "3100",
-      V1_ISOLATED_TEST_PROJECT: "true",
+      V1_NEW_PROJECT_CONFIRMED: "true",
       V1_SUPABASE_URL: status.API_URL,
       V1_SUPABASE_PUBLISHABLE_KEY: status.PUBLISHABLE_KEY,
     },

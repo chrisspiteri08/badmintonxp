@@ -1,6 +1,6 @@
 # V1 security and scoring contract
 
-- `/play` uses a separate Supabase project through runtime config. `/demo` is untouched. Legacy auth pages are preserved for existing work but are not part of the v1 flow.
+- `/play` uses a NEW Supabase project through runtime config. `/` redirects to `/play`; www redirects to the HTTPS apex, preserving callback query parameters. `/demo` is untouched. Legacy auth pages are preserved for existing work but are not part of the v1 flow.
 - Supabase Auth issues/verifies the player's bearer token. Its `auth.uid()` is the only player identity used for mutations. No scoring RPC accepts a user ID, XP, browser deadline, country or team as award authority.
 - Every app table has RLS. Clients have SELECT only, with owner-only policies for profiles, attempts, answers, predictions and ledger rows. Admin membership is a private table, provisioned by the owner. User metadata/profile fields cannot grant roles. Public tournament metadata and aggregate rankings are the intentional shared-read exceptions.
 - SECURITY DEFINER functions use an empty search path and qualified table names, check role/ownership internally, and are explicitly allowlisted. The private schema is not exposed by the API; all private functions except the caller-role boolean are unexecutable by clients. Answer keys live in a private RLS table and are never in question payloads or shipped assets. Admin question payloads require the database-admin membership.
@@ -12,3 +12,6 @@
 - Profile mutations and play actions share a row lock; `FOR NO KEY UPDATE` also avoids conflicts with ledger foreign-key reads. Tournament publication takes its global lock before row locks. Tests include concurrent duplicate starts/answers/results through PostgREST.
 - Accounts use PKCE email confirmation/recovery in the same browser. Resetting a password invokes global sign-out. Supabase access JWTs can remain valid until expiry even after refresh-token revocation; choose an appropriate JWT lifetime in the test project. No service key is needed by the deployed app.
 - Embedded PostgreSQL tests exercise the migration and RLS engine; separate integration tests use real local Supabase Auth/PostgREST. Browser tests use that real local stack, not a mock. This does not verify a cloud project's SMTP or the host's Passenger configuration.
+
+- World Tour Finals 2026 has a database publication-hold trigger (migration 002), plus a disabled admin publish button. No real schedule or fixtures are seeded. The hold remains until an explicit owner-approved release change.
+- Browser Auth uses origin-bound localStorage, not shared domain cookies. Canonical apex email callback URLs and the www redirect keep PKCE on one origin; no cookie-domain environment setting is needed.

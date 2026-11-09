@@ -8,14 +8,14 @@ const jwt = (role) =>
     "test-only",
   ].join(".");
 const env = {
-  V1_ISOLATED_TEST_PROJECT: "true",
+  V1_NEW_PROJECT_CONFIRMED: "true",
   V1_SUPABASE_URL: "http://127.0.0.1:54321",
   V1_SUPABASE_PUBLISHABLE_KEY: jwt("anon"),
 };
-test("v1 configuration fails closed without isolated-project opt-in and never falls back to legacy config", () => {
+test("v1 configuration fails closed without new-project confirmation and never falls back to legacy config", () => {
   assert.deepEqual(publicV1Config({}), { ready: false });
   assert.deepEqual(
-    publicV1Config({ ...env, V1_ISOLATED_TEST_PROJECT: undefined }),
+    publicV1Config({ ...env, V1_NEW_PROJECT_CONFIRMED: undefined }),
     { ready: false },
   );
   assert.deepEqual(

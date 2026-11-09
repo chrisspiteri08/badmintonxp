@@ -27,18 +27,18 @@ Actual final verification on Node 22.23.4:
 | Check | Result |
 | --- | --- |
 | Clean `npm ci` | Passed |
-| Unit / embedded PostgreSQL scoring, RLS and config tests | 29 passed |
-| Real local Supabase Auth/RLS/concurrency tests | 6 passed |
+| Unit / embedded PostgreSQL scoring, RLS, domain and config tests | 32 passed |
+| Real local Supabase Auth/RLS/concurrency and publication-hold tests | 7 passed |
 | Typecheck and strict ESLint | Passed |
 | Secret-free Next 15.5.29 standalone production build | Passed |
-| Guest browser regression at 360px / 1440px | 14 passed |
+| Guest and main-domain redirect browser checks at 360px / 1440px | 16 passed |
 | V1 real-account browser scenarios at 360px / 1440px | 6 passed |
 | Independently installed cPanel runtime audit | 0 findings |
 | Root production audit / full audit | 0 / 0 findings |
 
 The browser suites ran against app.js in a clean package copy with only its declared runtime dependencies. They include real local email confirmation/recovery, correct/wrong scoring, persistence, actual server-clock timeouts, repeated settlement, public rankings, admin-role rejection and unpublished admin drafts. No scoring rules or expected XP values were changed.
 
-The Supabase project used for testing is disposable/local only. No real tournament or cloud test copy is published. The branch is pushed without merging; deployments remain owner-controlled. Supersede any earlier ZIP whose runtime manifest lacks the PostCSS override.
+The Supabase project used for testing is disposable/local only. No real tournament or cloud deployment is published. The branch is pushed without merging; deployments remain owner-controlled. Supersede any earlier ZIP whose runtime manifest lacks the PostCSS override.
 
 ## Reproduce
 
@@ -63,3 +63,5 @@ For Auth/API/browser coverage, use the local Supabase steps in `V1_SETUP.md`. Th
 - [PostCSS 8.5.32 release](https://github.com/postcss/postcss/releases/tag/8.5.32)
 - [PostCSS source-map advisory and patched version](https://github.com/advisories/GHSA-fxqj-rqcc-2cmp)
 - [Resolver v5 form peer requirements](https://github.com/react-hook-form/resolvers/releases/tag/v5.0.0)
+
+Main-domain packaging update: `/` now redirects to `/play`, www callbacks redirect to HTTPS apex with query parameters preserved, and World Tour Finals 2026 has a database publication hold. These changes were verified in the current test counts above; cloud email, SSL/alias routing and actual upload remain owner verification steps.

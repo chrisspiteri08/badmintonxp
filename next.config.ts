@@ -4,7 +4,15 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   output: "standalone",
   async redirects() {
-    return [{ source: "/", destination: "/demo", permanent: false }];
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.badmintonxp.com" }],
+        destination: "https://badmintonxp.com/:path*",
+        permanent: false,
+      },
+      { source: "/", destination: "/play", permanent: false },
+    ];
   },
   // Keep dev browser checks separate from production build artifacts.
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",

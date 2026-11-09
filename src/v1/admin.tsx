@@ -8,6 +8,7 @@ import {
 } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AdminData } from "./types";
+import { tournamentPublicationHeld } from "./domain";
 export function Admin({
   client,
   busy,
@@ -312,12 +313,14 @@ export function Admin({
                 {!t.published && (
                   <button
                     className="primary"
-                    disabled={busy}
+                    disabled={busy || tournamentPublicationHeld(t.name)}
                     onClick={() =>
                       void save("publish_tournament", { id: t.id })
                     }
                   >
-                    Publish tournament: {t.name}
+                    {tournamentPublicationHeld(t.name)
+                      ? `Publication on hold: ${t.name}`
+                      : `Publish tournament: ${t.name}`}
                   </button>
                 )}
               </div>

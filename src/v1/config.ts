@@ -1,7 +1,7 @@
 export function publicV1Config(env: Record<string, string | undefined>) {
   const url = env.V1_SUPABASE_URL;
   const key = env.V1_SUPABASE_PUBLISHABLE_KEY;
-  if (env.V1_ISOLATED_TEST_PROJECT !== "true" || !url || !key)
+  if (env.V1_NEW_PROJECT_CONFIRMED !== "true" || !url || !key)
     return { ready: false as const };
   try {
     const parsed = new URL(url);

@@ -251,6 +251,20 @@ test("admin desk is role guarded and saves unpublished tournament drafts", async
         .eq("name", `Unpublished ${tag}`)
     ).data,
   ).toEqual([]);
+  await page
+    .getByLabel("Tournament name", { exact: true })
+    .fill("World Tour Finals 2026");
+  await page
+    .getByRole("button", { name: "Save tournament", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("button", {
+        name: "Publication on hold: World Tour Finals 2026",
+        exact: true,
+      })
+      .first(),
+  ).toBeDisabled();
   await page.screenshot({
     path: path.resolve(
       `../../outputs/v1-screenshots/${info.project.name}-admin.png`,

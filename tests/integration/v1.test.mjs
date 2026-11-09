@@ -237,3 +237,54 @@ test("local Supabase: anonymous rankings expose aggregate scores, not private pl
     (await anon.rpc("v1_quiz", { p_quiz_id: f.quiz, p_action: "start" })).error,
   );
 });
+
+test("local Supabase: World Tour Finals 2026 publication is blocked and invisible to anonymous players", async () => {
+  const save = async (kind, data) =>
+    rpc(f.owner, "v1_admin_save", { p_kind: kind, p_data: data });
+  const seasons = await f.owner.rpc("v1_admin_snapshot");
+  const season = seasons.data.seasons[0].id;
+  const held = await save("tournament", {
+    name: "World Tour Finals 2026",
+    season_id: season,
+    starts_at: "2026-01-01",
+    ends_at: "2099-01-01",
+  });
+  await save("match", {
+    tournament_id: held,
+    athlete_a: "Hold player A",
+    athlete_b: "Hold player B",
+    closes_at: "2099-01-01",
+  });
+  const quiz = await save("quiz", {
+    tournament_id: held,
+    title: "Held quiz",
+    opens_at: "2026-01-01",
+    closes_at: "2099-01-01",
+  });
+  await save("question", {
+    quiz_id: quiz,
+    position: 0,
+    prompt: "Is this local only?",
+    options: ["Yes", "No", "Maybe", "Later"],
+    correct_option: 0,
+    explanation: "Local test fixture.",
+  });
+  await save("publish_quiz", { id: quiz });
+  const result = await f.owner.rpc("v1_admin_save", {
+    p_kind: "publish_tournament",
+    p_data: { id: held },
+  });
+  assert.match(result.error?.message || "", /publication is on hold/);
+  const row = await f.owner
+    .from("tournaments")
+    .select("published,active")
+    .eq("id", held)
+    .single();
+  assert.equal(row.data.published, false);
+  assert.equal(row.data.active, false);
+  assert.deepEqual(
+    (await local().player().from("tournaments").select("*").eq("id", held))
+      .data,
+    [],
+  );
+});

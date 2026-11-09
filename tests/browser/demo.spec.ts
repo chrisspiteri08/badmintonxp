@@ -302,15 +302,17 @@ test("legacy login fails safely without backend configuration and exposes no adm
   expect(errors).toEqual([]);
 });
 
-test("home temporarily redirects to the guest demo and serves its artwork", async ({
+test("home redirects to the account arena while the guest demo and artwork stay available", async ({
   page,
   request,
 }) => {
   const response = await request.get(origin + "/", { maxRedirects: 0 });
   expect(response.status()).toBe(307);
-  expect(response.headers().location).toBe("/demo");
+  expect(response.headers().location).toBe("/play");
   await page.goto("/");
-  await expect(page).toHaveURL(origin + "/demo");
+  await expect(page).toHaveURL(origin + "/play");
+  await expect(page.locator(".v1")).toBeVisible();
+  await page.goto("/demo");
   await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
   await expect(
     page.getByRole("heading", { name: "BIRMINGHAM DEMO CUP" }),
@@ -365,4 +367,23 @@ test("prediction confirmation cancels safely and locked controls reopen after re
   ).toBeVisible();
   await expect(page.getByRole("button", { name: /01 Ember/ })).toBeDisabled();
   expect(dialogs).toEqual([]);
+});
+
+test("www redirects to canonical apex and preserves password-reset query parameters", async ({
+  request,
+}) => {
+  for (const pathname of [
+    "/demo",
+    "/play/account?code=review-code",
+    "/play/reset?code=review-code",
+  ]) {
+    const response = await request.get(origin + pathname, {
+      headers: { host: "www.badmintonxp.com" },
+      maxRedirects: 0,
+    });
+    expect(response.status()).toBe(307);
+    expect(response.headers().location).toBe(
+      "https://badmintonxp.com" + pathname,
+    );
+  }
 });

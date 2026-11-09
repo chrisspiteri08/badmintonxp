@@ -17,12 +17,24 @@ await cp("supabase/migrations", path.join(out, "supabase/migrations"), {
 });
 await writeFile(
   path.join(out, "UPLOAD.md"),
-  "# BadmintonXP v1 test copy\n\nRead V1_SETUP.md before uploading. Use a separate app root, hostname and Supabase test project. Do not overwrite the live guest application. The complete build is in runtime/.next (show hidden files). Configure the three V1 runtime variables in cPanel; no service key is needed.\n",
+  "# BadmintonXP v1 — badmintonxp.com\n\nRead V1_SETUP.md. Stop the existing app and rename runtime to runtime-demo-backup BEFORE extracting. Back up app.js/package manifests, preserve node_modules symlink and working domain .htaccess, install dependencies, enter NEW-project runtime settings yourself, then restart. Homepage: /play. Guest game: /demo. www redirects to HTTPS apex. World Tour Finals 2026 publication is blocked until owner approval. No keys included.\n",
 );
 const info = JSON.parse(
   await readFile(path.join(out, "PACKAGE-INFO.json"), "utf8"),
 );
-info.purpose = "Isolated BadmintonXP v1 test copy; see V1_SETUP.md";
+await writeFile(
+  path.join(out, "BADMINTONXP_V1_SCHEMA.sql"),
+  (await readFile("supabase/migrations/202611090001_v1.sql", "utf8")) +
+    "\n\n" +
+    (await readFile(
+      "supabase/migrations/202611090002_world_tour_finals_hold.sql",
+      "utf8",
+    )),
+);
+info.purpose = "BadmintonXP v1 for badmintonxp.com; see V1_SETUP.md";
+info.canonicalOrigin = "https://badmintonxp.com";
+info.homepage = "/play";
+info.publicationHold = "World Tour Finals 2026";
 info.requiresRuntimeConfiguration = true;
 await writeFile(
   path.join(out, "PACKAGE-INFO.json"),

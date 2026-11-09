@@ -12,6 +12,7 @@ import type { SupabaseClient, Session } from "@supabase/supabase-js";
 import { friendlyError, v1Client } from "./client";
 import type { Attempt, Home, Match, Rank, Screen } from "./types";
 import { Admin } from "./admin";
+import { emailReturnUrl } from "./domain";
 const navigation = [
   ["Arena", "/play"],
   ["Play", "/play/quiz"],
@@ -209,7 +210,7 @@ export function V1App({ screen }: { screen: Screen }) {
         password = String(data.get("password") || "");
       if (authMode === "forgot") {
         const { error } = await client.auth.resetPasswordForEmail(email, {
-          redirectTo: `${location.origin}/play/reset`,
+          redirectTo: emailReturnUrl(location.origin, "reset"),
         });
         if (error) throw error;
         setMessage(
@@ -219,7 +220,9 @@ export function V1App({ screen }: { screen: Screen }) {
         const { data: result, error } = await client.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${location.origin}/play/account` },
+          options: {
+            emailRedirectTo: emailReturnUrl(location.origin, "account"),
+          },
         });
         if (error) throw error;
         setMessage(
@@ -257,7 +260,7 @@ export function V1App({ screen }: { screen: Screen }) {
           />
           <span>
             BADMINTON<span>XP</span>
-            <small className="demo-badge">Fan arena · v1 test</small>
+            <small className="demo-badge">Fan arena</small>
           </span>
         </Link>
         {signedIn ? (
@@ -305,7 +308,7 @@ export function V1App({ screen }: { screen: Screen }) {
           <section className="panel">
             <h1>Your next rally is coming.</h1>
             <p>
-              The account arena hasn’t been connected to its separate test
+              The account arena hasn’t been connected to its new Supabase
               project yet.
             </p>
             <Link className="button primary" href="/demo">
