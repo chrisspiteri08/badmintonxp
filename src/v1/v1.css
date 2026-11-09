@@ -1,0 +1,107 @@
+.v1 input,
+.v1 select,
+.v1 textarea {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  margin: 8px 0 20px;
+  padding: 12px;
+  background: #061c37;
+  color: #fff;
+  border: 1px solid #536880;
+  border-radius: 10px;
+  font: inherit;
+}
+.v1 label {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+}
+.v1 select option {
+  background: #061c37;
+  color: #fff;
+}
+.v1 textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+.v1 .v1-form-panel {
+  max-width: 660px;
+  margin: 24px auto;
+}
+.v1 .v1-form-panel .button {
+  margin: 8px 10px 8px 0;
+}
+.v1 .v1-form-panel form {
+  margin: 26px 0;
+}
+.v1 .v1-notice {
+  background: #103e3d;
+  border: 1px solid #55bc9d;
+  border-radius: 12px;
+  padding: 16px;
+  color: #e3fff5;
+}
+.v1 .v1-match,
+.v1 .v1-admin-section {
+  margin: 22px 0;
+}
+.v1 .v1-admin-section summary {
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 800;
+  min-height: 32px;
+}
+.v1 .v1-admin-section form {
+  margin-top: 24px;
+  max-width: 680px;
+}
+.v1 .v1-review {
+  border-top: 1px solid #536880;
+  margin-top: 20px;
+  padding-top: 16px;
+}
+.v1 .v1-review li {
+  margin-bottom: 12px;
+}
+.v1 .v1-review li span {
+  display: block;
+  margin-top: 6px;
+}
+.v1 .v1-select {
+  margin: 24px 0;
+  max-width: 660px;
+}
+.v1 .panel,
+.v1 td,
+.v1 th {
+  overflow-wrap: anywhere;
+}
+.v1 .hero h1 {
+  font-size: clamp(30px, 5vw, 64px);
+  overflow-wrap: anywhere;
+}
+.v1 h1 {
+  font-size: clamp(30px, 4vw, 52px);
+  line-height: 1.08;
+}
+.v1 .button-row {
+  flex-wrap: wrap;
+}
+.v1 .v1-admin h2 {
+  font-size: 24px;
+}
+.v1 .v1-admin .table-wrap {
+  overflow-x: auto;
+}
+@media (max-width: 600px) {
+  .v1 .hero h1 {
+    font-size: 34px;
+  }
+  .v1 h1 {
+    font-size: 30px;
+  }
+  .v1 .v1-admin-section summary {
+    font-size: 18px;
+  }
+}
