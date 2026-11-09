@@ -478,7 +478,7 @@ export function V1App({ screen }: { screen: Screen }) {
                                   ? "new-password"
                                   : "current-password"
                               }
-                              minLength={12}
+                              minLength={6}
                               maxLength={128}
                               required
                             />
@@ -551,7 +551,7 @@ export function V1App({ screen }: { screen: Screen }) {
                           <input
                             type="password"
                             name="password"
-                            minLength={12}
+                            minLength={6}
                             maxLength={128}
                             autoComplete="new-password"
                             required
@@ -562,7 +562,7 @@ export function V1App({ screen }: { screen: Screen }) {
                           <input
                             type="password"
                             name="confirmation"
-                            minLength={12}
+                            minLength={6}
                             maxLength={128}
                             autoComplete="new-password"
                             required

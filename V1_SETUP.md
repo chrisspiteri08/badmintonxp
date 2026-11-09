@@ -8,7 +8,7 @@ Use a **NEW Supabase project for v1**, never the old legacy project. The develop
 
 1. Create a new project named **BadmintonXP-v1**, in an Asia region near the audience (Singapore is a reasonable choice). Keep the database password privately. Do not paste keys, passwords or connection strings into chat.
 2. In the **new project's SQL Editor**, run the combined `BADMINTONXP_V1_SCHEMA.sql` included in this ZIP **once on the empty project**. It contains migrations `202611090001_v1.sql` and `202611090002_world_tour_finals_hold.sql`, in that order. Alternatively apply those two repo migrations in order with the CLI linked only to this NEW project. If migration 001 was already applied to a separately created v1 project, apply only 002 there. Never apply these to the legacy project.
-3. Under **Authentication → Sign In / Providers → Email**, enable email/password signup and **Confirm email**. Set minimum password length to **12**. Leave anonymous sign-ins off. Configure Auth rate limits for your intended audience.
+3. Under **Authentication → Sign In / Providers → Email**, enable email/password signup and **Confirm email**. Set minimum password length to **6**. Leave anonymous sign-ins off. Configure Auth rate limits for your intended audience.
 4. Under **Authentication → URL Configuration**, set **Site URL** to:
 
    ```text

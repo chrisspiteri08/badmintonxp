@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
 import path from "node:path";
 import { fixture, local, password, sql } from "./local";
 async function mailLink(
@@ -44,7 +44,7 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   const tag = randomUUID().slice(0, 8);
   const f = await fixture(tag);
   const email = `fan-${tag}@example.test`,
-    pass = password(),
+    pass = randomBytes(6).toString("base64url").slice(0, 6),
     username = `fan_${tag}`;
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -195,7 +195,7 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   await page.getByRole("button", { name: "Send reset link" }).click();
   await expect(page.getByRole("status")).toContainText("reset link");
   await page.goto(await mailLink(request, email, "Reset"));
-  const nextPass = password();
+  const nextPass = randomBytes(6).toString("base64url").slice(0, 6);
   await page.getByLabel("New password", { exact: true }).fill(nextPass);
   await page.getByLabel("Confirm password", { exact: true }).fill(nextPass);
   await page.getByRole("button", { name: "Save new password" }).click();
