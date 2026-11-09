@@ -288,3 +288,23 @@ test("legacy login fails safely without backend configuration and exposes no adm
   expect(external).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test("home temporarily redirects to the guest demo and serves its artwork", async ({
+  page,
+  request,
+}) => {
+  const response = await request.get(origin + "/", { maxRedirects: 0 });
+  expect(response.status()).toBe(307);
+  expect(response.headers().location).toBe("/demo");
+  await page.goto("/");
+  await expect(page).toHaveURL(origin + "/demo");
+  await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
+  await expect(
+    page.getByRole("heading", { name: "BIRMINGHAM DEMO CUP" }),
+  ).toBeVisible();
+  const art = await request.get(
+    origin + "/demo/badmintonxp-arena-unbranded.jpg",
+  );
+  expect(art.status()).toBe(200);
+  expect(art.headers()["content-type"]).toContain("image/jpeg");
+});
