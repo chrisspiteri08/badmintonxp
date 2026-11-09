@@ -13,3 +13,7 @@ The auth provider uses real configuration guards, the current credentials shape,
 Removing source values does not remove old Git history or archives. Rotation is still required. No private service key was found in the inspected login/context/seeding code, and no unrelated key rotation is being asserted as necessary.
 
 Client-side role filtering is not authorization. Database row/column policies, auth metadata-to-profile triggers, storage policies and existing user roles still need a separate server-side review. They were neither accessed nor modified here. Legacy profile XP writes and account administration remain outside the isolated guest demo and are not certified production-safe by passing these checks.
+
+## Owner-only rotation helper
+
+`ADMIN_PASSWORD_STEPS.md` describes the interactive `scripts/rotate-admin-password.mjs` helper. Run it yourself in a private Terminal. The assistant has not executed it against Supabase; automated coverage uses mocked clients. The helper does not echo or save the service key or password and requires explicit typed confirmation before network/account actions.
