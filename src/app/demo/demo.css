@@ -158,7 +158,7 @@
 }
 .demo .xp-chip small {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10px;
 }
 .demo-nav {
   display: flex;
@@ -862,7 +862,7 @@
     font-size: 18px;
   }
   .demo .xp-chip small {
-    font-size: 7px;
+    font-size: 9px;
   }
   .demo-nav {
     justify-content: space-between;

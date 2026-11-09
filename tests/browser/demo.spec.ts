@@ -15,6 +15,9 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
       network.push(r.url());
   });
   page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => {
+    if (m.type() === "error") errors.push(m.text());
+  });
   await page.clock.install();
   await page.goto("/demo");
   await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
@@ -101,20 +104,31 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
   await page.clock.runFor(16000);
   await expect(page.getByTestId("quiz-score")).toHaveText("+10 XP");
   await expect(page.getByTestId("lifetime-xp")).toHaveText("150 XP");
+  await page.getByRole("link", { name: "Arena", exact: true }).click();
+  await expect(page.getByRole("link", { name: /QUIZ RESULTS/ })).toContainText(
+    "Scored 10 XP",
+  );
+  await expect(
+    page.getByRole("link", { name: /QUIZ RESULTS/ }),
+  ).not.toContainText("up to 30 XP");
+  await page.getByRole("link", { name: /QUIZ RESULTS/ }).click();
+  await expect(page).toHaveURL(`${origin}/demo/quiz`);
+  await expect(page.getByTestId("quiz-score")).toHaveText("+10 XP");
   await page.reload();
   await expect(page.getByTestId("quiz-score")).toHaveText("+10 XP");
   await expect(page.getByRole("button", { name: "Start quiz" })).toHaveCount(0);
   await page.getByRole("link", { name: "Make your match call" }).click();
-  page.on("dialog", (d) => d.accept());
+  page.on("dialog", () => {
+    throw new Error("Unexpected browser dialog");
+  });
   await page.getByRole("button", { name: /01 Ember/ }).click();
+  await page.getByRole("button", { name: "Lock Ember", exact: true }).click();
   await expect(page.getByTestId("prediction-status")).toContainText("Pending");
   await expect(page.getByTestId("lifetime-xp")).toHaveText("150 XP");
   await expect(page.getByRole("button", { name: /02 Kite/ })).toBeDisabled();
-  await page.getByText("Demo: settle result", { exact: true }).click();
-  await page
-    .getByRole("button", { name: "Close entries / advance demo time" })
-    .click();
-  await page.getByRole("button", { name: "Settle fictional result" }).click();
+  await expect(page.locator("details.simulation")).toHaveAttribute("open", "");
+  await page.getByRole("button", { name: "Fast-forward to match end" }).click();
+  await page.getByRole("button", { name: "Reveal winner" }).click();
   await expect(page.getByTestId("prediction-status")).toContainText(
     "Ember wins! You called it. +20 XP",
   );
@@ -123,9 +137,9 @@ test("guest journey, persisted clocks, actual ledger, settlement and matching ra
   await capture("settlement");
   await page.reload();
   await expect(page.getByTestId("lifetime-xp")).toHaveText("170 XP");
-  await page.getByText("Demo: settle result", { exact: true }).click();
+  await expect(page.locator("details.simulation")).toHaveAttribute("open", "");
   await expect(
-    page.getByRole("button", { name: "Settle fictional result" }),
+    page.getByRole("button", { name: "Reveal winner" }),
   ).toBeDisabled();
   await page.getByRole("link", { name: "Rankings", exact: true }).click();
   await expect(page.getByTestId("standings-own-rank")).toHaveText("#1");
@@ -174,11 +188,9 @@ test("reload after unanswered absence catches up; late entry and direct-route re
   await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
   await page.goto("/demo/prediction");
   await page.getByText("Demo: settle result", { exact: true }).click();
-  await page
-    .getByRole("button", { name: "Close entries / advance demo time" })
-    .click();
+  await page.getByRole("button", { name: "Fast-forward to match end" }).click();
   await expect(page.getByRole("button", { name: /01 Ember/ })).toBeDisabled();
-  await page.getByRole("button", { name: "Settle fictional result" }).click();
+  await page.getByRole("button", { name: "Reveal winner" }).click();
   await expect(page.getByTestId("prediction-status")).toContainText(
     "No entry · 0 XP",
   );
@@ -224,20 +236,21 @@ test("prediction countdown and losing copy match the fixed simulated winner", as
   await expect(page.getByTestId("prediction-countdown")).not.toContainText(
     "UTC",
   );
-  page.on("dialog", (d) => d.accept());
+  page.on("dialog", () => {
+    throw new Error("Unexpected browser dialog");
+  });
   await page.getByRole("button", { name: /02 Kite/ }).click();
+  await page.getByRole("button", { name: "Lock Kite", exact: true }).click();
   await expect(page.getByRole("button", { name: /01 Ember/ })).toContainText(
     "Not picked",
   );
   await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
-  await page.getByText("Demo: settle result", { exact: true }).click();
-  await page
-    .getByRole("button", { name: "Close entries / advance demo time" })
-    .click();
+  await expect(page.locator("details.simulation")).toHaveAttribute("open", "");
+  await page.getByRole("button", { name: "Fast-forward to match end" }).click();
   await expect(page.getByTestId("prediction-countdown")).toHaveText(
     "Entries closed",
   );
-  await page.getByRole("button", { name: "Settle fictional result" }).click();
+  await page.getByRole("button", { name: "Reveal winner" }).click();
   await expect(page.getByTestId("prediction-status")).toHaveText(
     "Ember wins. Better luck next time.",
   );
@@ -307,4 +320,49 @@ test("home temporarily redirects to the guest demo and serves its artwork", asyn
   );
   expect(art.status()).toBe(200);
   expect(art.headers()["content-type"]).toContain("image/jpeg");
+});
+
+test("prediction confirmation cancels safely and locked controls reopen after reload", async ({
+  page,
+}) => {
+  const dialogs: string[] = [];
+  page.on("dialog", async (dialog) => {
+    dialogs.push(dialog.type());
+    await dialog.dismiss();
+  });
+  await page.goto("/demo");
+  await expect(page.locator(".xp-chip small")).toHaveText("Lifetime XP");
+  await page.getByRole("link", { name: "Predict", exact: true }).click();
+  await expect(page.locator("details.simulation")).not.toHaveAttribute(
+    "open",
+    "",
+  );
+  await page.getByRole("button", { name: /01 Ember/ }).click();
+  await expect(
+    page.getByRole("group", { name: "Confirm prediction" }),
+  ).toBeVisible();
+  await expect(page.getByTestId("prediction-status")).toHaveText(
+    "Choose an athlete to lock your pick.",
+  );
+  await page.getByRole("button", { name: "Keep choosing" }).click();
+  await expect(
+    page.getByRole("group", { name: "Confirm prediction" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: /02 Kite/ }).click();
+  await page.getByRole("button", { name: "Lock Kite", exact: true }).click();
+  await expect(page.getByTestId("prediction-status")).toContainText(
+    "Your Kite entry is locked",
+  );
+  await expect(page.locator("details.simulation")).toHaveAttribute("open", "");
+  await page.getByText("Demo: settle result", { exact: true }).click();
+  await expect(page.locator("details.simulation")).not.toHaveAttribute(
+    "open",
+    "",
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Fast-forward to match end" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /01 Ember/ })).toBeDisabled();
+  expect(dialogs).toEqual([]);
 });

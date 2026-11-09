@@ -29,6 +29,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
   const [scope, setScope] = useState<Scope>("event");
   const [league, setLeague] = useState<League>("players");
   const [confirmReset, setConfirmReset] = useState(false);
+  const [pendingPick, setPendingPick] = useState<"Ember" | "Kite" | null>(null);
   const action = async (a: Parameters<typeof dispatch>[0]) => {
     await dispatch(a);
   };
@@ -93,7 +94,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
           aria-label={`Lifetime demo XP: ${xp}`}
         >
           <strong data-testid="lifetime-xp">{xp} XP</strong>
-          <small>YOUR XP</small>
+          <small>Lifetime XP</small>
         </Link>
       </header>
       <nav className="demo-nav" aria-label="Guest demo">
@@ -120,6 +121,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
                 unoptimized
                 width={720}
                 height={1280}
+                priority
                 className="hero-art"
                 src="/demo/badmintonxp-arena-unbranded.jpg"
                 alt="Illustrated badminton athletes playing in a dramatic floodlit arena"
@@ -178,7 +180,11 @@ export function DemoApp({ screen }: { screen: Screen }) {
                           ? "RESUME QUIZ"
                           : "PLAY QUIZ"}
                     </strong>
-                    <span>Test your badminton IQ · up to 30 XP</span>
+                    <span>
+                      {complete
+                        ? `Scored ${quizScore} XP`
+                        : "Test your badminton IQ · up to 30 XP"}
+                    </span>
                   </span>
                   <b aria-hidden="true">↗</b>
                 </Link>
@@ -188,7 +194,10 @@ export function DemoApp({ screen }: { screen: Screen }) {
                     <strong>MAKE YOUR CALL</strong>
                     <span>
                       {state.settled
-                        ? "Simulated result settled"
+                        ? predictionResult(
+                            state.entry?.option ?? null,
+                            RULES.predictionXP,
+                          )
                         : state.entry
                           ? "Your entry is locked"
                           : "Free prediction · 20 XP for a correct call"}
@@ -455,7 +464,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
                   <div className="section-head">
                     <span className="pill">
                       {state.settled
-                        ? "SIMULATED · SETTLED"
+                        ? "MATCH FINISHED"
                         : state.entry
                           ? "ENTRY LOCKED · PENDING"
                           : closed
@@ -487,14 +496,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
                         key={name}
                         disabled={!!state.entry || closed || state.settled}
                         aria-pressed={state.entry?.option === name}
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              `Lock ${name}? One entry only; it cannot be changed.`,
-                            )
-                          )
-                            void action({ type: "predict", option: name });
-                        }}
+                        onClick={() => setPendingPick(name)}
                       >
                         <span className="athlete-number">0{i + 1}</span>
                         <strong>{name}</strong>
@@ -508,6 +510,35 @@ export function DemoApp({ screen }: { screen: Screen }) {
                       </button>
                     ))}
                   </div>
+                  {pendingPick && !state.entry && !closed && !state.settled && (
+                    <div
+                      className="reset-confirm"
+                      role="group"
+                      aria-label="Confirm prediction"
+                    >
+                      <p>
+                        Lock {pendingPick} as your pick? You can’t change it
+                        once locked.
+                      </p>
+                      <div className="button-row">
+                        <button
+                          className="primary"
+                          onClick={async () => {
+                            await action({
+                              type: "predict",
+                              option: pendingPick,
+                            });
+                            setPendingPick(null);
+                          }}
+                        >
+                          Lock {pendingPick}
+                        </button>
+                        <button autoFocus onClick={() => setPendingPick(null)}>
+                          Keep choosing
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <p className="muted">
                     Pick once. A correct call earns 20 XP.
                   </p>
@@ -527,25 +558,25 @@ export function DemoApp({ screen }: { screen: Screen }) {
                           ? "Entries closed. No guest entry."
                           : "Choose an athlete to lock your pick."}
                   </div>
-                  <details className="simulation">
+                  <details className="simulation" open={!!state.entry}>
                     <summary>Demo: settle result</summary>
                     <p>
-                      Close entries, then reveal the result: Ember wins. This
-                      also advances any running quiz clock.
+                      Fast-forward to the final whistle, then reveal the winner.
+                      Any quiz in progress will run down too.
                     </p>
                     <div className="button-row">
                       <button
                         disabled={closed}
                         onClick={() => void action({ type: "close" })}
                       >
-                        Close entries / advance demo time
+                        Fast-forward to match end
                       </button>
                       <button
                         className="primary"
                         disabled={!closed || state.settled}
                         onClick={() => void action({ type: "settle" })}
                       >
-                        Settle fictional result
+                        Reveal winner
                       </button>
                     </div>
                   </details>
@@ -613,7 +644,12 @@ export function DemoApp({ screen }: { screen: Screen }) {
                       {scope === "event"
                         ? "Birmingham Demo Cup"
                         : "Demo season"}{" "}
-                      · {league} · complete standings
+                      ·{" "}
+                      {league === "players"
+                        ? "Individual rankings"
+                        : league === "teams"
+                          ? "Team rankings"
+                          : "Country rankings"}
                     </caption>
                     <thead>
                       <tr>
@@ -685,7 +721,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
                     <span>Match call</span>
                     <strong>
                       {state.settled
-                        ? "Simulated-settled"
+                        ? "Match finished"
                         : state.entry
                           ? "Locked · pending"
                           : "Not entered"}
