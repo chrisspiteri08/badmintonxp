@@ -4,8 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
-    "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint --ext .js,.mjs,.ts,.tsx src tests scripts deployment --max-warnings=0",
@@ -22,12 +20,11 @@
     "test:v1:db": "node --test tests/v1-database.test.mjs",
     "test:v1:integration": "V1_LOCAL_E2E=1 node --test tests/integration/v1.test.mjs",
     "test:v1:browser": "V1_LOCAL_E2E=1 playwright test --config playwright.v1.config.ts",
-    "package:v1": "node scripts/package-v1.mjs"
+    "package:v1": "node scripts/package-v1.mjs",
+    "audit:production": "npm audit --omit=dev --audit-level=low"
   },
   "dependencies": {
-    "@genkit-ai/googleai": "^1.8.0",
-    "@genkit-ai/next": "^1.8.0",
-    "@hookform/resolvers": "^4.1.3",
+    "@hookform/resolvers": "^5.9.2",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-avatar": "^1.1.3",
@@ -49,26 +46,21 @@
     "@radix-ui/react-toast": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@supabase/supabase-js": "^2.119.0",
-    "@tanstack-query-firebase/react": "^1.0.5",
     "@tanstack/react-query": "^5.66.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
-    "dotenv": "^16.5.0",
-    "firebase": "^11.8.1",
     "framer-motion": "^11.2.12",
-    "genkit": "^1.8.0",
     "lucide-react": "^0.475.0",
     "next": "15.5.29",
-    "patch-package": "^8.0.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
-    "react-hook-form": "^7.54.2",
+    "react-hook-form": "^7.91.0",
     "recharts": "^2.15.1",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.24.2"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.15",
@@ -78,11 +70,16 @@
     "@types/react-dom": "^18",
     "eslint": "^8.57.1",
     "eslint-config-next": "15.5.29",
-    "genkit-cli": "^1.8.0",
-    "postcss": "^8",
+    "postcss": "^8.5.32",
     "prettier": "^3.9.10",
     "supabase": "^3.0.0",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "$postcss",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.1"
+    }
   }
 }

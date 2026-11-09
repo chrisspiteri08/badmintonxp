@@ -72,7 +72,7 @@ No real tournament has been invented or pre-published. The account arena starts 
    Derive `PassengerNodejs` by replacing `/bin/activate` with `/bin/node` in the actual activation-script path. Do not copy a guessed version path or change the live domain's working `.htaccess`.
 8. Visit `https://YOUR-TEST-HOST/play`. The root still redirects to `/demo` intentionally. Verify sign-up/confirmation, profile save, quiz score after reload and another device/login, prediction lock, manual result settlement, and anonymous rankings. Check browser Network for all JS/CSS returning 200 and Console for errors. Test `/demo` separately: its scores must remain fictional and local.
 
-A Vercel test project is an alternative: import this feature branch into a **new** project, set the three runtime settings, and add its generated URL to Supabase Auth redirects. Deploy only after the owner chooses to push/deploy the branch. Neither a deployment nor a GitHub push has been performed as part of this v1 build.
+A Vercel test project is an alternative: import this feature branch into a **new** project, set the three runtime settings, and add its generated URL to Supabase Auth redirects. The feature branch is now pushed to GitHub. Deploy only after the owner chooses to deploy it; no deployment has been performed.
 
 ## Reproduce checks locally without any cloud project
 
@@ -102,6 +102,6 @@ Real tournament details await owner confirmation. Google OAuth, live feeds, refe
 - [Email/password Auth](https://supabase.com/docs/guides/auth/passwords)
 - [Local development](https://supabase.com/docs/guides/local-development)
 
-## Dependency audit limitation
+## Dependency audit status
 
-The Supabase client used by v1 was updated within its existing 2.x range to 2.119.0; it is no longer flagged by the audit. The full inherited repository still reports **52 production dependency findings (1 low, 26 moderate, 21 high, 4 critical)** at this check, including legacy AI/build dependencies and a Next-related transitive finding. Functional test passes are not a clean security-audit result. Do not treat this test copy as a production-release approval; dependency cleanup is separate work. No blanket force-upgrades or check suppressions were applied.
+The dependency-remediation update reduces both `npm audit --omit=dev` and the full `npm audit` to zero findings. See `DEPENDENCY_AUDIT.md` for the removed unused scaffolding, patched versions, scoped overrides and actual verification. The generated cPanel runtime package also preserves the PostCSS security override; rebuild the package from this branch rather than reusing the earlier ZIP.

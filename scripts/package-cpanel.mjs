@@ -47,6 +47,8 @@ const manifest = {
   engines: { node: "22.x" },
   scripts: { start: "node app.js" },
   dependencies,
+  // Preserve the audited PostCSS override in the host install as well as the build.
+  overrides: { postcss: require("postcss/package.json").version },
 };
 await writeFile(
   path.join(output, "package.json"),

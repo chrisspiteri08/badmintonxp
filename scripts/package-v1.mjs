@@ -9,6 +9,7 @@ const out = path.resolve(
   process.env.CPANEL_PACKAGE_DIR || "../cpanel-upload/badmintonxp-node",
 );
 await cp("V1_SETUP.md", path.join(out, "V1_SETUP.md"));
+await cp("DEPENDENCY_AUDIT.md", path.join(out, "DEPENDENCY_AUDIT.md"));
 await cp("V1_ARCHITECTURE.md", path.join(out, "V1_ARCHITECTURE.md"));
 await mkdir(path.join(out, "supabase/migrations"), { recursive: true });
 await cp("supabase/migrations", path.join(out, "supabase/migrations"), {
