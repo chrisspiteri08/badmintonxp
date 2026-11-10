@@ -15,3 +15,6 @@
 
 - World Tour Finals 2026 has a database publication-hold trigger (migration 002), plus a disabled admin publish button. No real schedule or fixtures are seeded. The hold remains until an explicit owner-approved release change.
 - Browser Auth uses origin-bound localStorage, not shared domain cookies. Canonical apex email callback URLs and the www redirect keep PKCE on one origin; no cookie-domain environment setting is needed.
+
+- Content-editor membership is separate in private.content_editors. private.can_manage_content gates content operations/read policies, never private player/ledger policies. Owner-only private.is_admin remains unchanged. Content-editor snapshots omit player records; all hand-written ledger writes/role changes remain denied. CREATE OR REPLACE keeps existing RPC grants, and new private helpers have explicitly restricted EXECUTE privileges.
+- Published questions/results remain immutable. Draft edits/deletes lock their quiz row, and publication serializes with those changes. Readiness messages mirror server requirements and do not imply that a published quiz is playable before its tournament or entry window is open.

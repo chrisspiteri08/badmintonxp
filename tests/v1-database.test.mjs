@@ -106,7 +106,7 @@ test("v1: every app table has RLS and clients cannot read answer keys", async ()
       "select relname,relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and relkind='r'",
     )
   ).rows;
-  assert.equal(tables.length, 13);
+  assert.equal(tables.length, 14);
   assert.ok(tables.every((t) => t.relrowsecurity));
   await asUser(alice, async () => {
     await assert.rejects(
@@ -156,10 +156,10 @@ test("v1: profile isolation, XP immutability, role escalation and admin authoriz
       db.query("insert into private.admins values($1)", [alice]),
       /permission denied/,
     );
-    await assert.rejects(rpc("v1_admin_snapshot"), /Admin access/);
+    await assert.rejects(rpc("v1_admin_snapshot"), /Tournament desk access/);
     await assert.rejects(
       rpc("v1_settle_match", [match, "Ember"]),
-      /Admin access/,
+      /Tournament desk access/,
     );
     await rpc("v1_profile", ["Alice", "MY", team]);
   });
@@ -423,4 +423,115 @@ test("v1: World Tour Finals 2026 remains private and cannot be published even by
     },
     "anon",
   );
+});
+
+test("v1: content editors manage content/results without player, role or manual-XP privileges", async () => {
+  const editor = "40000000-0000-0000-0000-000000000004";
+  await db.query("insert into auth.users(id,email) values($1,$2)", [
+    editor,
+    "editor@example.test",
+  ]);
+  await db.query("insert into private.content_editors(user_id) values($1)", [
+    editor,
+  ]);
+  await asUser(editor, async () => {
+    const home = await rpc("v1_home");
+    assert.equal(home.admin, false);
+    assert.equal(home.content_editor, true);
+    const snapshot = await rpc("v1_admin_snapshot");
+    assert.equal(snapshot.role, "content_editor");
+    assert.deepEqual(snapshot.players, []);
+    assert.equal(
+      (await db.query("select * from public.profiles")).rows.length,
+      1,
+    );
+    assert.equal(
+      (await db.query("select * from public.xp_ledger")).rows.length,
+      0,
+    );
+    for (const sql of [
+      "insert into private.admins(user_id) values($1)",
+      "insert into private.content_editors(user_id) values($1)",
+    ])
+      await assert.rejects(db.query(sql, [editor]), /permission denied/);
+    await assert.rejects(
+      db.query("update public.xp_ledger set xp=500"),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query("update public.profiles set username='other' where id=$1", [
+        alice,
+      ]),
+      /permission denied/,
+    );
+    const t = await rpc("v1_admin_save", [
+      "tournament",
+      {
+        name: "Editor cup",
+        season_id: season,
+        starts_at: "2026-01-01",
+        ends_at: "2099-01-01",
+      },
+    ]);
+    await assert.rejects(
+      rpc("v1_admin_save", ["publish_tournament", { id: t }]),
+      /Add at least one match/,
+    );
+    const m = await rpc("v1_admin_save", [
+      "match",
+      {
+        tournament_id: t,
+        athlete_a: "Editor A",
+        athlete_b: "Editor B",
+        closes_at: "2026-01-01",
+      },
+    ]);
+    await assert.rejects(
+      rpc("v1_admin_save", ["publish_tournament", { id: t }]),
+      /Publish at least one quiz/,
+    );
+    const q = await rpc("v1_admin_save", [
+      "quiz",
+      {
+        tournament_id: t,
+        title: "Editor quiz",
+        opens_at: "2026-01-01",
+        closes_at: "2099-01-01",
+      },
+    ]);
+    await assert.rejects(
+      rpc("v1_admin_save", ["publish_quiz", { id: q }]),
+      /Add at least one question/,
+    );
+    const fields = {
+      quiz_id: q,
+      position: 1,
+      prompt: "Editor question?",
+      options: ["A", "B", "C", "D"],
+      correct_option: 0,
+      explanation: "A wins.",
+    };
+    const question = await rpc("v1_admin_save", ["question", fields]);
+    await assert.rejects(
+      rpc("v1_admin_save", ["publish_quiz", { id: q }]),
+      /Number questions consecutively from 1/,
+    );
+    await rpc("v1_admin_save", [
+      "question",
+      { ...fields, id: question, position: 0, prompt: "Corrected question?" },
+    ]);
+    assert.equal(
+      (await rpc("v1_admin_snapshot")).questions.find((x) => x.id === question)
+        .prompt,
+      "Corrected question?",
+    );
+    await rpc("v1_admin_save", ["publish_quiz", { id: q }]);
+    await rpc("v1_admin_save", ["publish_tournament", { id: t }]);
+    await assert.rejects(
+      rpc("v1_admin_save", ["question", { ...fields, id: question }]),
+      /Published questions/,
+    );
+    await rpc("v1_settle_match", [m, "Editor A"]);
+    await rpc("v1_settle_match", [m, "Editor A"]);
+  });
 });

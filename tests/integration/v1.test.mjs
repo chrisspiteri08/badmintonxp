@@ -58,7 +58,7 @@ test("local Supabase: RLS hides other profiles, attempts, answers, predictions a
   );
   assert.equal(
     (await alice.rpc("v1_admin_snapshot")).error?.message,
-    "Admin access required.",
+    "Tournament desk access required.",
   );
 });
 test("local Supabase: player cannot write profiles, awards, attempts, answers, results or roles directly", async () => {
@@ -287,4 +287,126 @@ test("local Supabase: World Tour Finals 2026 publication is blocked and invisibl
       .data,
     [],
   );
+});
+
+test("local Supabase: content editor can publish content and settle, but cannot access private players/roles/XP", async () => {
+  const ctx = local(),
+    email = `editor-${randomUUID()}@example.test`,
+    pass = password();
+  const created = await ctx.admin.auth.admin.createUser({
+    email,
+    password: pass,
+    email_confirm: true,
+  });
+  assert.equal(created.error, null);
+  const id = created.data.user.id;
+  sql(`insert into private.content_editors(user_id) values('${id}');`);
+  const editor = ctx.player();
+  assert.equal(
+    (await editor.auth.signInWithPassword({ email, password: pass })).error,
+    null,
+  );
+  const home = await rpc(editor, "v1_home");
+  assert.equal(home.admin, false);
+  assert.equal(home.content_editor, true);
+  const snap = await rpc(editor, "v1_admin_snapshot");
+  assert.equal(snap.role, "content_editor");
+  assert.deepEqual(snap.players, []);
+  assert.deepEqual(
+    (await editor.from("profiles").select("id").eq("id", aliceId)).data,
+    [],
+  );
+  assert.deepEqual(
+    (await editor.from("xp_ledger").select("*").eq("user_id", aliceId)).data,
+    [],
+  );
+  assert.ok(
+    (
+      await editor
+        .from("profiles")
+        .update({ username: "hacked" })
+        .eq("id", aliceId)
+    ).error,
+  );
+  assert.ok(
+    (await editor.from("xp_ledger").insert({ user_id: id, xp: 500 })).error,
+  );
+  assert.ok(
+    (await editor.schema("private").from("admins").insert({ user_id: id }))
+      .error,
+  );
+  assert.ok(
+    (
+      await editor
+        .schema("private")
+        .from("content_editors")
+        .insert({ user_id: aliceId })
+    ).error,
+  );
+  assert.ok(
+    (
+      await editor.rpc("v1_admin_save", {
+        p_kind: "role",
+        p_data: { user_id: id, role: "admin" },
+      })
+    ).error,
+  );
+  const save = (kind, data) =>
+    rpc(editor, "v1_admin_save", { p_kind: kind, p_data: data });
+  const season = await save("season", {
+    name: `Editor season ${randomUUID().slice(0, 8)}`,
+  });
+  const t = await save("tournament", {
+    name: "Editor API event",
+    season_id: season,
+    starts_at: "2026-01-01",
+    ends_at: "2099-01-01",
+  });
+  assert.match(
+    (
+      await editor.rpc("v1_admin_save", {
+        p_kind: "publish_tournament",
+        p_data: { id: t },
+      })
+    ).error.message,
+    /Add at least one match/,
+  );
+  const m = await save("match", {
+    tournament_id: t,
+    athlete_a: "Editor A",
+    athlete_b: "Editor B",
+    closes_at: "2026-01-01",
+  });
+  const q = await save("quiz", {
+    tournament_id: t,
+    title: "Editor API quiz",
+    opens_at: "2026-01-01",
+    closes_at: "2099-01-01",
+  });
+  const fields = {
+    quiz_id: q,
+    position: 1,
+    prompt: "Editable draft question?",
+    options: ["A", "B", "C", "D"],
+    correct_option: 0,
+    explanation: "A wins.",
+  };
+  const question = await save("question", fields);
+  assert.match(
+    (
+      await editor.rpc("v1_admin_save", {
+        p_kind: "publish_quiz",
+        p_data: { id: q },
+      })
+    ).error.message,
+    /consecutively from 1/,
+  );
+  await save("question", { ...fields, id: question, position: 0 });
+  await save("delete_question", { quiz_id: q, id: question });
+  await save("question", { ...fields, position: 0 });
+  await save("publish_quiz", { id: q });
+  await save("publish_tournament", { id: t });
+  await rpc(editor, "v1_settle_match", { p_match_id: m, p_winner: "Editor A" });
+  await rpc(editor, "v1_settle_match", { p_match_id: m, p_winner: "Editor A" });
+  assert.deepEqual((await rpc(editor, "v1_admin_snapshot")).players, []);
 });

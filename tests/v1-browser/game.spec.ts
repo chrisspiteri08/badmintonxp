@@ -238,7 +238,9 @@ test("admin desk is role guarded and saves unpublished tournament drafts", async
   await page
     .getByRole("button", { name: "Save tournament", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText("Saved as a draft");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Saved as a draft" }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: `Unpublished ${tag} · Draft` }),
   ).toBeVisible();
@@ -315,4 +317,161 @@ test("server timeout advances a real unanswered question and saves the final sco
     .select("id")
     .eq("quiz_id", f.quiz);
   expect(attempt.data).toHaveLength(1);
+});
+
+test("content editor sees readiness, repairs a draft question and publishes/settles without player access", async ({
+  page,
+}, info) => {
+  const tag = randomUUID().slice(0, 8),
+    f = await fixture(tag),
+    ctx = local(),
+    email = `editor-ui-${tag}@example.test`,
+    pass = password();
+  const created = await ctx.admin.auth.admin.createUser({
+    email,
+    password: pass,
+    email_confirm: true,
+  });
+  expect(created.error).toBeNull();
+  sql(
+    `insert into private.content_editors(user_id) values('${created.data.user!.id}');`,
+  );
+  await page.goto("/play/account");
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(pass);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "You’re in." })).toBeVisible();
+  await page.goto("/play/admin");
+  await expect(
+    page.getByText(/Content editor — content and results only/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Players", exact: true }),
+  ).toHaveCount(0);
+  const tname = `Editor UI event ${tag}`,
+    qname = `Editor UI quiz ${tag}`;
+  await page.getByText("3. Create a tournament", { exact: true }).click();
+  const tf = page.getByRole("form", { name: "3. Create a tournament" });
+  await tf.getByLabel("Tournament name", { exact: true }).fill(tname);
+  await tf
+    .getByRole("combobox", { name: "Season", exact: true })
+    .selectOption({ label: `Test season ${tag}` });
+  await tf
+    .getByLabel("Tournament starts", { exact: true })
+    .fill("2026-01-01T00:00");
+  await tf
+    .getByLabel("Tournament ends", { exact: true })
+    .fill("2099-01-01T00:00");
+  await tf
+    .getByRole("button", { name: "Save tournament", exact: true })
+    .click();
+  const tr = page.locator(`[aria-label="Tournament readiness: ${tname}"]`);
+  await expect(tr).toContainText("Add at least one match");
+  await expect(tr).toContainText("Publish at least one quiz");
+  await expect(
+    page.getByRole("button", {
+      name: `Publish tournament: ${tname}`,
+      exact: true,
+    }),
+  ).toBeDisabled();
+  const t = await ctx.admin
+    .from("tournaments")
+    .select("id")
+    .eq("name", tname)
+    .single();
+  expect(t.error).toBeNull();
+  await page.getByText("4. Add a match", { exact: true }).click();
+  const mf = page.getByRole("form", { name: "4. Add a match" });
+  await mf
+    .getByRole("combobox", { name: "Tournament", exact: true })
+    .selectOption(t.data!.id);
+  await mf
+    .getByLabel("First athlete or pair", { exact: true })
+    .fill(`Ember ${tag}`);
+  await mf
+    .getByLabel("Second athlete or pair", { exact: true })
+    .fill(`Kite ${tag}`);
+  await mf
+    .getByLabel("Predictions close", { exact: true })
+    .fill("2026-01-01T00:00");
+  await mf.getByRole("button", { name: "Save match", exact: true }).click();
+  await expect(tr).not.toContainText("Add at least one match");
+  await page.getByText("5. Create a quiz", { exact: true }).click();
+  const qf = page.getByRole("form", { name: "5. Create a quiz" });
+  await qf
+    .getByRole("combobox", { name: "Tournament", exact: true })
+    .selectOption(t.data!.id);
+  await qf.getByLabel("Quiz title", { exact: true }).fill(qname);
+  await qf.getByLabel("Quiz opens", { exact: true }).fill("2026-01-01T00:00");
+  await qf
+    .getByLabel("Quiz entries close", { exact: true })
+    .fill("2099-01-01T00:00");
+  await qf.getByRole("button", { name: "Save quiz", exact: true }).click();
+  const qr = page.locator(`[aria-label="Quiz readiness: ${qname}"]`);
+  await expect(qr).toContainText("Add at least one question");
+  const q = await ctx.admin
+    .from("quizzes")
+    .select("id")
+    .eq("title", qname)
+    .single();
+  expect(q.error).toBeNull();
+  await page.getByText("6. Write a quiz question", { exact: true }).click();
+  const form = page.getByRole("form", { name: "6. Write a quiz question" });
+  await form
+    .getByRole("combobox", { name: "Quiz", exact: true })
+    .selectOption(q.data!.id);
+  await form.getByLabel("Question number", { exact: true }).fill("2");
+  await form
+    .getByLabel("Question", { exact: true })
+    .fill("Which local test answer wins?");
+  for (let i = 1; i <= 4; i++)
+    await form.getByLabel(`Answer ${i}`, { exact: true }).fill(`Option ${i}`);
+  await form
+    .getByLabel("Explanation", { exact: true })
+    .fill("Option one wins.");
+  await form
+    .getByRole("button", { name: "Save question", exact: true })
+    .click();
+  await expect(qr).toContainText("Number questions consecutively from 1");
+  await expect(
+    page.getByRole("button", { name: `Publish quiz: ${qname}`, exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: `Edit question 2: ${qname}`, exact: true })
+    .click();
+  await expect(form.getByLabel("Question number", { exact: true })).toHaveValue(
+    "2",
+  );
+  await form.getByLabel("Question number", { exact: true }).fill("1");
+  await form
+    .getByRole("button", { name: "Save question changes", exact: true })
+    .click();
+  await expect(qr).toContainText("Ready to publish this quiz");
+  await page
+    .getByRole("button", { name: `Publish quiz: ${qname}`, exact: true })
+    .click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Quiz published." }),
+  ).toContainText("tournament is published");
+  await expect(tr).toContainText("Ready to publish");
+  await page
+    .getByRole("button", { name: `Publish tournament: ${tname}`, exact: true })
+    .click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Tournament published" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: `Ember ${tag} wins`, exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Confirm winner", exact: true })
+    .click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Result confirmed" }),
+  ).toBeVisible();
+  expect(await page.locator("body").innerText()).not.toContain(f.email);
+  await page.screenshot({
+    path: path.resolve(`../../outputs/content-editor-${info.project.name}.png`),
+    fullPage: true,
+  });
 });

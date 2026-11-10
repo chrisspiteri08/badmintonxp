@@ -655,7 +655,7 @@ export function V1App({ screen }: { screen: Screen }) {
                       Lifetime XP: <strong>{home.lifetime_xp}</strong> · This
                       event: <strong>{home.event_xp}</strong>
                     </p>
-                    {home.admin && (
+                    {(home.admin || home.content_editor) && (
                       <Link className="button" href="/play/admin">
                         Tournament admin →
                       </Link>
@@ -1062,7 +1062,7 @@ export function V1App({ screen }: { screen: Screen }) {
                 )}
                 {screen === "admin" &&
                   signedIn &&
-                  (home.admin ? (
+                  (home.admin || home.content_editor ? (
                     <Admin
                       client={client}
                       busy={busy}

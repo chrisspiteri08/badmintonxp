@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 const result = spawnSync(process.execPath, ["scripts/package-cpanel.mjs"], {
   stdio: "inherit",
@@ -9,6 +9,7 @@ const out = path.resolve(
   process.env.CPANEL_PACKAGE_DIR || "../cpanel-upload/badmintonxp-node",
 );
 await cp("V1_SETUP.md", path.join(out, "V1_SETUP.md"));
+await cp("ADMIN_GUIDE.md", path.join(out, "ADMIN_GUIDE.md"));
 await cp("DEPENDENCY_AUDIT.md", path.join(out, "DEPENDENCY_AUDIT.md"));
 await cp("V1_ARCHITECTURE.md", path.join(out, "V1_ARCHITECTURE.md"));
 await mkdir(path.join(out, "supabase/migrations"), { recursive: true });
@@ -22,15 +23,24 @@ await writeFile(
 const info = JSON.parse(
   await readFile(path.join(out, "PACKAGE-INFO.json"), "utf8"),
 );
+const migrations = (await readdir("supabase/migrations"))
+  .filter((file) => file.endsWith(".sql"))
+  .sort();
 await writeFile(
   path.join(out, "BADMINTONXP_V1_SCHEMA.sql"),
-  (await readFile("supabase/migrations/202611090001_v1.sql", "utf8")) +
-    "\n\n" +
-    (await readFile(
-      "supabase/migrations/202611090002_world_tour_finals_hold.sql",
-      "utf8",
-    )),
+  (
+    await Promise.all(
+      migrations.map((file) =>
+        readFile(path.join("supabase/migrations", file), "utf8"),
+      ),
+    )
+  ).join("\n\n"),
 );
+await cp(
+  "supabase/migrations/202611100001_content_editors.sql",
+  path.join(out, "CONTENT_EDITOR_UPGRADE.sql"),
+);
+
 info.purpose = "BadmintonXP v1 for badmintonxp.com; see V1_SETUP.md";
 info.canonicalOrigin = "https://badmintonxp.com";
 info.homepage = "/play";

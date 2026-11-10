@@ -46,6 +46,7 @@ export type Home = {
   server_now: string;
   profile: Profile | null;
   admin: boolean;
+  content_editor?: boolean;
   teams: Team[];
   tournament: Tournament | null;
   quizzes: Quiz[];
@@ -75,6 +76,8 @@ export type Attempt = {
 };
 export type Rank = { id: string; name: string; xp: number; rank: number };
 export type AdminData = {
+  server_now: string;
+  role: "admin" | "content_editor";
   seasons: Team[];
   tournaments: Tournament[];
   matches: Match[];

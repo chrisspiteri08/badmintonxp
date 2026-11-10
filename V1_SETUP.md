@@ -2,12 +2,12 @@
 
 This package is for the existing Node 22 app at **https://badmintonxp.com**. The homepage redirects to `/play`; `/demo` remains the fictional guest game. **www redirects to the HTTPS apex domain**, preserving the path/query, so sign-in and email recovery use one origin.
 
-Use a **NEW Supabase project for v1**, never the old legacy project. If both v1 migrations are already applied, this visitor-fix update needs **no SQL rerun**. The developer has not deployed this package, changed DNS, or connected to either cloud database. The feature branch is pushed without merging to main.
+Use a **NEW Supabase project for v1**, never the old legacy project. For this content-editor update, existing v1 installations apply **only `CONTENT_EDITOR_UPGRADE.sql` once**. See `ADMIN_GUIDE.md`; do not rerun the initial schema. The developer has not deployed this package, changed DNS, or connected to either cloud database. The feature branch is pushed without merging to main.
 
 ## 1. Create and configure the NEW Supabase project
 
 1. Create a new project named **BadmintonXP-v1**, in an Asia region near the audience (Singapore is a reasonable choice). Keep the database password privately. Do not paste keys, passwords or connection strings into chat.
-2. In the **new project's SQL Editor**, run the combined `BADMINTONXP_V1_SCHEMA.sql` included in this ZIP **once on the empty project**. It contains migrations `202611090001_v1.sql` and `202611090002_world_tour_finals_hold.sql`, in that order. Alternatively apply those two repo migrations in order with the CLI linked only to this NEW project. If migration 001 was already applied to a separately created v1 project, apply only 002 there. Never apply these to the legacy project.
+2. In the **new project's SQL Editor**, run the combined `BADMINTONXP_V1_SCHEMA.sql` included in this ZIP **once on the empty project**. It contains all repo migrations in filename order, including the content-editor upgrade. Alternatively apply all repo migrations in filename order with the CLI linked only to this NEW project. If 001 and 002 are already applied, run only CONTENT_EDITOR_UPGRADE.sql once. If only 001 is applied, apply 002 and then the content-editor migration. Never apply these to the legacy project.
 3. Under **Authentication → Sign In / Providers → Email**, enable email/password signup and **Confirm email**. Set minimum password length to **6**. Leave anonymous sign-ins off. Configure Auth rate limits for your intended audience.
 4. Under **Authentication → URL Configuration**, set **Site URL** to:
 
@@ -67,7 +67,7 @@ The explicit new-project flag is an owner confirmation, not automatic proof of p
 
 ## 4. Upload with rollback preserved
 
-Use the latest supplied **BadmintonXP v1 Node 22 ZIP**, not a previous package. For the visitor-error fix release, the file is **BadmintonXP-v1-visitor-fixes-Node22.zip**. Keep any existing `runtime-demo-backup` intact: for an update after v1 is already installed, name the current runtime backup `runtime-v1-backup-20261110` (or another unused dated name), and use that chosen backup for rollback.
+Use the latest supplied **BadmintonXP v1 Node 22 ZIP**, not a previous package. For this release, use **BadmintonXP-v1-content-editor-Node22.zip** and apply its **CONTENT_EDITOR_UPGRADE.sql** before using the new desk. Keep any existing `runtime-demo-backup` intact: for an update after v1 is already installed, name the current runtime backup `runtime-v1-backup-20261110` (or another unused dated name), and use that chosen backup for rollback.
 
 1. Open **cPanel → Setup Node.js App → badmintonxp-node**. Confirm Node **22.23.4** (or supported newer Node 22), **Production**, Application root **badmintonxp-node**, URL **badmintonxp.com/**, startup **app.js**. Click **Stop**.
 2. Open **File Manager → Settings → Show Hidden Files**. Go to `/home/shuttles/badmintonxp-node`.
@@ -159,3 +159,7 @@ Rebuild an upload folder with `npm run build:cpanel` then `npm run package:v1`; 
 - [Next.js redirects](https://nextjs.org/docs/app/api-reference/config/next-config-js/redirects)
 
 See `DEPENDENCY_AUDIT.md` for the zero-finding dependency remediation. Tests run against local Supabase; real SMTP delivery, the NEW cloud project's configuration, www TLS/alias routing and the actual cPanel upload must be verified by the owner after upload. Google sign-in, live result feeds, prizes and payments remain absent. The static ChatGPT guest preview is unchanged.
+
+## Content-editor handover
+
+Use `ADMIN_GUIDE.md` for role assignment, publish prerequisites, draft corrections and settlement. Give the assistant an ordinary confirmed website account plus content-editor membership, never a Supabase dashboard account or service key. The World Tour Finals hold is unchanged.
