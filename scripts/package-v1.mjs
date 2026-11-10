@@ -17,7 +17,7 @@ await cp("supabase/migrations", path.join(out, "supabase/migrations"), {
 });
 await writeFile(
   path.join(out, "UPLOAD.md"),
-  "# BadmintonXP v1 — badmintonxp.com\n\nRead V1_SETUP.md. Stop the existing app and rename runtime to runtime-demo-backup BEFORE extracting. Back up app.js/package manifests, preserve node_modules symlink and working domain .htaccess, install dependencies, enter NEW-project runtime settings yourself, then restart. Homepage: /play. Guest game: /demo. www redirects to HTTPS apex. World Tour Finals 2026 publication is blocked until owner approval. No keys included.\n",
+  "# BadmintonXP v1 — badmintonxp.com\n\nRead V1_SETUP.md. Stop the app and back up the current runtime BEFORE extracting; preserve any existing runtime-demo-backup. Back up app.js/package manifests, preserve node_modules symlink and working domain .htaccess, install dependencies, enter NEW-project runtime settings yourself, then restart. Homepage: /play. Guest game: /demo. www redirects to HTTPS apex. World Tour Finals 2026 publication is blocked until owner approval. No keys included.\n",
 );
 const info = JSON.parse(
   await readFile(path.join(out, "PACKAGE-INFO.json"), "utf8"),
@@ -34,6 +34,8 @@ await writeFile(
 info.purpose = "BadmintonXP v1 for badmintonxp.com; see V1_SETUP.md";
 info.canonicalOrigin = "https://badmintonxp.com";
 info.homepage = "/play";
+info.healthPath = "/api/health";
+info.passwordMinimum = 6;
 info.publicationHold = "World Tour Finals 2026";
 info.requiresRuntimeConfiguration = true;
 await writeFile(

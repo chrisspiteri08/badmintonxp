@@ -142,7 +142,7 @@ function LoginLogic() {
   }, [user, isLoading, router]);
   
   if (configError) {
-    return <SupabaseConfigErrorDisplay error={configError} />;
+    return <SupabaseConfigErrorDisplay />;
   }
 
   const handlePlayerLogin = async (e: FormEvent) => {

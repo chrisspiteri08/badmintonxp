@@ -27,11 +27,11 @@ Actual final verification on Node 22.23.4:
 | Check | Result |
 | --- | --- |
 | Clean `npm ci` | Passed |
-| Unit / embedded PostgreSQL scoring, RLS, domain and config tests | 32 passed |
+| Unit / embedded PostgreSQL scoring, RLS, domain, config and health tests | 36 passed |
 | Real local Supabase Auth/RLS/concurrency and publication-hold tests | 7 passed |
 | Typecheck and strict ESLint | Passed |
 | Secret-free Next 15.5.29 standalone production build | Passed |
-| Guest and main-domain redirect browser checks at 360px / 1440px | 16 passed |
+| Guest, redirects, visitor privacy, caption and health browser checks at 360px / 1440px | 18 passed |
 | V1 real-account browser scenarios at 360px / 1440px | 6 passed |
 | Independently installed cPanel runtime audit | 0 findings |
 | Root production audit / full audit | 0 / 0 findings |
@@ -65,3 +65,5 @@ For Auth/API/browser coverage, use the local Supabase steps in `V1_SETUP.md`. Th
 - [Resolver v5 form peer requirements](https://github.com/react-hook-form/resolvers/releases/tag/v5.0.0)
 
 Main-domain packaging update: `/` now redirects to `/play`, www callbacks redirect to HTTPS apex with query parameters preserved, and World Tour Finals 2026 has a database publication hold. These changes were verified in the current test counts above; cloud email, SSL/alias routing and actual upload remain owner verification steps.
+
+Visitor-fix verification (10 November 2026): friendly fallback messages and legacy redirects expose no development setup text; the missing-event caption has no leading separator. `/api/health` was verified with an available local DB (200, true) and after its shutdown (503, false), with no diagnostic payload. No additional SQL migration is required for this update.

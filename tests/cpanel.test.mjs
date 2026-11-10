@@ -18,6 +18,13 @@ test("cPanel configuration enables standalone output and canonical www and accou
       permanent: false,
     },
     { source: "/", destination: "/play", permanent: false },
+    { source: "/login", destination: "/play/account", permanent: false },
+    { source: "/signup", destination: "/play/account", permanent: false },
+    {
+      source: "/leaderboards",
+      destination: "/play/standings",
+      permanent: false,
+    },
   ]);
 });
 test("cPanel build refuses dotenv files before any build can inline their values", () => {

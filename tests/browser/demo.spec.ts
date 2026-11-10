@@ -278,27 +278,35 @@ test("prediction countdown and losing copy match the fixed simulated winner", as
   await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
 });
 
-test("legacy login fails safely without backend configuration and exposes no admin shortcut", async ({
+test("old account routes redirect safely and visitors never see setup details", async ({
   page,
+  request,
 }) => {
-  const external: string[] = [],
-    errors: string[] = [];
-  await page.route("**/*", (route) => {
-    if (!route.request().url().startsWith(`${origin}/`)) {
-      external.push(route.request().url());
-      return route.abort();
-    }
-    return route.continue();
-  });
-  page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/login");
-  await expect(
-    page.getByText("Application Configuration Error", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Login as Admin", exact: true }),
-  ).toHaveCount(0);
-  expect(external).toEqual([]);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.route("**/api/v1/config", (route) =>
+    route.fulfill({ json: { ready: false } }),
+  );
+  for (const [oldPath, newPath] of [
+    ["/login", "/play/account"],
+    ["/signup", "/play/account"],
+    ["/leaderboards", "/play/standings"],
+  ]) {
+    const response = await request.get(origin + oldPath + "?from=old-link", {
+      maxRedirects: 0,
+    });
+    expect(response.status()).toBe(307);
+    expect(response.headers().location).toBe(newPath + "?from=old-link");
+    await page.goto(oldPath);
+    await expect(page).toHaveURL(origin + newPath);
+    await expect(
+      page.getByRole("heading", { name: "We’ll be back shortly." }),
+    ).toBeVisible();
+    const text = await page.locator("body").innerText();
+    expect(text).not.toMatch(
+      /Application Configuration Error|How to fix|Error details|NEXT_PUBLIC|\.env|Supabase|server|database/i,
+    );
+  }
   expect(errors).toEqual([]);
 });
 
@@ -386,4 +394,37 @@ test("www redirects to canonical apex and preserves password-reset query paramet
       "https://badmintonxp.com" + pathname,
     );
   }
+});
+
+test("empty rankings have a clean caption and health exposes only database availability", async ({
+  page,
+  request,
+}) => {
+  await page.route("**/rest/v1/rpc/v1_home", (route) =>
+    route.fulfill({
+      json: {
+        server_now: new Date().toISOString(),
+        profile: null,
+        admin: false,
+        teams: [],
+        tournament: null,
+        quizzes: [],
+        matches: [],
+        lifetime_xp: 0,
+        event_xp: 0,
+      },
+    }),
+  );
+  await page.goto("/leaderboards");
+  await expect(page).toHaveURL(origin + "/play/standings");
+  await expect(page.locator("caption")).toHaveText("Individual rankings");
+  await page.getByRole("button", { name: "Teams", exact: true }).click();
+  await expect(page.locator("caption")).toHaveText("Team rankings");
+  await page.getByRole("button", { name: "Season", exact: true }).click();
+  await expect(page.locator("caption")).toHaveText("Season · Team rankings");
+  const response = await request.get(origin + "/api/health");
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toEqual({ databaseConnected: true });
+  expect(response.headers()["cache-control"]).toContain("no-store");
+  expect(response.headers()["x-powered-by"]).toBeUndefined();
 });

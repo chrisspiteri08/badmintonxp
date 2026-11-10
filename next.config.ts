@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  poweredByHeader: false,
   output: "standalone",
   async redirects() {
     return [
@@ -12,6 +13,13 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       { source: "/", destination: "/play", permanent: false },
+      { source: "/login", destination: "/play/account", permanent: false },
+      { source: "/signup", destination: "/play/account", permanent: false },
+      {
+        source: "/leaderboards",
+        destination: "/play/standings",
+        permanent: false,
+      },
     ];
   },
   // Keep dev browser checks separate from production build artifacts.

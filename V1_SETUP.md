@@ -2,7 +2,7 @@
 
 This package is for the existing Node 22 app at **https://badmintonxp.com**. The homepage redirects to `/play`; `/demo` remains the fictional guest game. **www redirects to the HTTPS apex domain**, preserving the path/query, so sign-in and email recovery use one origin.
 
-Use a **NEW Supabase project for v1**, never the old legacy project. The developer has not deployed this package, changed DNS, or connected to either cloud database. The feature branch is pushed without merging to main.
+Use a **NEW Supabase project for v1**, never the old legacy project. If both v1 migrations are already applied, this visitor-fix update needs **no SQL rerun**. The developer has not deployed this package, changed DNS, or connected to either cloud database. The feature branch is pushed without merging to main.
 
 ## 1. Create and configure the NEW Supabase project
 
@@ -67,11 +67,11 @@ The explicit new-project flag is an owner confirmation, not automatic proof of p
 
 ## 4. Upload with rollback preserved
 
-Use **BadmintonXP-v1-main-domain-Node22.zip**, not a previous test-host ZIP.
+Use the latest supplied **BadmintonXP v1 Node 22 ZIP**, not a previous package. For the visitor-error fix release, the file is **BadmintonXP-v1-visitor-fixes-Node22.zip**. Keep any existing `runtime-demo-backup` intact: for an update after v1 is already installed, name the current runtime backup `runtime-v1-backup-20261110` (or another unused dated name), and use that chosen backup for rollback.
 
 1. Open **cPanel → Setup Node.js App → badmintonxp-node**. Confirm Node **22.23.4** (or supported newer Node 22), **Production**, Application root **badmintonxp-node**, URL **badmintonxp.com/**, startup **app.js**. Click **Stop**.
 2. Open **File Manager → Settings → Show Hidden Files**. Go to `/home/shuttles/badmintonxp-node`.
-3. **Before extracting anything, rename `runtime` to `runtime-demo-backup`.** If that backup name already exists, preserve it under a dated name first. Never merge new files into the backup.
+3. **Before extracting anything, rename `runtime` to `runtime-demo-backup` for the first guest-to-v1 upload.** For later updates, leave that original backup intact and rename the current runtime to `runtime-v1-backup-20261110` (or another unused dated name). Record your chosen backup name and never merge new files into it.
 4. Create a sibling folder named `deployment-demo-backup` in the app root. **Copy** the current `app.js`, `package.json`, `package-lock.json`, `.npmrc`, and `PACKAGE-INFO.json` into it when present. Also keep a private copy of the working domain-root `.htaccess`. Record any prior app environment settings privately; do not export key values into the upload package or chat. Keep all backups outside the domain's document root.
 5. Upload the ZIP to `/home/shuttles` and extract **there**. It already contains the top-level `badmintonxp-node` folder; this creates a fresh `/home/shuttles/badmintonxp-node/runtime` alongside `runtime-demo-backup`. Allow replacement of app/package metadata when prompted. Do **not** extract into the app root and create `badmintonxp-node/badmintonxp-node`.
 6. Check these paths before starting:
@@ -97,12 +97,14 @@ Use **BadmintonXP-v1-main-domain-Node22.zip**, not a previous test-host ZIP.
    - Password recovery returns to `https://badmintonxp.com/play/reset`, saves the new password and signs out sessions.
    - All JS/CSS requests return 200; Console has no errors. If old hashed filenames appear, restart the Node app and clear/purge enabled page caches before uploading anything again.
    - No tournament is public until explicitly published. World Tour Finals 2026 must remain a draft.
+   - `/login` and `/signup` redirect to `/play/account`; `/leaderboards` redirects to `/play/standings`.
+   - `/api/health` returns only `{"databaseConnected":true}` (HTTP 200) or `{"databaseConnected":false}` (HTTP 503). It is a no-cache, three-second-timeout read of the public seasons table, not an admin/secret-key check. Empty tables are healthy. No URLs, keys, counts, SQL errors or server/configuration details are returned. If false, check the three cPanel settings and the NEW project's status privately, then restart. Visitors see only a friendly fallback message.
 
 ### Roll back if any upload check fails
 
 1. Stop the Node app.
 2. Rename the new `runtime` to `runtime-v1-failed` (or another unused name).
-3. Rename **`runtime-demo-backup` back to `runtime`**.
+3. Rename **your chosen backup** (`runtime-demo-backup` or the dated v1 backup from this update) **back to `runtime`**.
 4. Copy the backed-up `app.js`, `package.json`, `package-lock.json`, `.npmrc` and package metadata back from `deployment-demo-backup`. Restore the previous environment settings, removing the new V1 variables if they were absent before.
 5. Run **NPM Install** again to restore the old package-lock versions. Preserve the managed node_modules symlink.
 6. Start/restart and check `/demo` and the homepage. The old runtime includes its old redirect behavior. Restore `.htaccess` only if you changed it; this upload does not require altering the working Passenger block.

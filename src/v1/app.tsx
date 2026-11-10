@@ -13,6 +13,7 @@ import { friendlyError, v1Client } from "./client";
 import type { Attempt, Home, Match, Rank, Screen } from "./types";
 import { Admin } from "./admin";
 import { emailReturnUrl } from "./domain";
+import { rankingsCaption } from "./copy";
 const navigation = [
   ["Arena", "/play"],
   ["Play", "/play/quiz"],
@@ -306,11 +307,8 @@ export function V1App({ screen }: { screen: Screen }) {
           <p role="status">Opening your arena…</p>
         ) : !client ? (
           <section className="panel">
-            <h1>Your next rally is coming.</h1>
-            <p>
-              The account arena hasn’t been connected to its new Supabase
-              project yet.
-            </p>
+            <h1>We’ll be back shortly.</h1>
+            <p>The arena is taking a break. Please try again soon.</p>
             <Link className="button primary" href="/demo">
               Play the guest demo →
             </Link>
@@ -1028,12 +1026,7 @@ export function V1App({ screen }: { screen: Screen }) {
                     <div className="table-wrap">
                       <table data-testid="v1-standings">
                         <caption>
-                          {scope === "event" ? tournament?.name : "Season"} ·{" "}
-                          {league === "players"
-                            ? "Individual rankings"
-                            : league === "teams"
-                              ? "Team rankings"
-                              : "Country rankings"}
+                          {rankingsCaption(tournament?.name, scope, league)}
                         </caption>
                         <thead>
                           <tr>

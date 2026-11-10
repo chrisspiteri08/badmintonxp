@@ -174,10 +174,10 @@ export default function PredictionChallengePage() {
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Card className="shadow-2xl max-w-lg mx-auto text-center bg-card/90 backdrop-blur-sm border-2 border-destructive">
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-destructive">Configuration Error</CardTitle>
+            <CardTitle className="text-3xl font-bold text-destructive">This match is taking a break.</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg text-muted-foreground">This prediction challenge is not configured correctly (missing options).</p>
+            <p className="text-lg text-muted-foreground">Please choose another challenge or try again later.</p>
           </CardContent>
           <CardFooter>
              <Button onClick={() => router.push('/challenges')} className="w-full btn-game">Back to Challenges</Button>
