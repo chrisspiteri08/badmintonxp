@@ -106,7 +106,7 @@ test("v1: every app table has RLS and clients cannot read answer keys", async ()
       "select relname,relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and relkind='r'",
     )
   ).rows;
-  assert.equal(tables.length, 14);
+  assert.equal(tables.length, 15);
   assert.ok(tables.every((t) => t.relrowsecurity));
   await asUser(alice, async () => {
     await assert.rejects(

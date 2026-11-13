@@ -66,7 +66,9 @@ test("launch page renders, validates consent and email, and links to the arena a
   expect(posted).toBe(false);
   await consent.check();
   await submit.click();
-  await expect(page.getByRole("status")).toContainText("You’re on the list!");
+  await expect(page.getByRole("status")).toHaveText(
+    "You're in! 🏸 We'll email you before the first serve in Hangzhou. Warm up with us on X, Instagram and Facebook: @badmintonxpgame",
+  );
 
   for (const route of ["/privacy", "/terms", "/about"]) {
     const response = await request.get(route);

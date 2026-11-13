@@ -5,8 +5,11 @@ import { LaunchCountdown, WaitlistForm } from "@/launch/live";
 import { QuizAnswers, QuizTimer } from "@/v1/quiz-ui";
 
 const title = "BadmintonXP | The badminton community game";
-const description =
-  "Play 15-second quizzes, make free match predictions and earn XP for your country. Get notified about the Hangzhou launch.";
+const dailyPlay =
+  "Play a 15-second quiz and make a free match prediction every day of badminton's biggest tournaments.";
+const progression =
+  "Earn XP, rise from Rookie to Legend, and rep your country against fans across the world.";
+const description = `${dailyPlay} ${progression}`;
 export const metadata: Metadata = {
   metadataBase: new URL("https://badmintonxp.com"),
   title,
@@ -26,10 +29,10 @@ export default function Landing() {
             <br />
             Earn XP for <em>your country.</em>
           </h1>
-          <p className="launch-description">
-            Play 15-second quizzes, make free match predictions and earn XP for
-            the individual, team and country leaderboards.
-          </p>
+          <div className="launch-description">
+            <p>{dailyPlay}</p>
+            <p>{progression}</p>
+          </div>
           <Link className="launch-button" href="/play">
             <Play size={17} fill="currentColor" aria-hidden="true" /> Play now
           </Link>

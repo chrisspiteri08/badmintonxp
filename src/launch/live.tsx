@@ -81,7 +81,9 @@ export function WaitlistForm() {
   if (state === "done")
     return (
       <p className="launch-success" role="status">
-        You’re on the list! We’ll email you when BadmintonXP launches.
+        {
+          "You're in! 🏸 We'll email you before the first serve in Hangzhou. Warm up with us on X, Instagram and Facebook: @badmintonxpgame"
+        }
       </p>
     );
   return (
@@ -103,12 +105,14 @@ export function WaitlistForm() {
       <label className="launch-consent">
         <input name="consent" type="checkbox" required />
         <span>
-          I agree to receive BadmintonXP launch emails. Unsubscribe anytime.
+          Yes, email me when BadmintonXP launches for Hangzhou, plus occasional
+          game updates. Unsubscribe anytime. See our{" "}
+          <Link className="launch-privacy" href="/privacy">
+            Privacy Policy
+          </Link>
+          .
         </span>
       </label>
-      <Link className="launch-privacy" href="/privacy">
-        Privacy policy
-      </Link>
       {error && <p role="alert">{error}</p>}
       <button className="launch-button" disabled={state === "sending"}>
         {state === "sending" ? "Signing up…" : "Notify me"}
