@@ -25,7 +25,7 @@ git archive "$commit" | tar -xf - -C "$stage/source"
 )
 release="$stage/badmintonxp-node"
 printf '%s\n' "$commit" > "$release/DEPLOY_COMMIT"
-tar -czf "$stage/release.tgz" -C "$release" runtime app.js package.json package-lock.json .npmrc DEPLOY_COMMIT
+COPYFILE_DISABLE=1 tar -czf "$stage/release.tgz" -C "$release" runtime app.js package.json package-lock.json .npmrc DEPLOY_COMMIT
 
 # Send the script and release separately so the remote shell can read the archive.
 remote_stage=$(ssh "${ssh_args[@]}" "mktemp -d /home/shuttles/.badmintonxp-release.XXXXXXXX")
@@ -66,7 +66,9 @@ done
 if (( changed )); then
   activate=/home/shuttles/nodevenv/badmintonxp-node/22/bin/activate
   test -r "$activate"
+  set +u
   . "$activate"
+  set -u
   node -e 'if (process.versions.node.split(".")[0] !== "22") process.exit(1)'
 fi
 restart() { mkdir -p tmp && touch tmp/restart.txt; }
