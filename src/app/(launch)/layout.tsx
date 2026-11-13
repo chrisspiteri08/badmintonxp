@@ -23,8 +23,8 @@ export default function LaunchLayout({
           />
           Badminton<span>XP</span>
         </Link>
-        <Link className="launch-button launch-secondary" href="/play">
-          Play now
+        <Link className="launch-button launch-secondary" href="/#waitlist">
+          Join waitlist
         </Link>
       </header>
       {children}

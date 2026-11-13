@@ -282,3 +282,138 @@
     transform: none;
   }
 }
+
+.launch-showcase {
+  width: min(1120px, calc(100% - 36px));
+  margin-inline: auto;
+  padding-block: 30px;
+}
+.launch-showcase h2 {
+  font-size: clamp(25px, 4vw, 40px);
+  font-weight: 900;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+.launch-daily-grid {
+  display: grid;
+  gap: 14px;
+}
+.launch-daily-grid article,
+.launch-standings {
+  padding: 18px;
+  border: 1px solid #466587;
+  border-radius: 16px;
+  background: #0f2847;
+  box-shadow: 0 5px #020d20;
+}
+.launch-daily-grid article > svg {
+  color: #ff9d61;
+  margin-bottom: 8px;
+}
+.launch-showcase h3 {
+  font-size: 20px;
+  font-weight: 900;
+}
+.launch-chip {
+  display: inline-block;
+  margin-block: 6px;
+  color: #ffbc92;
+  font-size: 13px;
+}
+.launch-mini {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #557396;
+  border-radius: 10px;
+  background: #081d37;
+}
+.launch-match {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-block: 6px;
+}
+.launch-match span {
+  flex: 1;
+  padding: 8px;
+  background: #193c62;
+  border-radius: 8px;
+}
+.launch-match b {
+  color: #ff9d61;
+}
+.launch-team > p {
+  max-width: 65ch;
+  margin-bottom: 16px;
+}
+.launch-rank-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+.launch-rank-tabs button {
+  padding: 7px 9px;
+  font-size: 13px;
+}
+.launch-rank-tabs button[aria-pressed="true"] {
+  border-color: #ff914c;
+  background: #24476b;
+}
+.launch-standings .launch-button {
+  margin-top: 10px;
+  background: #ff914c;
+  color: #231025;
+}
+.launch-standings .game-podium {
+  max-width: 560px;
+}
+.launch-phone .quiz-panel {
+  min-height: auto;
+}
+.launch-phone .quiz-panel .answer-grid button {
+  min-height: 56px;
+  font-size: 16px;
+  padding: 9px;
+}
+.launch-phone .launch-preview-status {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: #e0eafa;
+}
+.launch-quiz-result {
+  margin-top: 14px;
+  padding: 10px;
+  border-radius: 10px;
+}
+.launch-correct {
+  background: #12372f;
+  color: #a0f3bd;
+}
+.launch-wrong {
+  background: #45253b;
+  color: #ffb4c2;
+}
+.launch-phone .launch-quiz-result p {
+  margin-block: 6px;
+}
+.launch-phone .launch-quiz-result a {
+  display: inline-block;
+  text-decoration: underline;
+}
+@media (min-width: 800px) {
+  .launch-daily-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.launch-site .launch-mini.demo,
+.launch-site .launch-standings.demo {
+  min-height: 0;
+}
+.launch-site .launch-mini.demo {
+  padding: 10px;
+}
+.launch-site .launch-standings.demo {
+  padding: 18px;
+}

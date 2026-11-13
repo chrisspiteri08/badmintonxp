@@ -28,11 +28,28 @@ test("launch page renders, validates consent and email, and links to the arena a
   await page.screenshot({
     path: path.resolve(
       process.env.LAUNCH_SCREENSHOT_DIR || "../../outputs",
-      `BadmintonXP-launch-${viewport.width}x${viewport.height}.png`,
+      `BadmintonXP-launch-v2-${viewport.width}x${viewport.height}.png`,
     ),
     fullPage: true,
     animations: "disabled",
   });
+
+  await expect(page.locator('a[href^="/play"]')).toHaveCount(0);
+  const preview = page.locator(".launch-phone");
+  await preview.getByRole("button", { name: "C 16" }).click();
+  await expect(preview.getByRole("status")).toContainText(
+    "Clean winner · +10 XP",
+  );
+  await expect(preview.getByRole("link")).toHaveAttribute("href", "#waitlist");
+  await page.getByRole("button", { name: "Teams", exact: true }).click();
+  await expect(
+    page.getByRole("list", { name: "Example teams podium" }),
+  ).toContainText("Neon Shuttles");
+  await page.goto("/");
+  await preview.getByRole("button", { name: "A 12" }).click();
+  await expect(preview.getByRole("status")).toContainText(
+    "Not this rally · 0 XP",
+  );
 
   let posted = false;
   await page.route("**/api/waitlist", (route) => {
@@ -66,7 +83,7 @@ test("launch page renders, validates consent and email, and links to the arena a
   expect(posted).toBe(false);
   await consent.check();
   await submit.click();
-  await expect(page.getByRole("status")).toHaveText(
+  await expect(page.locator("#waitlist").getByRole("status")).toHaveText(
     "You're in! 🏸 We'll email you before the first serve in Hangzhou. Warm up with us on X, Instagram and Facebook: @badmintonxpgame",
   );
 
@@ -81,7 +98,7 @@ test("launch page renders, validates consent and email, and links to the arena a
   const image = await request.get(new URL(ogImage!).pathname);
   expect(image.status()).toBe(200);
   expect(image.headers()["content-type"]).toContain("image/png");
-  await page.getByRole("main").getByRole("link", { name: "Play now" }).click();
+  await page.goto("/play");
   await expect(page).toHaveURL(/\/play$/);
   await expect(page.locator(".v1")).toBeVisible();
 });
