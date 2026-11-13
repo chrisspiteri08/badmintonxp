@@ -628,17 +628,11 @@ test("game HUD waits for the account, celebrates levels, and pins live rank move
   ).toBe(true);
   await capture("podium");
 
-  const alternate = await f.owner.rpc("v1_admin_save", {
-    p_kind: "quiz",
-    p_data: {
-      tournament_id: f.tournament,
-      title: "Second shuttle quiz",
-      opens_at: new Date(Date.now() - 3_600_000).toISOString(),
-      closes_at: new Date(Date.now() + 3_600_000).toISOString(),
-    },
-  });
-  expect(alternate.error).toBeNull();
-  sql(`update public.quizzes set published=true where id='${alternate.data}';`);
+  sql(`
+    insert into public.quizzes (tournament_id, title, opens_at, closes_at, published)
+    select tournament_id, 'Second shuttle quiz', opens_at, closes_at, true
+    from public.quizzes where id = '${f.quiz}';
+  `);
   await page.getByRole("link", { name: "Quiz", exact: true }).click();
   const picker = page.getByRole("group", { name: "Choose a quiz" });
   const second = picker.getByRole("button", { name: /Second shuttle quiz/ });
