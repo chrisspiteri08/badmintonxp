@@ -1,0 +1,284 @@
+.launch-site {
+  min-height: 100vh;
+  color: #fff;
+  background: #06152c;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.launch-header,
+.launch-footer,
+.launch-signup,
+.launch-document {
+  width: min(1120px, calc(100% - 36px));
+  margin-inline: auto;
+}
+.launch-header,
+.launch-footer,
+.launch-footer nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.launch-header,
+.launch-footer {
+  justify-content: space-between;
+  padding-block: 16px;
+}
+.launch-brand {
+  display: flex;
+  align-items: center;
+  font-weight: 900;
+  font-size: 20px;
+}
+.launch-brand img {
+  object-fit: contain;
+  height: 42px;
+  margin-right: 6px;
+}
+.launch-brand span,
+.launch-kicker,
+.launch-intro em {
+  color: #ff9d61;
+}
+.launch-kicker {
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.launch-hero {
+  display: grid;
+  gap: 32px;
+  padding: 36px max(18px, calc((100% - 1120px) / 2));
+  background:
+    linear-gradient(90deg, #06152c 20%, #06152cdb 63%, #06152ca3),
+    url("/demo/badmintonxp-arena-unbranded.jpg") center 38% / cover;
+  border-block: 1px solid #344c69;
+}
+.launch-intro {
+  align-self: center;
+}
+.launch-intro h1,
+.launch-document h1 {
+  font-size: clamp(36px, 6vw, 85px);
+  font-weight: 950;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  margin: 14px 0 18px;
+}
+.launch-intro em {
+  font-style: normal;
+}
+.launch-description {
+  color: #e0eafa;
+  max-width: 470px;
+  margin-bottom: 22px;
+}
+.launch-button {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 1px solid #ffbd91;
+  border-radius: 12px;
+  box-shadow: 0 4px #a84720;
+  background: #ff914c;
+  color: #231025;
+  font-weight: 800;
+}
+.launch-button:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px #a84720;
+}
+.launch-secondary {
+  background: #153657;
+  color: white;
+  border-color: #55759b;
+  box-shadow: 0 4px #020d20;
+}
+.launch-site :focus-visible {
+  outline: 3px solid #ffc193;
+  outline-offset: 4px;
+}
+.launch-timing {
+  display: flex;
+  gap: 10px;
+  margin-top: 28px;
+  align-items: flex-start;
+}
+.launch-timing > svg {
+  margin-top: 2px;
+  color: #ff9d61;
+}
+.launch-date {
+  color: #e0eafa;
+  font-size: 13px;
+  margin-bottom: 7px;
+}
+.launch-clock {
+  display: flex;
+  gap: 6px;
+}
+.launch-clock div {
+  min-width: 58px;
+  padding: 5px 7px;
+  background: #0a2442;
+  border: 1px solid #476687;
+  border-radius: 9px;
+  text-align: center;
+}
+.launch-clock strong,
+.launch-clock span {
+  display: block;
+}
+.launch-clock strong {
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+}
+.launch-clock span {
+  font-size: 10px;
+  color: #e0eafa;
+}
+.launch-phone.demo {
+  width: min(100%, 340px);
+  min-height: 0;
+  margin: auto;
+  padding: 12px 14px 18px;
+  border: 5px solid #577396;
+  border-radius: 32px;
+  box-shadow: 0 8px #020d20;
+}
+.launch-camera {
+  width: 52px;
+  height: 5px;
+  margin: 0 auto;
+  border-radius: 8px;
+  background: #6a85a4;
+}
+.launch-phone .quiz-panel {
+  padding: 12px;
+}
+.launch-phone .quiz-panel h2 {
+  font-size: 22px;
+}
+.launch-phone .timer {
+  width: 54px;
+  height: 54px;
+  font-size: 16px;
+}
+.launch-phone .launch-answer {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 56px;
+  border: 1px solid #567aa0;
+  border-radius: 12px;
+  background: #173a60;
+  box-shadow: 0 3px #020d20;
+  padding: 9px;
+  font-weight: 800;
+}
+.launch-answer span {
+  color: #ffac7a;
+}
+.launch-preview-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 12px;
+  font-weight: 800;
+}
+.launch-signup {
+  padding: 28px 0;
+}
+.launch-signup h2,
+.launch-document h2 {
+  font-size: clamp(23px, 3vw, 34px);
+  font-weight: 900;
+  margin-bottom: 14px;
+}
+.launch-form {
+  display: grid;
+  gap: 10px;
+  max-width: 485px;
+}
+.launch-form input[type="email"] {
+  min-height: 48px;
+  border: 1px solid #6682a4;
+  border-radius: 10px;
+  background: #102745;
+  padding: 10px 12px;
+}
+.launch-form input[type="email"]::placeholder {
+  color: #a9bed7;
+}
+.launch-consent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: #e0eafa;
+  font-size: 14px;
+}
+.launch-consent input {
+  accent-color: #ff914c;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.launch-trap {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.launch-privacy,
+.launch-document a {
+  color: #ffaf7d;
+  text-decoration: underline;
+}
+.launch-form button {
+  justify-self: start;
+}
+.launch-form button:disabled {
+  opacity: 0.7;
+}
+.launch-form [role="alert"] {
+  color: #ffb4c2;
+}
+.launch-success {
+  color: #a0f3bd;
+}
+.launch-footer {
+  border-top: 1px solid #344c69;
+  flex-wrap: wrap;
+  color: #e0eafa;
+  font-size: 14px;
+}
+.launch-footer a:hover {
+  text-decoration: underline;
+}
+.launch-document {
+  max-width: 780px;
+  padding-block: 32px;
+}
+.launch-document h2 {
+  margin-top: 24px;
+}
+.launch-document p {
+  color: #e0eafa;
+}
+@media (min-width: 800px) {
+  .launch-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 0.65fr);
+    padding-block: 54px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .launch-button:active {
+    transform: none;
+  }
+}

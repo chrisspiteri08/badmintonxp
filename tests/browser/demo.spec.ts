@@ -310,15 +310,11 @@ test("old account routes redirect safely and visitors never see setup details", 
   expect(errors).toEqual([]);
 });
 
-test("home redirects to the account arena while the guest demo and artwork stay available", async ({
+test("the arena, guest demo and artwork stay available", async ({
   page,
   request,
 }) => {
-  const response = await request.get(origin + "/", { maxRedirects: 0 });
-  expect(response.status()).toBe(307);
-  expect(response.headers().location).toBe("/play");
-  await page.goto("/");
-  await expect(page).toHaveURL(origin + "/play");
+  await page.goto("/play");
   await expect(page.locator(".v1")).toBeVisible();
   await page.goto("/demo");
   await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");

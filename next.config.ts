@@ -12,7 +12,6 @@ const nextConfig: NextConfig = {
         destination: "https://badmintonxp.com/:path*",
         permanent: false,
       },
-      { source: "/", destination: "/play", permanent: false },
       { source: "/login", destination: "/play/account", permanent: false },
       { source: "/signup", destination: "/play/account", permanent: false },
       {

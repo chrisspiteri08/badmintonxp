@@ -35,6 +35,7 @@ import { friendlyError, v1Client } from "./client";
 import type { Attempt, Home, Match, Rank, Screen } from "./types";
 import { Admin } from "./admin";
 import { emailReturnUrl } from "./domain";
+import { QuizAnswers, QuizTimer } from "./quiz-ui";
 import { rankingsCaption } from "./copy";
 const navigation = [
   ["Arena", "/play", House],
@@ -1057,57 +1058,25 @@ export function V1App({ screen }: { screen: Screen }) {
                                         )}
                                     </div>
                                   </div>
-                                  <strong
-                                    className={`timer ${remaining < 5 ? "urgent" : ""}`}
-                                    role="timer"
-                                    aria-label={`${remaining} seconds remaining`}
-                                  >
-                                    <svg viewBox="0 0 80 80" aria-hidden="true">
-                                      <circle
-                                        className="countdown-track"
-                                        cx="40"
-                                        cy="40"
-                                        r="34"
-                                      />
-                                      <circle
-                                        className="countdown-arc"
-                                        cx="40"
-                                        cy="40"
-                                        r="34"
-                                        pathLength="100"
-                                        strokeDasharray="100"
-                                        strokeDashoffset={
-                                          100 - (remaining / 15) * 100
-                                        }
-                                      />
-                                    </svg>
-                                    <span>{remaining}s</span>
-                                  </strong>
+                                  <QuizTimer remaining={remaining} />
                                 </div>
                                 <h2 data-testid="v1-question">
                                   {attempt.question.prompt}
                                 </h2>
-                                <div className="answer-grid">
-                                  {attempt.question.options.map((o, i) => (
-                                    <button
-                                      key={i}
-                                      disabled={busy || remaining === 0}
-                                      onClick={() =>
-                                        void perform(() =>
-                                          quizAction(
-                                            quizId,
-                                            "answer",
-                                            attempt.question!.position,
-                                            i,
-                                          ),
-                                        )
-                                      }
-                                    >
-                                      <span>{String.fromCharCode(65 + i)}</span>
-                                      {o}
-                                    </button>
-                                  ))}
-                                </div>
+                                <QuizAnswers
+                                  options={attempt.question.options}
+                                  disabled={busy || remaining === 0}
+                                  onAnswer={(index) =>
+                                    void perform(() =>
+                                      quizAction(
+                                        quizId,
+                                        "answer",
+                                        attempt.question!.position,
+                                        index,
+                                      ),
+                                    )
+                                  }
+                                />
                                 <p className="muted">
                                   First tap. Final answer.
                                 </p>
