@@ -8,6 +8,28 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import {
+  AlarmClock,
+  ArrowDown,
+  ArrowUp,
+  CircleUserRound,
+  House,
+  Play,
+  Target,
+  Trophy,
+} from "lucide-react";
+import {
+  ArenaSkeleton,
+  deadlineLabel,
+  levelFor,
+  LevelCelebration,
+  QuizFeedback,
+  XPProgress,
+  SoundToggle,
+  Streak,
+  useGameFeedback,
+  XPMeter,
+} from "./game-ui";
 import type { SupabaseClient, Session } from "@supabase/supabase-js";
 import { friendlyError, v1Client } from "./client";
 import type { Attempt, Home, Match, Rank, Screen } from "./types";
@@ -15,12 +37,13 @@ import { Admin } from "./admin";
 import { emailReturnUrl } from "./domain";
 import { rankingsCaption } from "./copy";
 const navigation = [
-  ["Arena", "/play"],
-  ["Play", "/play/quiz"],
-  ["Predict", "/play/predict"],
-  ["Rankings", "/play/standings"],
-  ["Profile", "/play/profile"],
-];
+  ["Arena", "/play", House],
+  ["Quiz", "/play/quiz", Play],
+  ["Predict", "/play/predict", Target],
+  ["Rankings", "/play/standings", Trophy],
+  ["Profile", "/play/profile", CircleUserRound],
+] as const;
+type Standing = Rank & { movement: number };
 const countries = [
   ["MY", "Malaysia"],
   ["ID", "Indonesia"],
@@ -48,16 +71,30 @@ export function V1App({ screen }: { screen: Screen }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const locked = useRef(false);
+  const { sound, toggleSound, feedback, activateAudio } = useGameFeedback();
+  const [celebration, setCelebration] = useState<number | null>(null);
+  const previousLevel = useRef<{ player: string; level: number } | null>(null);
   const [tick, setTick] = useState(Date.now());
   const [serverOffset, setServerOffset] = useState(0);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
+  const previousAttempt = useRef<Attempt | null>(null);
+  const [freshAnswer, setFreshAnswer] = useState("");
   const [selectedQuiz, setSelectedQuiz] = useState("");
   const [pick, setPick] = useState<{ match: Match; athlete: string } | null>(
     null,
   );
   const [scope, setScope] = useState("event");
   const [league, setLeague] = useState("players");
-  const [ranks, setRanks] = useState<Rank[]>([]);
+  const [rankings, setRankings] = useState<
+    { key: string; rows: Standing[] } | { key: string; failed: true } | null
+  >(null);
+  const rankSnapshots = useRef(new Map<string, Map<string, number>>());
+  const tournamentId = home?.tournament?.id;
+  const rankingKey = JSON.stringify([tournamentId, scope, league]);
+  const currentRankings = rankings?.key === rankingKey ? rankings : null;
+  const ranks =
+    currentRankings && "rows" in currentRankings ? currentRankings.rows : [];
+  const loadingRankings = Boolean(tournamentId && !currentRankings);
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot">(
     "login",
   );
@@ -74,14 +111,13 @@ export function V1App({ screen }: { screen: Screen }) {
       try {
         const c = await v1Client();
         if (disposed) return;
-        setClient(c);
         if (c) {
           const { data, error } = await c.auth.getSession();
           if (error) throw error;
           if (disposed) return;
           setSession(data.session);
-          const listener = c.auth.onAuthStateChange((_event, next) => {
-            if (!disposed) {
+          const listener = c.auth.onAuthStateChange((event, next) => {
+            if (!disposed && event !== "INITIAL_SESSION") {
               setSession(next);
               setAttempt(null);
               setHome(null);
@@ -89,6 +125,7 @@ export function V1App({ screen }: { screen: Screen }) {
           });
           unsubscribe = () => listener.data.subscription.unsubscribe();
         }
+        setClient(c);
       } catch (e) {
         if (!disposed) setError(friendlyError(e));
       } finally {
@@ -101,7 +138,7 @@ export function V1App({ screen }: { screen: Screen }) {
     };
   }, []);
   useEffect(() => {
-    if (!client) return;
+    if (!client || !ready) return;
     let active = true;
     const load = () =>
       void refresh(client).catch((e) => {
@@ -115,7 +152,7 @@ export function V1App({ screen }: { screen: Screen }) {
       clearInterval(timer);
       window.removeEventListener("focus", load);
     };
-  }, [client, session, refresh]);
+  }, [client, ready, session, refresh]);
   useEffect(() => {
     const timer = setInterval(() => setTick(Date.now()), 250);
     return () => clearInterval(timer);
@@ -152,7 +189,79 @@ export function V1App({ screen }: { screen: Screen }) {
     },
     [client, refresh],
   );
-  const quizId = selectedQuiz || home?.quizzes[0]?.id || "";
+  const gameNow = tick + serverOffset;
+  const secondsUntil = (deadline: string) =>
+    Math.max(0, Math.ceil((new Date(deadline).getTime() - gameNow) / 1000));
+  const playableQuizzes =
+    home?.quizzes.filter(
+      (item) =>
+        !secondsUntil(item.opens_at) &&
+        secondsUntil(item.closes_at) &&
+        !item.attempt?.complete,
+    ) ?? [];
+  const quiz =
+    home?.quizzes.find(
+      (item) => item.id === (selectedQuiz || attempt?.quiz_id),
+    ) ??
+    playableQuizzes[0] ??
+    home?.quizzes[0];
+  const quizId = quiz?.id ?? "";
+  const solePlayableSelected =
+    playableQuizzes.length === 1 && playableQuizzes[0].id === quizId;
+  const quizOpensIn = quiz ? secondsUntil(quiz.opens_at) : 0;
+  const quizClosesIn = quiz ? secondsUntil(quiz.closes_at) : 0;
+  const quizStatus =
+    attempt?.complete || quiz?.attempt?.complete
+      ? "SETTLED"
+      : attempt?.question || attempt?.awaiting_next
+        ? "LIVE"
+        : quizOpensIn || !quizClosesIn
+          ? "LOCKED"
+          : "OPEN";
+  const lastAnswer = attempt?.answers.at(-1);
+  const answerKey = lastAnswer ? `${attempt?.id}:${lastAnswer.position}` : "";
+  let streak = 0;
+  for (const answer of [...(attempt?.answers ?? [])].reverse()) {
+    if (!answer.xp) break;
+    streak++;
+  }
+  useEffect(() => {
+    const previous = previousAttempt.current;
+    previousAttempt.current = attempt;
+    if (
+      !attempt ||
+      !lastAnswer ||
+      previous?.id !== attempt.id ||
+      previous.answers.length >= attempt.answers.length
+    )
+      return;
+    setFreshAnswer(answerKey);
+    feedback(
+      lastAnswer.option === null
+        ? "timeout"
+        : lastAnswer.xp
+          ? "correct"
+          : "wrong",
+    );
+  }, [attempt, lastAnswer, answerKey, feedback]);
+  useEffect(() => {
+    if (!session || !home?.profile || home.profile.id !== session.user.id) {
+      if (!session && previousLevel.current) {
+        previousLevel.current = null;
+        setCelebration(null);
+      }
+      return;
+    }
+    const player = session.user.id;
+    const { level } = levelFor(home.lifetime_xp);
+    const prior = previousLevel.current;
+    previousLevel.current = { player, level };
+    if (prior && prior.player !== player) setCelebration(null);
+    if (prior?.player === player && level > prior.level) {
+      setCelebration(level);
+      feedback("level");
+    }
+  }, [session, home, feedback]);
   useEffect(() => {
     if (screen !== "quiz" || !session || !quizId) return;
     void perform(() => quizAction(quizId, "resume"));
@@ -181,27 +290,45 @@ export function V1App({ screen }: { screen: Screen }) {
     void perform(() => quizAction(attempt.quiz_id, "resume"));
   }, [screen, attempt, remaining, quizAction, perform]);
   useEffect(() => {
-    if (!client || !home?.tournament || screen !== "standings") return;
+    if (!client || !tournamentId || screen !== "standings") return;
     let active = true;
     const load = async () => {
       const { data, error } = await client.rpc("v1_leaderboard", {
-        p_tournament_id: home.tournament!.id,
+        p_tournament_id: tournamentId,
         p_scope: scope,
         p_league: league,
       });
       if (active) {
-        if (error) setError(friendlyError(error));
-        else setRanks(data as Rank[]);
+        if (error) {
+          setRankings((previous) =>
+            previous?.key === rankingKey
+              ? previous
+              : { key: rankingKey, failed: true },
+          );
+        } else {
+          const prior = rankSnapshots.current.get(rankingKey);
+          const rows = (data as Rank[]).filter((row) => Number(row.xp) > 0);
+          rankSnapshots.current.set(
+            rankingKey,
+            new Map(rows.map((row) => [row.id, row.rank])),
+          );
+          setRankings({
+            key: rankingKey,
+            rows: rows.map((row) => ({
+              ...row,
+              movement: (prior?.get(row.id) ?? row.rank) - row.rank,
+            })),
+          });
+        }
       }
     };
-    setRanks([]);
     void load();
     const timer = setInterval(() => void load(), 30000);
     return () => {
       active = false;
       clearInterval(timer);
     };
-  }, [client, home?.tournament, screen, scope, league]);
+  }, [client, tournamentId, screen, scope, league, rankingKey]);
   const onAuth = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -242,11 +369,24 @@ export function V1App({ screen }: { screen: Screen }) {
     });
   };
   const tournament = home?.tournament;
-  const signedIn = !!session && !!home?.profile;
+  const signedIn = Boolean(session && home?.profile?.id === session.user.id);
+  const waitingForAccount =
+    !ready || Boolean(client && (!home || (session && !signedIn)));
   const needsLogin =
     ["quiz", "predict", "profile", "admin"].includes(screen) && !signedIn;
+  const ownId =
+    league === "players"
+      ? home?.profile?.id
+      : league === "teams"
+        ? home?.profile?.team_id
+        : home?.profile?.country;
+  const ownRank = signedIn ? ranks.find((row) => row.id === ownId) : undefined;
+  const orderedRanks = ownRank
+    ? [ownRank, ...ranks.filter((row) => row !== ownRank)]
+    : ranks;
+  const podium = ranks.filter((row) => row.rank <= 3).slice(0, 3);
   return (
-    <div className="demo v1">
+    <div className="demo v1" onClickCapture={activateAudio}>
       <a className="skip" href="#v1-content">
         Skip to content
       </a>
@@ -264,30 +404,40 @@ export function V1App({ screen }: { screen: Screen }) {
             <small className="demo-badge">Fan arena</small>
           </span>
         </Link>
-        {signedIn ? (
-          <Link className="xp-chip" href="/play/profile">
-            <strong data-testid="v1-lifetime-xp">
-              {home?.lifetime_xp || 0} XP
-            </strong>
-            <small>Lifetime XP</small>
-          </Link>
-        ) : (
-          <Link className="button" href="/play/account">
-            Sign in
-          </Link>
-        )}
+        <div className="game-header-controls">
+          {waitingForAccount ? (
+            !error && <ArenaSkeleton compact />
+          ) : signedIn && home ? (
+            <Link className="game-player" href="/play/profile">
+              <XPMeter xp={home.lifetime_xp} />
+            </Link>
+          ) : client ? (
+            <Link className="button" href="/play/account">
+              Sign in
+            </Link>
+          ) : null}
+          <SoundToggle sound={sound} onToggle={toggleSound} />
+        </div>
       </header>
       <nav className="demo-nav" aria-label="Fan arena">
-        {navigation.map(([label, href]) => (
+        {navigation.map(([label, href, Icon]) => (
           <Link
             key={href}
             href={href}
             aria-current={
-              href === (screen === "arena" ? "/play" : `/play/${screen}`)
+              href ===
+              (screen === "arena"
+                ? "/play"
+                : screen === "account" ||
+                    screen === "reset" ||
+                    screen === "admin"
+                  ? "/play/profile"
+                  : `/play/${screen}`)
                 ? "page"
                 : undefined
             }
           >
+            <Icon size={20} aria-hidden="true" />
             {label}
           </Link>
         ))}
@@ -304,7 +454,7 @@ export function V1App({ screen }: { screen: Screen }) {
           </p>
         )}
         {!ready ? (
-          <p role="status">Opening your arena…</p>
+          <ArenaSkeleton />
         ) : !client ? (
           <section className="panel">
             <h1>We’ll be back shortly.</h1>
@@ -313,8 +463,8 @@ export function V1App({ screen }: { screen: Screen }) {
               Play the guest demo →
             </Link>
           </section>
-        ) : !home ? (
-          <p role="status">Loading the arena…</p>
+        ) : !home || waitingForAccount ? (
+          !error && <ArenaSkeleton />
         ) : (
           <>
             {screen === "arena" && (
@@ -335,8 +485,7 @@ export function V1App({ screen }: { screen: Screen }) {
                       {tournament?.name || "THE NEXT RALLY"}
                     </h1>
                     <p>
-                      Your knowledge.
-                      <br />
+                      Your knowledge. <br />
                       Your people.
                     </p>
                   </div>
@@ -351,32 +500,25 @@ export function V1App({ screen }: { screen: Screen }) {
                   </div>
                 </section>
                 {signedIn && (
-                  <section className="level-card">
-                    <div>
-                      <span>
-                        LEVEL {Math.floor(home.lifetime_xp / 250) + 1}
-                      </span>
-                      <strong>
-                        {home.event_xp} XP <small>this event</small>
-                      </strong>
-                    </div>
-                    <div
-                      className="level-track"
-                      role="progressbar"
-                      aria-label="Level progress"
-                      aria-valuenow={home.lifetime_xp % 250}
-                      aria-valuemin={0}
-                      aria-valuemax={250}
-                    >
-                      <span
-                        style={{
-                          width: `${((home.lifetime_xp % 250) / 250) * 100}%`,
-                        }}
+                  <section
+                    className="level-card game-home-scores"
+                    aria-label="Player progress"
+                  >
+                    <div className="game-home-level">
+                      <strong>Level progress</strong>
+                      <XPProgress
+                        xp={home.lifetime_xp}
+                        label="Lifetime XP toward next level"
                       />
+                      <small>
+                        {home.lifetime_xp} lifetime XP ·{" "}
+                        {250 - (home.lifetime_xp % 250)} XP to next level
+                      </small>
                     </div>
-                    <small>
-                      {250 - (home.lifetime_xp % 250)} XP to the next level
-                    </small>
+                    <div className="game-event-score">
+                      <span>Event score</span>
+                      <strong>{home.event_xp} XP</strong>
+                    </div>
                   </section>
                 )}
                 <div className="arena-grid">
@@ -387,14 +529,20 @@ export function V1App({ screen }: { screen: Screen }) {
                     >
                       <span>
                         <small>15 SECONDS. ONE SHOT.</small>
-                        <strong>PLAY QUIZ</strong>
+                        <strong>Play Quiz</strong>
                         <span>
                           {home.quizzes[0]?.attempt?.complete
                             ? `Scored ${home.quizzes[0].attempt.score} XP`
                             : "Earn 10 XP for every correct answer"}
                         </span>
                       </span>
-                      <b aria-hidden="true">↗</b>
+                      <b>
+                        <Play
+                          size={26}
+                          fill="currentColor"
+                          aria-hidden="true"
+                        />
+                      </b>
                     </Link>
                     <Link
                       className="action-card"
@@ -402,10 +550,12 @@ export function V1App({ screen }: { screen: Screen }) {
                     >
                       <span>
                         <small>BACK YOUR INSTINCT</small>
-                        <strong>MAKE YOUR CALL</strong>
+                        <strong>Make Your Call</strong>
                         <span>Free predictions · 20 XP for a correct call</span>
                       </span>
-                      <b aria-hidden="true">↗</b>
+                      <b>
+                        <Target size={28} aria-hidden="true" />
+                      </b>
                     </Link>
                   </section>
                   <section className="panel">
@@ -416,7 +566,7 @@ export function V1App({ screen }: { screen: Screen }) {
                     </h2>
                     <p>Every point lifts your team and country too.</p>
                     <Link className="button" href="/play/standings">
-                      See the rankings →
+                      <Trophy size={19} aria-hidden="true" /> Rankings
                     </Link>
                   </section>
                 </div>
@@ -573,8 +723,11 @@ export function V1App({ screen }: { screen: Screen }) {
                     ) : (
                       <p>
                         Open the password reset link from your email on the same
-                        browser where you requested it, or{" "}
-                        <Link href="/play/account">request a new link</Link>.
+                        browser where you requested it.
+                        <br />
+                        <Link className="button" href="/play/account">
+                          Request a new link
+                        </Link>
                       </p>
                     )}
                   </section>
@@ -696,31 +849,100 @@ export function V1App({ screen }: { screen: Screen }) {
                       </div>
                     ) : (
                       <>
-                        <label className="v1-select">
-                          Quiz
-                          <select
-                            value={quizId}
-                            onChange={(e) => {
-                              setSelectedQuiz(e.target.value);
-                              setAttempt(null);
-                            }}
+                        {home.quizzes.length > 1 && (
+                          <details
+                            className="game-quiz-choices"
+                            key={String(solePlayableSelected)}
+                            open={!solePlayableSelected}
                           >
-                            {home.quizzes.map((q) => (
-                              <option value={q.id} key={q.id}>
-                                {q.title}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <div className="panel quiz-panel">
-                          {!attempt ? (
+                            <summary>
+                              {solePlayableSelected
+                                ? "Other quizzes"
+                                : "Choose a quiz"}
+                            </summary>
+                            <div
+                              className="game-quiz-picker"
+                              role="group"
+                              aria-label="Choose a quiz"
+                            >
+                              {home.quizzes.map((item) => {
+                                const opensIn = secondsUntil(item.opens_at);
+                                const closesIn = secondsUntil(item.closes_at);
+                                const status =
+                                  item.id === quizId
+                                    ? quizStatus
+                                    : item.attempt?.complete
+                                      ? "SETTLED"
+                                      : opensIn || !closesIn
+                                        ? "LOCKED"
+                                        : "OPEN";
+                                if (solePlayableSelected && item.id === quizId)
+                                  return null;
+                                return (
+                                  <button
+                                    key={item.id}
+                                    type="button"
+                                    aria-pressed={item.id === quizId}
+                                    disabled={busy}
+                                    onClick={() => {
+                                      if (item.id === quizId) return;
+                                      setSelectedQuiz(item.id);
+                                      setAttempt(null);
+                                    }}
+                                  >
+                                    <strong>{item.title}</strong>
+                                    <span className="game-card-meta">
+                                      <span
+                                        className="game-status"
+                                        data-state={status}
+                                      >
+                                        {status}
+                                      </span>
+                                      {status !== "SETTLED" && (
+                                        <span>
+                                          {opensIn
+                                            ? deadlineLabel(opensIn, "Opens")
+                                            : closesIn
+                                              ? deadlineLabel(closesIn)
+                                              : "Entries closed"}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </details>
+                        )}
+                        <div
+                          className="panel quiz-panel"
+                          data-live={quizStatus === "LIVE"}
+                        >
+                          <div className="game-card-art game-quiz-art">
+                            <div className="game-card-meta">
+                              <span
+                                className="game-status"
+                                data-state={quizStatus}
+                              >
+                                {quizStatus}
+                              </span>
+                              {!attempt?.complete &&
+                                !quiz?.attempt?.complete && (
+                                  <span>
+                                    {quizOpensIn
+                                      ? deadlineLabel(quizOpensIn, "Opens")
+                                      : quizClosesIn
+                                        ? deadlineLabel(quizClosesIn)
+                                        : "Entries closed"}
+                                  </span>
+                                )}
+                            </div>
+                            <h2>{quiz?.title}</h2>
+                          </div>
+                          {busy && !attempt ? (
+                            <ArenaSkeleton />
+                          ) : !attempt ? (
                             <>
-                              <h2>
-                                {
-                                  home.quizzes.find((q) => q.id === quizId)
-                                    ?.title
-                                }
-                              </h2>
                               <p>
                                 15 seconds per question. Your first answer is
                                 final. Earn 10 XP for each correct answer.
@@ -738,12 +960,25 @@ export function V1App({ screen }: { screen: Screen }) {
                                   )
                                 }
                               >
-                                Start quiz →
+                                <Play
+                                  size={18}
+                                  fill="currentColor"
+                                  aria-hidden="true"
+                                />{" "}
+                                Start quiz
                               </button>
                             </>
                           ) : attempt.complete ? (
                             <div role="status">
-                              <span className="eyebrow">RALLY COMPLETE</span>
+                              {lastAnswer && answerKey === freshAnswer && (
+                                <QuizFeedback
+                                  key={answerKey}
+                                  answer={lastAnswer}
+                                  animate
+                                />
+                              )}
+                              <Streak count={streak} />
+                              <div className="eyebrow">RALLY COMPLETE</div>
                               <h2>That’s your rally.</h2>
                               <strong
                                 className="big-xp"
@@ -775,19 +1010,16 @@ export function V1App({ screen }: { screen: Screen }) {
                               </Link>
                             </div>
                           ) : attempt.awaiting_next ? (
-                            <div
-                              className={`answer-reveal ${attempt.answers.at(-1)?.xp ? "is-correct" : "is-wrong"}`}
-                              role="status"
-                            >
-                              <h2>
-                                {attempt.answers.at(-1)?.xp
-                                  ? "Clean winner."
-                                  : "Keep your head in the game."}
-                              </h2>
-                              <strong className="big-xp xp-pop">
-                                +{attempt.answers.at(-1)?.xp} XP
-                              </strong>
-                              <p>{attempt.answers.at(-1)?.explanation}</p>
+                            <div role="status" className="game-reveal">
+                              {lastAnswer && (
+                                <QuizFeedback
+                                  key={answerKey}
+                                  answer={lastAnswer}
+                                  animate={answerKey === freshAnswer}
+                                />
+                              )}
+                              <Streak count={streak} />
+                              <p>{lastAnswer?.explanation}</p>
                               <button
                                 className="primary wide"
                                 disabled={busy}
@@ -802,15 +1034,31 @@ export function V1App({ screen }: { screen: Screen }) {
                             attempt.question && (
                               <>
                                 <div className="section-head">
-                                  <span className="eyebrow">
-                                    QUESTION {attempt.question.position + 1} /{" "}
-                                    {
-                                      home.quizzes.find((q) => q.id === quizId)
-                                        ?.question_count
-                                    }
-                                  </span>
+                                  <div className="game-question-meta">
+                                    <span className="eyebrow">
+                                      QUESTION {attempt.question.position + 1} /{" "}
+                                      {quiz?.question_count}
+                                    </span>
+                                    <div className="game-question-feedback">
+                                      <Streak count={streak} />
+                                      {lastAnswer?.option === null &&
+                                        answerKey === freshAnswer && (
+                                          <span
+                                            key={answerKey}
+                                            className="game-buzzer"
+                                            role="status"
+                                          >
+                                            <AlarmClock
+                                              size={15}
+                                              aria-hidden="true"
+                                            />{" "}
+                                            Time’s up!
+                                          </span>
+                                        )}
+                                    </div>
+                                  </div>
                                   <strong
-                                    className={`timer ${remaining <= 5 ? "urgent" : ""}`}
+                                    className={`timer ${remaining < 5 ? "urgent" : ""}`}
                                     role="timer"
                                     aria-label={`${remaining} seconds remaining`}
                                   >
@@ -879,33 +1127,34 @@ export function V1App({ screen }: { screen: Screen }) {
                       <p className="panel">No matches announced yet.</p>
                     )}
                     {home.matches.map((m) => {
-                      const seconds = Math.max(
-                        0,
-                        Math.ceil(
-                          (new Date(m.closes_at).getTime() -
-                            (tick + serverOffset)) /
-                            1000,
-                        ),
-                      );
+                      const seconds = secondsUntil(m.closes_at);
+                      const matchStatus = m.winner
+                        ? "SETTLED"
+                        : m.entry || !seconds
+                          ? "LOCKED"
+                          : "OPEN";
                       return (
                         <section className="panel v1-match" key={m.id}>
-                          <span className="pill">
-                            {m.winner
-                              ? "MATCH FINISHED"
-                              : m.entry
-                                ? "PICK LOCKED"
-                                : seconds === 0
-                                  ? "ENTRIES CLOSED"
-                                  : "ENTRIES OPEN"}
-                          </span>
-                          <h2>
-                            {m.athlete_a} vs {m.athlete_b}
-                          </h2>
-                          <p>
-                            {seconds
-                              ? `Closes in ${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s`
-                              : "Entries closed"}
-                          </p>
+                          <div className="game-card-art game-match-art">
+                            <div className="game-card-meta">
+                              <span
+                                className="game-status"
+                                data-state={matchStatus}
+                              >
+                                {matchStatus}
+                              </span>
+                              <span>
+                                {m.winner
+                                  ? "Result confirmed"
+                                  : seconds
+                                    ? deadlineLabel(seconds)
+                                    : "Entries closed"}
+                              </span>
+                            </div>
+                            <h2>
+                              {m.athlete_a} <span>vs</span> {m.athlete_b}
+                            </h2>
+                          </div>
                           <div className="answer-grid prediction-grid">
                             {[m.athlete_a, m.athlete_b].map((athlete, i) => (
                               <button
@@ -958,6 +1207,7 @@ export function V1App({ screen }: { screen: Screen }) {
                                           },
                                         );
                                         if (error) throw error;
+                                        feedback("locked");
                                         setPick(null);
                                         await refresh(client);
                                       })
@@ -1023,8 +1273,23 @@ export function V1App({ screen }: { screen: Screen }) {
                         </button>
                       ))}
                     </div>
-                    <div className="table-wrap">
-                      <table data-testid="v1-standings">
+                    {podium.length > 0 && (
+                      <ol className="game-podium" aria-label="Top three">
+                        {podium.map((row) => (
+                          <li key={row.id} data-place={row.rank}>
+                            <Trophy size={22} aria-hidden="true" />
+                            <span>#{row.rank}</span>
+                            <strong>{row.name}</strong>
+                            <small>{row.xp} XP</small>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                    <div className="table-wrap game-rankings">
+                      <table
+                        data-testid="v1-standings"
+                        aria-busy={loadingRankings}
+                      >
                         <caption>
                           {rankingsCaption(tournament?.name, scope, league)}
                         </caption>
@@ -1042,21 +1307,66 @@ export function V1App({ screen }: { screen: Screen }) {
                           </tr>
                         </thead>
                         <tbody>
-                          {ranks.map((r) => (
+                          {orderedRanks.map((r) => (
                             <tr
                               key={r.id}
-                              className={r.id === session?.user.id ? "you" : ""}
+                              className={
+                                r === ownRank ? "you game-pinned" : undefined
+                              }
                             >
-                              <td>#{r.rank}</td>
-                              <th scope="row">{r.name}</th>
+                              <td>
+                                <span className="game-rank-number">
+                                  #{r.rank}
+                                  {r.movement !== 0 && (
+                                    <span
+                                      className={
+                                        r.movement > 0 ? "rank-up" : "rank-down"
+                                      }
+                                      role="img"
+                                      aria-label={`${r.movement > 0 ? "Up" : "Down"} ${Math.abs(r.movement)} ${Math.abs(r.movement) === 1 ? "place" : "places"}`}
+                                    >
+                                      {r.movement > 0 ? (
+                                        <ArrowUp size={16} aria-hidden="true" />
+                                      ) : (
+                                        <ArrowDown
+                                          size={16}
+                                          aria-hidden="true"
+                                        />
+                                      )}
+                                    </span>
+                                  )}
+                                </span>
+                              </td>
+                              <th scope="row">
+                                {r.name}
+                                {r === ownRank && (
+                                  <span className="game-you">
+                                    {league === "players" ? "You" : "Yours"}
+                                  </span>
+                                )}
+                              </th>
                               <td>{r.xp}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
-                      {ranks.length === 0 && (
-                        <p>No scores yet. Be the first to rally.</p>
+                      {loadingRankings && (
+                        <div className="game-rank-skeleton">
+                          <ArenaSkeleton label="Loading rankings" />
+                        </div>
                       )}
+                      {currentRankings && "failed" in currentRankings && (
+                        <p role="status">
+                          Rankings are temporarily unavailable.
+                        </p>
+                      )}
+                      {currentRankings &&
+                        "rows" in currentRankings &&
+                        ranks.length === 0 && (
+                          <p role="status">
+                            No scores yet. Be the first to rally.
+                          </p>
+                        )}
                     </div>
                   </section>
                 )}
@@ -1073,7 +1383,9 @@ export function V1App({ screen }: { screen: Screen }) {
                     <section className="panel">
                       <h1>Players’ side.</h1>
                       <p>This area is reserved for tournament admins.</p>
-                      <Link href="/play">Back to the arena →</Link>
+                      <Link className="button" href="/play">
+                        Back to the arena →
+                      </Link>
                     </section>
                   ))}
               </>
@@ -1081,9 +1393,24 @@ export function V1App({ screen }: { screen: Screen }) {
           </>
         )}
       </main>
+      {celebration !== null &&
+        signedIn &&
+        !(
+          screen === "quiz" &&
+          attempt?.question &&
+          !attempt.awaiting_next &&
+          !attempt.complete
+        ) && (
+          <LevelCelebration
+            level={celebration}
+            onClose={() => setCelebration(null)}
+          />
+        )}
       <footer>
         <p>Independent fan game. No prizes or payments.</p>
-        <Link href="/demo">Try the fictional guest demo</Link>
+        <Link className="button" href="/demo">
+          Try the fictional guest demo
+        </Link>
       </footer>
     </div>
   );

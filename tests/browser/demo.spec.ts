@@ -428,3 +428,63 @@ test("empty rankings have a clean caption and health exposes only database avail
   expect(response.headers()["cache-control"]).toContain("no-store");
   expect(response.headers()["x-powered-by"]).toBeUndefined();
 });
+
+test("rankings wait for results and hide zero-XP rows", async ({ page }) => {
+  await page.route("**/rest/v1/rpc/v1_home", (route) =>
+    route.fulfill({
+      json: {
+        server_now: new Date().toISOString(),
+        profile: null,
+        admin: false,
+        teams: [],
+        tournament: { id: "test-event", name: "Test Event" },
+        quizzes: [],
+        matches: [],
+        lifetime_xp: 0,
+        event_xp: 0,
+      },
+    }),
+  );
+  const zero = { id: "zero", name: "Zero XP Player", xp: 0, rank: 1 };
+  let releaseEvent!: () => void;
+  const eventResponse = new Promise<void>((resolve) => {
+    releaseEvent = resolve;
+  });
+  await page.route("**/rest/v1/rpc/v1_leaderboard", async (route) => {
+    const { p_scope } = route.request().postDataJSON();
+    if (p_scope === "event") {
+      await eventResponse;
+      await route.fulfill({ json: [zero] });
+    } else {
+      await route.fulfill({
+        json: [
+          { id: "scorer", name: "Scoring Player", xp: 10, rank: 1 },
+          { ...zero, rank: 2 },
+        ],
+      });
+    }
+  });
+
+  await page.goto("/play/standings");
+  const loading = page.getByRole("status", { name: "Loading rankings" });
+  const empty = page.getByText("No scores yet. Be the first to rally.", {
+    exact: true,
+  });
+  const rows = page.getByTestId("v1-standings").locator("tbody tr");
+  try {
+    await expect(loading).toBeVisible();
+    await expect(empty).toHaveCount(0);
+    await expect(rows).toHaveCount(0);
+  } finally {
+    releaseEvent();
+  }
+  await expect(empty).toBeVisible();
+  await expect(rows).toHaveCount(0);
+  await expect(loading).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Season", exact: true }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("#1");
+  await expect(rows.first()).toContainText("Scoring Player");
+  await expect(empty).toHaveCount(0);
+});

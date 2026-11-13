@@ -134,8 +134,7 @@ export function DemoApp({ screen }: { screen: Screen }) {
                   <span>DEMO CUP</span>
                 </h1>
                 <p>
-                  Your knowledge.
-                  <br />
+                  Your knowledge. <br />
                   Your people.
                 </p>
               </div>

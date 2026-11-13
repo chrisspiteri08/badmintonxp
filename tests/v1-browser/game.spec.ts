@@ -46,6 +46,15 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   const email = `fan-${tag}@example.test`,
     pass = randomBytes(6).toString("base64url").slice(0, 6),
     username = `fan_${tag}`;
+  const capture = (screen: string) =>
+    page.screenshot({
+      path: path.resolve(
+        process.env.V1_SCREENSHOT_DIR || "../../outputs/v1-screenshots",
+        `${info.project.name}-${screen}.png`,
+      ),
+      fullPage: true,
+      animations: "disabled",
+    });
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => {
@@ -81,21 +90,34 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   await expect(
     page.getByRole("heading", { name: `Isolated Cup ${tag}` }),
   ).toBeVisible();
-  await page.screenshot({
-    path: path.resolve(
-      `../../outputs/v1-screenshots/${info.project.name}-home.png`,
-    ),
-    fullPage: true,
-  });
-  await page.getByRole("link", { name: "Play", exact: true }).click();
+  await capture("home");
+  if (info.project.name === "mobile") {
+    await page.evaluate(() =>
+      window.scrollTo(0, document.documentElement.scrollHeight),
+    );
+    const footer = await page.getByRole("contentinfo").boundingBox();
+    const tabs = await page
+      .getByRole("navigation", { name: "Fan arena" })
+      .boundingBox();
+    expect(footer!.y + footer!.height).toBeLessThan(tabs!.y);
+    await page.evaluate(() => window.scrollTo(0, 0));
+  }
+  await page.getByRole("link", { name: "Quiz", exact: true }).click();
+  await expect(page.getByRole("group", { name: "Choose a quiz" })).toHaveCount(
+    0,
+  );
   await page.getByRole("button", { name: "Start quiz" }).click();
   await expect(page.getByTestId("v1-question")).toContainText("Round 1");
-  await page.screenshot({
-    path: path.resolve(
-      `../../outputs/v1-screenshots/${info.project.name}-quiz.png`,
-    ),
-    fullPage: true,
-  });
+  if (info.project.name === "mobile") {
+    const lastAnswer = await page
+      .getByRole("button", { name: "D 18", exact: true })
+      .boundingBox();
+    const tabs = await page
+      .getByRole("navigation", { name: "Fan arena" })
+      .boundingBox();
+    expect(lastAnswer!.y + lastAnswer!.height).toBeLessThan(tabs!.y);
+  }
+  await capture("quiz");
   // No answer key in any player question response before an answer is locked.
   const payload = await page.evaluate(async (id) => {
     const c = await fetch("/api/v1/config").then((r) => r.json());
@@ -117,8 +139,13 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   await expect(
     page.getByRole("heading", { name: "Clean winner." }),
   ).toBeVisible();
+  await expect(page.getByText("1 streak", { exact: true })).toBeVisible();
+  await expect(page.locator(".result-correct")).toContainText("+10 XP");
+  await capture("quiz-correct");
   await page.getByRole("button", { name: "Next question" }).click();
   await page.getByRole("button", { name: "A 12", exact: true }).click();
+  await expect(page.locator(".result-wrong")).toContainText("Not this rally.");
+  await expect(page.getByText("0 streak", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Next question" }).click();
   await page.getByRole("button", { name: "C 16", exact: true }).click();
   await expect(page.getByTestId("v1-quiz-score")).toHaveText("+20 XP");
@@ -126,6 +153,8 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   await expect(page.getByTestId("v1-quiz-score")).toHaveText("+20 XP");
   await expect(page.getByTestId("v1-lifetime-xp")).toHaveText("20 XP");
   await page.getByRole("link", { name: "Make your match call" }).click();
+  await expect(page.getByRole("button", { name: /01 Ember/ })).toBeEnabled();
+  await capture("predict");
   await page.getByRole("button", { name: /01 Ember/ }).click();
   await page.getByRole("button", { name: "Lock Ember", exact: true }).click();
   await expect(page.getByTestId("v1-prediction-status")).toContainText(
@@ -153,6 +182,7 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   await page.getByRole("link", { name: "Rankings", exact: true }).click();
   await expect(page.getByTestId("v1-standings")).toContainText(username);
   await expect(page.getByTestId("v1-standings")).toContainText("40");
+  await capture("rankings");
   await page.getByRole("button", { name: "Teams", exact: true }).click();
   await expect(page.getByTestId("v1-standings")).toContainText(`Neon ${tag}`);
   await page.getByRole("button", { name: "Countries", exact: true }).click();
@@ -164,12 +194,6 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page.screenshot({
-    path: path.resolve(
-      `../../outputs/v1-screenshots/${info.project.name}-rankings.png`,
-    ),
-    fullPage: true,
-  });
   await page.getByRole("link", { name: "Profile", exact: true }).click();
   await page.getByRole("button", { name: "Sign out all sessions" }).click();
   await expect(
@@ -277,7 +301,7 @@ test("admin desk is role guarded and saves unpublished tournament drafts", async
 
 test("server timeout advances a real unanswered question and saves the final score", async ({
   page,
-}) => {
+}, info) => {
   const tag = randomUUID().slice(0, 8),
     f = await fixture(tag);
   const c = local();
@@ -300,9 +324,24 @@ test("server timeout advances a real unanswered question and saves the final sco
   await page.goto("/play/quiz");
   await page.getByRole("button", { name: "Start quiz" }).click();
   await expect(page.getByTestId("v1-question")).toContainText("Round 1");
+  await expect(page.getByRole("timer")).toHaveClass(/urgent/, {
+    timeout: 17000,
+  });
   await expect(page.getByTestId("v1-question")).toContainText("Round 2", {
     timeout: 22000,
   });
+  await expect(
+    page.getByRole("status").filter({ hasText: "Time’s up!" }),
+  ).toBeVisible();
+  if (info.project.name === "mobile") {
+    const lastAnswer = await page
+      .getByRole("button", { name: "D 18", exact: true })
+      .boundingBox();
+    const tabs = await page
+      .getByRole("navigation", { name: "Fan arena" })
+      .boundingBox();
+    expect(lastAnswer!.y + lastAnswer!.height).toBeLessThan(tabs!.y);
+  }
   await page.getByRole("button", { name: "C 16", exact: true }).click();
   await page.getByRole("button", { name: "Next question" }).click();
   await page.getByRole("button", { name: "C 16", exact: true }).click();
@@ -474,4 +513,141 @@ test("content editor sees readiness, repairs a draft question and publishes/sett
     path: path.resolve(`../../outputs/content-editor-${info.project.name}.png`),
     fullPage: true,
   });
+});
+
+test("game HUD waits for the account, celebrates levels, and pins live rank movement", async ({
+  page,
+}, info) => {
+  const f = await fixture(randomUUID().slice(0, 8));
+  await page.goto("/play/account");
+  await page.getByLabel("Email", { exact: true }).fill(f.email);
+  await page.getByLabel("Password", { exact: true }).fill(f.pass);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "You’re in." })).toBeVisible();
+
+  let xp = 990;
+  let release!: () => void;
+  const delayedHome = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/rest/v1/rpc/v1_home", async (route) => {
+    await delayedHome;
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      json: { ...(await response.json()), lifetime_xp: xp },
+    });
+  });
+  await page.goto("/play");
+  try {
+    await expect(
+      page.getByRole("status", { name: "Loading account" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Sign in", exact: true }),
+    ).toHaveCount(0);
+  } finally {
+    release();
+  }
+  const sound = page.getByRole("button", { name: "Game sound" });
+  await expect(sound).toHaveAttribute("aria-pressed", "false");
+  await sound.click();
+  await expect(sound).toHaveAttribute("aria-pressed", "true");
+  await page.reload();
+  await expect(sound).toHaveAttribute("aria-pressed", "true");
+  await sound.click();
+  await expect(page.getByTestId("v1-lifetime-xp")).toHaveText("990 XP");
+  const progress = page.getByRole("progressbar", { name: "XP to next level" });
+  await expect(progress).toHaveAttribute("aria-valuenow", "240");
+  const scores = page.getByRole("region", { name: "Player progress" });
+  await expect(scores.getByRole("progressbar")).toHaveAttribute(
+    "aria-valuenow",
+    "240",
+  );
+  await expect(scores.locator(".game-event-score")).toContainText("0 XP");
+  await expect(page.getByRole("banner")).not.toContainText("Lifetime XP");
+  xp = 1000;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  const dialog = page.getByRole("dialog", { name: "Level up!" });
+  await expect(dialog).toContainText("Pro · Level 5");
+  const capture = (screen: string) =>
+    page.screenshot({
+      path: path.resolve(
+        process.env.V1_SCREENSHOT_DIR || "../../outputs/v1-screenshots",
+        `${info.project.name}-${screen}.png`,
+      ),
+      fullPage: true,
+    });
+  await capture("level-up");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator(".game-confetti")).toBeHidden();
+  await dialog.getByRole("button", { name: "Keep playing" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(progress).toHaveAttribute("aria-valuenow", "0");
+
+  let moved = false;
+  await page.route("**/rest/v1/rpc/v1_leaderboard", (route) =>
+    route.fulfill({
+      json: [
+        { id: "gold", name: "ShuttleAce", xp: 120, rank: 1 },
+        { id: "silver", name: "NetNinja", xp: 100, rank: 2 },
+        { id: "bronze", name: "RallyRider", xp: 80, rank: moved ? 4 : 3 },
+        {
+          id: f.user.id,
+          name: "Your test player",
+          xp: moved ? 90 : 60,
+          rank: moved ? 3 : 4,
+        },
+      ].sort((a, b) => a.rank - b.rank),
+    }),
+  );
+  await page.clock.install();
+  const nav = page.getByRole("navigation", { name: "Fan arena" });
+  const rankingsTab = nav.getByRole("link", { name: "Rankings", exact: true });
+  await rankingsTab.click();
+  const podium = page.getByRole("list", { name: "Top three" });
+  await expect(podium.getByRole("listitem")).toHaveCount(3);
+  const pinned = page.getByTestId("v1-standings").locator("tbody tr").first();
+  await expect(pinned).toHaveClass(/game-pinned/);
+  await expect(pinned).toContainText("#4");
+  await expect(pinned).toContainText("Your test player");
+  moved = true;
+  await page.clock.fastForward(30_500);
+  await expect(pinned.getByRole("img", { name: "Up 1 place" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Down 1 place" })).toBeVisible();
+  await expect(pinned).toContainText("#3");
+  await expect(rankingsTab).toHaveAttribute("aria-current", "page");
+  if (info.project.name === "mobile") {
+    await expect(nav).toHaveCSS("position", "fixed");
+    await expect(rankingsTab).toHaveCSS("min-height", "52px");
+  }
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await capture("podium");
+
+  const alternate = await f.owner.rpc("v1_admin_save", {
+    p_kind: "quiz",
+    p_data: {
+      tournament_id: f.tournament,
+      title: "Second shuttle quiz",
+      opens_at: new Date(Date.now() - 3_600_000).toISOString(),
+      closes_at: new Date(Date.now() + 3_600_000).toISOString(),
+    },
+  });
+  expect(alternate.error).toBeNull();
+  sql(`update public.quizzes set published=true where id='${alternate.data}';`);
+  await page.getByRole("link", { name: "Quiz", exact: true }).click();
+  const picker = page.getByRole("group", { name: "Choose a quiz" });
+  const second = picker.getByRole("button", { name: /Second shuttle quiz/ });
+  await expect(second).toContainText("OPEN");
+  await expect(second).toContainText("Closes in");
+  await second.click();
+  await expect(second).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByRole("heading", { name: "Second shuttle quiz" }),
+  ).toBeVisible();
+  await capture("quiz-picker");
 });

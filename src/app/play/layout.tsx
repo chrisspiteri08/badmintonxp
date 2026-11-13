@@ -1,5 +1,7 @@
+import type { Viewport } from "next";
 import "../demo/demo.css";
 import "@/v1/v1.css";
+export const viewport: Viewport = { viewportFit: "cover" };
 export const metadata = {
   title: "BadmintonXP · Fan arena",
   description:
