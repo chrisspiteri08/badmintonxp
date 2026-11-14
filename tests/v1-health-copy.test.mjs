@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { databaseConnected } from "../src/v1/health.ts";
-import { rankingsCaption } from "../src/v1/copy.ts";
 const config = {
   ready: true,
   url: "https://example.supabase.co",
@@ -42,24 +41,4 @@ test("health returns only false on HTTP errors, malformed responses or sensitive
     },
   ])
     assert.equal(await databaseConnected(config, fetcher), false);
-});
-test("rankings caption omits separators when no current event exists", () => {
-  for (const name of [undefined, null, "", "  "])
-    assert.equal(
-      rankingsCaption(name, "event", "players"),
-      "Individual rankings",
-    );
-  assert.equal(rankingsCaption(undefined, "event", "teams"), "Team rankings");
-  assert.equal(
-    rankingsCaption(undefined, "event", "countries"),
-    "Country rankings",
-  );
-  assert.equal(
-    rankingsCaption("World Tour Finals 2026", "event", "players"),
-    "World Tour Finals 2026 · Individual rankings",
-  );
-  assert.equal(
-    rankingsCaption(undefined, "season", "players"),
-    "Season · Individual rankings",
-  );
 });

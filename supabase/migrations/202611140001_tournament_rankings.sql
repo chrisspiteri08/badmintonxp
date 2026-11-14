@@ -55,15 +55,20 @@ begin
    order by t.id for update of t
  loop
    if not exists(select 1 from public.matches m where m.tournament_id=event.id and m.winner is null) then
-     insert into private.tournament_results values(event.id,private.tournament_boards(event.id, greatest(event.ends_at,
-       (select max(m.settled_at) from public.matches m where m.tournament_id=event.id))))
-       on conflict do nothing;
+     boards := private.tournament_boards(event.id, greatest(event.ends_at,
+       (select max(m.settled_at) from public.matches m where m.tournament_id=event.id)));
+     if jsonb_array_length(boards->'players') > 0 then
+       insert into private.tournament_results values(event.id,boards) on conflict do nothing;
+     end if;
    end if;
  end loop;
  select standings into boards from private.tournament_results where tournament_id=current_id;
  current_boards := coalesce(boards, private.tournament_boards(current_id));
  select coalesce(jsonb_agg(jsonb_build_object('id',t.id,'name',t.name,'winners',
-   jsonb_build_object('players',r.standings->'players'->0,'teams',r.standings->'teams'->0,'countries',r.standings->'countries'->0))
+   jsonb_build_object(
+     'players',jsonb_path_query_array(r.standings,'$.players[*] ? (@.rank == 1)'),
+     'teams',jsonb_path_query_array(r.standings,'$.teams[*] ? (@.rank == 1)'),
+     'countries',jsonb_path_query_array(r.standings,'$.countries[*] ? (@.rank == 1)')))
    order by t.ends_at desc,t.id),'[]'::jsonb) into past
  from private.tournament_results r join public.tournaments t on t.id=r.tournament_id
  where t.id is distinct from current_id and t.published;
@@ -86,9 +91,7 @@ begin
   select * into strict t from public.tournaments where id=parent for update;
   if t.published then
    if exists(select 1 from private.tournament_results where tournament_id=t.id)
-      or (t.ends_at <= clock_timestamp() and not exists(
-        select 1 from public.matches where tournament_id=t.id and winner is null
-      )) then raise exception 'Match cannot be added to a finished tournament.'; end if;
+      or t.ends_at <= clock_timestamp() then raise exception 'Match cannot be added to a finished tournament.'; end if;
    if (p_data->>'closes_at')::timestamptz <= clock_timestamp()
      then raise exception 'Match close time must be in the future.'; end if;
   end if;

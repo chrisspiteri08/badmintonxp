@@ -15,7 +15,7 @@ type Entry = {
   gap: number | null;
   fans: number;
 };
-type Winners = Record<League, Entry | null>;
+type Winners = Record<League, Entry[]>;
 export type TournamentRankings = {
   tournament_id: string | null;
   final: boolean;
@@ -52,14 +52,19 @@ function WinnerList({ winners }: { winners: Winners }) {
   return (
     <ul>
       {leagues.map((league) => {
-        const winner = winners[league];
+        const leaders = winners[league];
+        if (!leaders.length) return null;
         return (
           <li key={league}>
-            <strong>#1 {titles[league]}</strong>
+            <strong>
+              {leaders.length > 1
+                ? `Joint #1 ${titles[league]} champions`
+                : `#1 ${titles[league]}`}
+            </strong>
             {" · "}
-            {winner
-              ? `${entryName(winner, league)} · ${winner.xp} XP`
-              : "No scorer"}
+            {leaders
+              .map((winner) => `${entryName(winner, league)} · ${winner.xp} XP`)
+              .join(" / ")}
           </li>
         );
       })}
@@ -132,9 +137,11 @@ export function TournamentStandings({
               <h2>Champions</h2>
               <WinnerList
                 winners={{
-                  players: data.boards.players[0] ?? null,
-                  countries: data.boards.countries[0] ?? null,
-                  teams: data.boards.teams[0] ?? null,
+                  players: data.boards.players.filter((row) => row.rank === 1),
+                  countries: data.boards.countries.filter(
+                    (row) => row.rank === 1,
+                  ),
+                  teams: data.boards.teams.filter((row) => row.rank === 1),
                 }}
               />
             </section>

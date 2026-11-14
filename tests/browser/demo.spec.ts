@@ -459,6 +459,7 @@ test("tournament rankings show countries first, the gap and full standings", asy
       },
     }),
   );
+  let finished = false;
   let release!: () => void;
   const response = new Promise<void>((resolve) => {
     release = resolve;
@@ -476,7 +477,7 @@ test("tournament rankings show countries first, the gap and full standings", asy
     await route.fulfill({
       json: {
         tournament_id: "event",
-        final: false,
+        final: finished,
         past: [],
         boards: {
           countries: [
@@ -487,8 +488,13 @@ test("tournament rankings show countries first, the gap and full standings", asy
             row("TH", "TH", 5, 140, 10, 8),
             row("SG", "SG", 6, 120, 20, 4),
           ],
-          teams: [row("neon", "Neon Shuttles", 1, 200, null, 12)],
-          players: [row("fan", "ShuttleAce", 1, 60, null)],
+          teams: finished
+            ? []
+            : [row("neon", "Neon Shuttles", 1, 200, null, 12)],
+          players: [
+            row("fan", "ShuttleAce", 1, 60, null),
+            ...(finished ? [row("joint", "CourtAce", 1, 60, 0)] : []),
+          ],
         },
       },
     });
@@ -532,4 +538,14 @@ test("tournament rankings show countries first, the gap and full standings", asy
   await expect(page.getByRole("region", { name: "Teams" })).toContainText(
     "Neon Shuttles",
   );
+
+  finished = true;
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Champions", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Joint #1 Fan champions.*ShuttleAce.*CourtAce/),
+  ).toBeVisible();
+  await expect(page.getByText("No scorer")).toHaveCount(0);
 });

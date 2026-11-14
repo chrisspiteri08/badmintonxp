@@ -584,6 +584,17 @@ test("published tournaments accept future matches and freeze the champions using
     );
     const read = () =>
       asUser(null, () => rpc("v1_tournament_rankings"), "anon");
+    await asUser(admin, async () => {
+      await db.exec("savepoint ended_event");
+      await assert.rejects(
+        rpc("v1_admin_save", [
+          "match",
+          { ...payload, closes_at: "2099-01-02T00:00:00Z" },
+        ]),
+        /finished/,
+      );
+      await db.exec("rollback to savepoint ended_event");
+    });
     const pending = await read();
     assert.equal(pending.final, false);
     const country = pending.boards.countries.find((row) => row.id === "JP");
@@ -603,6 +614,25 @@ test("published tournaments accept future matches and freeze the champions using
       "update public.matches set winner=athlete_a,settled_at=clock_timestamp() where tournament_id=$1 and winner is null",
       [tournament],
     );
+    await db.exec("savepoint empty_event");
+    await db.query("update public.xp_ledger set xp=0 where tournament_id=$1", [
+      tournament,
+    ]);
+    assert.equal((await read()).final, false);
+    assert.equal(
+      (
+        await db.query(
+          "select 1 from private.tournament_results where tournament_id=$1",
+          [tournament],
+        )
+      ).rows.length,
+      0,
+    );
+    await db.exec("rollback to savepoint empty_event");
+    await db.query(
+      "insert into public.xp_ledger(user_id,tournament_id,season_id,country,source_type,source_id,xp) values($1,$2,$3,'DK','quiz',gen_random_uuid(),330)",
+      [admin, tournament, season],
+    );
     const result = await read();
     assert.equal(result.final, true);
     assert.equal(result.boards.players[0].xp, 330);
@@ -611,6 +641,10 @@ test("published tournaments accept future matches and freeze the champions using
       tournament,
     ]);
     assert.deepEqual((await read()).boards, result.boards);
+    await db.query(
+      "update public.tournaments set ends_at=clock_timestamp()+interval '1 day' where id=$1",
+      [tournament],
+    );
     await asUser(admin, async () => {
       await db.exec("savepoint rejected_match");
       await assert.rejects(
@@ -628,8 +662,11 @@ test("published tournaments accept future matches and freeze the champions using
     const history = (await read()).past.find(
       (event) => event.id === tournament,
     );
-    assert.equal(history.winners.countries.id, "JP");
-    assert.equal(history.winners.players.xp, 330);
+    assert.equal(history.winners.countries[0].id, "JP");
+    assert.deepEqual(
+      history.winners.players.map((winner) => winner.xp),
+      [330, 330],
+    );
     assert.ok(featured);
   } finally {
     await db.exec("rollback");

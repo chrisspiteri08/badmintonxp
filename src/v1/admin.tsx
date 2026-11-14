@@ -174,11 +174,7 @@ export function Admin({
   const matchTournaments =
     data?.tournaments.filter(
       (t) =>
-        !t.published ||
-        Date.parse(t.ends_at) > Date.parse(data.server_now) ||
-        data.matches.some(
-          (match) => match.tournament_id === t.id && !match.winner,
-        ),
+        !t.published || Date.parse(t.ends_at) > Date.parse(data.server_now),
     ) || [];
   const tournamentSelect = (choices: typeof draftTournaments) => (
     <label>
