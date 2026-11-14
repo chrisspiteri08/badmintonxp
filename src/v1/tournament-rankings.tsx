@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Profile, Tournament } from "./types";
 import { ArenaSkeleton } from "./game-ui";
 
@@ -36,7 +36,11 @@ function entryName(entry: Entry, league: League) {
   return `${flag} ${new Intl.DisplayNames(["en"], { type: "region" }).of(code)}`;
 }
 
-function tournamentStatus(tournament: Tournament, now: number, final: boolean) {
+export function tournamentStatus(
+  tournament: Tournament,
+  now: number,
+  final: boolean,
+) {
   if (final) return "Final standings";
   const starts = Date.parse(tournament.starts_at);
   const ends = Date.parse(tournament.ends_at);
@@ -72,33 +76,178 @@ function WinnerList({ winners }: { winners: Winners }) {
   );
 }
 
-export function RaceSummary({
+function ownEntry(rows: Entry[], league: League, profile: Profile | null) {
+  const id =
+    league === "countries"
+      ? profile?.country
+      : league === "teams"
+        ? profile?.team_id
+        : profile?.id;
+  return rows.find((row) => row.id === id);
+}
+
+function AnimatedRankScore({ xp }: { xp: number }) {
+  const [shown, setShown] = useState(xp);
+  const previous = useRef(0);
+  useEffect(() => {
+    const from = previous.current;
+    previous.current = xp;
+    if (
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      from === xp
+    ) {
+      setShown(xp);
+      return;
+    }
+    const start = performance.now();
+    let frame = 0;
+    const draw = (time: number) => {
+      const progress = Math.min(1, (time - start) / 450);
+      setShown(Math.round(from + (xp - from) * progress));
+      if (progress < 1) frame = requestAnimationFrame(draw);
+    };
+    frame = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(frame);
+  }, [xp]);
+  return <strong aria-label={`${xp} XP`}>{shown} XP</strong>;
+}
+
+export function ArenaRankings({
   data,
   profile,
-  tournament,
+  failed,
 }: {
-  data: TournamentRankings;
-  profile: Profile;
-  tournament: Tournament;
+  data: TournamentRankings | null;
+  profile: Profile | null;
+  failed: boolean;
 }) {
-  const country = data.boards.countries.find(
-    (row) => row.id === profile.country,
-  );
-  const player = data.boards.players.find((row) => row.id === profile.id);
+  const track = useRef<HTMLDivElement>(null);
+  const previous = useRef<TournamentRankings | null>(null);
+  const [gainers, setGainers] = useState<string[]>([]);
+  const [visible, setVisible] = useState(0);
+  useEffect(() => {
+    const prior = previous.current;
+    previous.current = data;
+    if (!prior || !data || prior.tournament_id !== data.tournament_id) {
+      setGainers([]);
+      return;
+    }
+    setGainers(
+      leagues.flatMap((league) =>
+        data.boards[league].flatMap((row) => {
+          const old = prior.boards[league].find((item) => item.id === row.id);
+          return old && old.rank > row.rank ? [`${league}:${row.id}`] : [];
+        }),
+      ),
+    );
+  }, [data]);
+  const rowsExist =
+    data && leagues.some((league) => data.boards[league].length > 0);
   return (
-    <Link className="panel race-summary" href="/play/standings">
-      <strong>{tournament.name} standings →</strong>
-      <span>
-        {country
-          ? `${entryName(country, "countries")} is #${country.rank}${country.gap ? `, ${country.gap} XP behind ${entryName(data.boards.countries[data.boards.countries.indexOf(country) - 1], "countries")}` : ""}`
-          : "Your country is unranked."}
-      </span>
-      <span>
-        {player
-          ? `You’re #${player.rank}${player.gap ? `, ${player.gap} XP behind ${data.boards.players[data.boards.players.indexOf(player) - 1].name}` : ""}`
-          : "You’re unranked. Score XP to enter the race."}
-      </span>
-    </Link>
+    <section className="arena-rankings" aria-labelledby="arena-rankings-title">
+      <h2 id="arena-rankings-title">Tournament rankings</h2>
+      {failed ? (
+        <p role="status">Rankings are temporarily unavailable.</p>
+      ) : data === null ? (
+        <ArenaSkeleton label="Loading rankings" />
+      ) : !rowsExist ? (
+        <p className="panel">Rankings open when the first quiz goes live.</p>
+      ) : (
+        <>
+          <div
+            className="arena-rank-track"
+            ref={track}
+            onScroll={(event) => {
+              const container = event.currentTarget;
+              const nearest = Array.from(container.children).findIndex(
+                (child) =>
+                  Math.abs(
+                    child.getBoundingClientRect().left -
+                      container.getBoundingClientRect().left,
+                  ) <
+                  child.clientWidth / 2,
+              );
+              if (nearest >= 0) setVisible(nearest);
+            }}
+          >
+            {leagues.map((league) => {
+              const rows = data.boards[league];
+              const own = ownEntry(rows, league, profile);
+              const above = own && rows[rows.indexOf(own) - 1];
+              return (
+                <Link
+                  className="panel arena-rank-card"
+                  href={`/play/standings?league=${league}`}
+                  key={league}
+                >
+                  <h3>
+                    {names[league]} <span aria-hidden="true">↗</span>
+                  </h3>
+                  <ol>
+                    {rows.slice(0, 3).map((row, index) => (
+                      <li
+                        key={row.id}
+                        data-place={index + 1}
+                        data-gained={gainers.includes(`${league}:${row.id}`)}
+                      >
+                        <b>#{row.rank}</b>
+                        <span>
+                          {league === "countries"
+                            ? entryName(row, league)
+                            : `${["🥇", "🥈", "🥉"][index]} ${row.name}`}
+                        </span>
+                        <AnimatedRankScore xp={row.xp} />
+                      </li>
+                    ))}
+                  </ol>
+                  {!rows.length && <p>No scores yet</p>}
+                  {profile && (
+                    <p className="arena-own-rank">
+                      {league === "players"
+                        ? "You"
+                        : league === "teams"
+                          ? "Your team"
+                          : "Your country"}
+                      :{" "}
+                      {own
+                        ? `#${own.rank}${own.gap && above ? ` · ${own.gap} XP behind #${above.rank}` : ""}`
+                        : "Unranked"}
+                    </p>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+          <div className="arena-rank-dots" aria-label="Ranking cards">
+            {leagues.map((league, index) => (
+              <button
+                type="button"
+                key={league}
+                aria-label={`Show ${names[league]}`}
+                aria-current={visible === index ? "true" : undefined}
+                onClick={() => {
+                  const card = track.current?.children[index];
+                  if (card && track.current)
+                    track.current.scrollTo({
+                      left:
+                        card.getBoundingClientRect().left -
+                        track.current.getBoundingClientRect().left +
+                        track.current.scrollLeft,
+                      behavior: window.matchMedia(
+                        "(prefers-reduced-motion: reduce)",
+                      ).matches
+                        ? "instant"
+                        : "smooth",
+                    });
+                }}
+              >
+                <span />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -116,6 +265,12 @@ export function TournamentStandings({
   profile: Profile | null;
 }) {
   const [mobileLeague, setMobileLeague] = useState<League>("countries");
+  useEffect(() => {
+    const league = new URLSearchParams(window.location.search).get("league");
+    if (league === "countries" || league === "teams" || league === "players") {
+      setMobileLeague(league);
+    }
+  }, []);
   return (
     <section className="standings-section tournament-standings">
       <h1>{tournament?.name ?? "Tournament rankings"}</h1>

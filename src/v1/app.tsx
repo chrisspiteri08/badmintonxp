@@ -33,12 +33,19 @@ import { friendlyError, v1Client } from "./client";
 import type { Attempt, Home, Match, Screen } from "./types";
 import { Admin } from "./admin";
 import { emailReturnUrl } from "./domain";
+import { ArenaChallenges } from "./arena-challenges";
 import { QuizAnswers, QuizTimer } from "./quiz-ui";
 import {
-  RaceSummary,
+  ArenaRankings,
+  tournamentStatus,
   TournamentStandings,
   type TournamentRankings,
 } from "./tournament-rankings";
+const eventDates = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
 const navigation = [
   ["Arena", "/play", House],
   ["Quiz", "/play/quiz", Play],
@@ -82,6 +89,14 @@ export function V1App({ screen }: { screen: Screen }) {
   const previousAttempt = useRef<Attempt | null>(null);
   const [freshAnswer, setFreshAnswer] = useState("");
   const [selectedQuiz, setSelectedQuiz] = useState("");
+  const [challengeLink, setChallengeLink] = useState<{
+    quiz: string | null;
+    match: string | null;
+  } | null>(null);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    setChallengeLink({ quiz: query.get("quiz"), match: query.get("match") });
+  }, [screen]);
   const [pick, setPick] = useState<{ match: Match; athlete: string } | null>(
     null,
   );
@@ -196,7 +211,8 @@ export function V1App({ screen }: { screen: Screen }) {
     ) ?? [];
   const quiz =
     home?.quizzes.find(
-      (item) => item.id === (selectedQuiz || attempt?.quiz_id),
+      (item) =>
+        item.id === (selectedQuiz || challengeLink?.quiz || attempt?.quiz_id),
     ) ??
     playableQuizzes[0] ??
     home?.quizzes[0];
@@ -258,9 +274,17 @@ export function V1App({ screen }: { screen: Screen }) {
     }
   }, [session, home, feedback]);
   useEffect(() => {
-    if (screen !== "quiz" || !session || !quizId) return;
+    if (screen !== "quiz" || !session || !quizId || !challengeLink) return;
     void perform(() => quizAction(quizId, "resume"));
-  }, [screen, session?.user.id, quizId, quizAction, perform, session]);
+  }, [
+    screen,
+    session?.user.id,
+    quizId,
+    quizAction,
+    perform,
+    session,
+    challengeLink,
+  ]);
   const remaining = attempt
     ? Math.min(
         15,
@@ -285,8 +309,7 @@ export function V1App({ screen }: { screen: Screen }) {
     void perform(() => quizAction(attempt.quiz_id, "resume"));
   }, [screen, attempt, remaining, quizAction, perform]);
   useEffect(() => {
-    if (!client || (screen !== "standings" && (screen !== "arena" || !session)))
-      return;
+    if (!client || (screen !== "standings" && screen !== "arena")) return;
     let active = true;
     const load = async () => {
       const { data, error } = await client.rpc("v1_tournament_rankings");
@@ -340,6 +363,17 @@ export function V1App({ screen }: { screen: Screen }) {
       }
     });
   };
+  const linkedMatch = challengeLink?.match;
+  const linkedMatchAvailable = Boolean(
+    home?.matches.some((match) => match.id === linkedMatch),
+  );
+  useEffect(() => {
+    if (screen === "predict" && linkedMatch && linkedMatchAvailable) {
+      document
+        .getElementById(`match-${linkedMatch}`)
+        ?.scrollIntoView({ block: "start" });
+    }
+  }, [screen, linkedMatch, linkedMatchAvailable]);
   const tournament = home?.tournament;
   const signedIn = Boolean(session && home?.profile?.id === session.user.id);
   const waitingForAccount =
@@ -430,36 +464,61 @@ export function V1App({ screen }: { screen: Screen }) {
           <>
             {screen === "arena" && (
               <>
-                <section className="hero" aria-labelledby="v1-event-title">
-                  <Image
-                    unoptimized
-                    priority
-                    width={720}
-                    height={1280}
-                    className="hero-art"
-                    src="/demo/badmintonxp-arena-unbranded.jpg"
-                    alt="Illustrated badminton athletes in a floodlit arena"
-                  />
-                  <div className="hero-top">
-                    <span className="eyebrow">YOUR FAN ARENA</span>
+                <section
+                  className="arena-event-hero"
+                  aria-labelledby="v1-event-title"
+                >
+                  {tournament?.hero_image_url && (
+                    <Image
+                      src={tournament.hero_image_url}
+                      alt={tournament.hero_image_alt ?? ""}
+                      fill
+                      unoptimized
+                      priority
+                      sizes="(max-width: 760px) 100vw, 1180px"
+                      onError={(event) => {
+                        event.currentTarget.hidden = true;
+                      }}
+                    />
+                  )}
+                  <div>
                     <h1 id="v1-event-title">
-                      {tournament?.name || "THE NEXT RALLY"}
+                      {tournament?.name || "The next rally"}
                     </h1>
-                    <p>
-                      Your knowledge. <br />
-                      Your people.
-                    </p>
-                  </div>
-                  <div className="hero-bottom">
-                    <span className="live-label">EVERY RALLY COUNTS</span>
-                    <h2>Play. Predict. Rise.</h2>
-                    <p>
-                      {tournament
-                        ? "Free match calls. Quiz points. Shared pride."
-                        : "The first tournament will appear here when it’s ready."}
-                    </p>
+                    {tournament ? (
+                      <p>
+                        {[
+                          tournament.city,
+                          eventDates.formatRange(
+                            new Date(tournament.starts_at),
+                            new Date(tournament.ends_at),
+                          ),
+                          tournamentStatus(
+                            tournament,
+                            gameNow,
+                            currentRankings?.final ?? false,
+                          ),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    ) : (
+                      <p>
+                        The first tournament will appear here when it’s ready.
+                      </p>
+                    )}
                   </div>
                 </section>
+                <ArenaRankings
+                  data={currentRankings}
+                  profile={signedIn ? home.profile : null}
+                  failed={rankingsFailed}
+                />
+                <ArenaChallenges
+                  home={home}
+                  now={gameNow}
+                  signedIn={signedIn}
+                />
                 {signedIn && (
                   <section
                     className="level-card game-home-scores"
@@ -482,62 +541,6 @@ export function V1App({ screen }: { screen: Screen }) {
                     </div>
                   </section>
                 )}
-                {signedIn && home.profile && tournament && currentRankings && (
-                  <RaceSummary
-                    data={currentRankings}
-                    profile={home.profile}
-                    tournament={tournament}
-                  />
-                )}
-                <div className="arena-grid">
-                  <section className="play-cards">
-                    <Link
-                      className="action-card primary"
-                      href={signedIn ? "/play/quiz" : "/play/account"}
-                    >
-                      <span>
-                        <small>15 SECONDS. ONE SHOT.</small>
-                        <strong>Play Quiz</strong>
-                        <span>
-                          {home.quizzes[0]?.attempt?.complete
-                            ? `Scored ${home.quizzes[0].attempt.score} XP`
-                            : "Earn 10 XP for every correct answer"}
-                        </span>
-                      </span>
-                      <b>
-                        <Play
-                          size={26}
-                          fill="currentColor"
-                          aria-hidden="true"
-                        />
-                      </b>
-                    </Link>
-                    <Link
-                      className="action-card"
-                      href={signedIn ? "/play/predict" : "/play/account"}
-                    >
-                      <span>
-                        <small>BACK YOUR INSTINCT</small>
-                        <strong>Make Your Call</strong>
-                        <span>Free predictions · 20 XP for a correct call</span>
-                      </span>
-                      <b>
-                        <Target size={28} aria-hidden="true" />
-                      </b>
-                    </Link>
-                  </section>
-                  <section className="panel">
-                    <span className="eyebrow">YOUR PEOPLE</span>
-                    <h2>
-                      {home.teams.find((t) => t.id === home.profile?.team_id)
-                        ?.name || "Find your team"}
-                    </h2>
-                    <p>Every point lifts your team and country too.</p>
-                    <Link className="button" href="/play/standings">
-                      <Trophy size={19} aria-hidden="true" /> Rankings
-                    </Link>
-                  </section>
-                </div>
               </>
             )}
             {needsLogin ? (
@@ -1064,13 +1067,18 @@ export function V1App({ screen }: { screen: Screen }) {
                     )}
                     {home.matches.map((m) => {
                       const seconds = secondsUntil(m.closes_at);
+                      const opens = m.opens_at ? secondsUntil(m.opens_at) : 0;
                       const matchStatus = m.winner
                         ? "SETTLED"
-                        : m.entry || !seconds
+                        : m.entry || !seconds || opens
                           ? "LOCKED"
                           : "OPEN";
                       return (
-                        <section className="panel v1-match" key={m.id}>
+                        <section
+                          className="panel v1-match"
+                          key={m.id}
+                          id={`match-${m.id}`}
+                        >
                           <div className="game-card-art game-match-art">
                             <div className="game-card-meta">
                               <span
@@ -1083,7 +1091,9 @@ export function V1App({ screen }: { screen: Screen }) {
                                 {m.winner
                                   ? "Result confirmed"
                                   : seconds
-                                    ? deadlineLabel(seconds)
+                                    ? opens
+                                      ? deadlineLabel(opens, "Opens")
+                                      : deadlineLabel(seconds)
                                     : "Entries closed"}
                               </span>
                             </div>
@@ -1099,7 +1109,8 @@ export function V1App({ screen }: { screen: Screen }) {
                                   busy ||
                                   !!m.entry ||
                                   !!m.winner ||
-                                  seconds === 0
+                                  seconds === 0 ||
+                                  opens > 0
                                 }
                                 aria-pressed={m.entry?.pick === athlete}
                                 onClick={() => setPick({ match: m, athlete })}
@@ -1119,7 +1130,8 @@ export function V1App({ screen }: { screen: Screen }) {
                           {pick?.match.id === m.id &&
                             !m.entry &&
                             !m.winner &&
-                            seconds > 0 && (
+                            seconds > 0 &&
+                            !opens && (
                               <div
                                 className="reset-confirm"
                                 role="group"

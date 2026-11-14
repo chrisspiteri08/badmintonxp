@@ -18,6 +18,9 @@ export type Tournament = {
   id: string;
   name: string;
   season_id: string;
+  city?: string | null;
+  hero_image_url?: string | null;
+  hero_image_alt?: string | null;
   starts_at: string;
   ends_at: string;
   published: boolean;
@@ -38,6 +41,7 @@ export type Match = {
   tournament_id: string;
   athlete_a: string;
   athlete_b: string;
+  opens_at?: string | null;
   closes_at: string;
   winner: string | null;
   entry: null | { pick: string };

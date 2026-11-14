@@ -91,23 +91,25 @@ export function Admin({
         setRemoveQuestion(null);
       }
       setNotice(
-        kind === "publish_quiz"
-          ? "Quiz published. Players can start it only when its tournament is published and its opening time arrives."
-          : kind === "publish_tournament"
-            ? "Tournament published as the current event. Quiz and prediction deadlines still apply."
-            : kind === "delete_question"
-              ? "Draft question removed. Check numbering before publishing."
-              : kind === "question" && fields.id
-                ? "Draft question updated. Review it before publishing."
-                : kind === "match" &&
-                    data?.tournaments.some(
-                      (event) =>
-                        event.id === fields.tournament_id && event.published,
-                    )
-                  ? "Match added to the published tournament."
-                  : kind === "season" || kind === "team"
-                    ? `${kind === "season" ? "Season" : "Team"} saved.`
-                    : "Saved as a draft. Review it before publishing.",
+        kind === "tournament_hero"
+          ? "Tournament hero saved."
+          : kind === "publish_quiz"
+            ? "Quiz published. Players can start it only when its tournament is published and its opening time arrives."
+            : kind === "publish_tournament"
+              ? "Tournament published as the current event. Quiz and prediction deadlines still apply."
+              : kind === "delete_question"
+                ? "Draft question removed. Check numbering before publishing."
+                : kind === "question" && fields.id
+                  ? "Draft question updated. Review it before publishing."
+                  : kind === "match" &&
+                      data?.tournaments.some(
+                        (event) =>
+                          event.id === fields.tournament_id && event.published,
+                      )
+                    ? "Match added to the published tournament."
+                    : kind === "season" || kind === "team"
+                      ? `${kind === "season" ? "Season" : "Team"} saved.`
+                      : "Saved as a draft. Review it before publishing.",
       );
     });
   const submit = (kind: string) => (event: FormEvent<HTMLFormElement>) => {
@@ -272,6 +274,52 @@ export function Admin({
               </label>
             </>,
           )}
+          <details className="panel v1-admin-section">
+            <summary>Tournament hero</summary>
+            <p>
+              Paste a public HTTPS image URL or leave it blank for the
+              tournament gradient.
+            </p>
+            {data.tournaments.map((event) => (
+              <form
+                key={event.id}
+                aria-label={`Hero for ${event.name}`}
+                onSubmit={submit("tournament_hero")}
+              >
+                <h3>{event.name}</h3>
+                <input type="hidden" name="tournament_id" value={event.id} />
+                <label>
+                  City
+                  <input
+                    name="city"
+                    defaultValue={event.city ?? ""}
+                    maxLength={100}
+                  />
+                </label>
+                <label>
+                  Hero image URL
+                  <input
+                    name="hero_image_url"
+                    type="url"
+                    pattern="https://.+"
+                    defaultValue={event.hero_image_url ?? ""}
+                    maxLength={2048}
+                  />
+                </label>
+                <label>
+                  Hero image alt text
+                  <input
+                    name="hero_image_alt"
+                    defaultValue={event.hero_image_alt ?? ""}
+                    maxLength={200}
+                  />
+                </label>
+                <button className="primary" disabled={busy}>
+                  Save hero
+                </button>
+              </form>
+            ))}
+          </details>
           {form(
             "4. Add a match",
             "match",
@@ -284,6 +332,10 @@ export function Admin({
               <label>
                 Second athlete or pair
                 <input name="athlete_b" minLength={2} maxLength={80} required />
+              </label>
+              <label>
+                Predictions open (optional)
+                <input type="datetime-local" name="opens_at" />
               </label>
               <label>
                 Predictions close

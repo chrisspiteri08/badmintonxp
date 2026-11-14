@@ -672,3 +672,55 @@ test("published tournaments accept future matches and freeze the champions using
     await db.exec("rollback");
   }
 });
+
+test("tournament desk saves accessible hero art and scheduled predictions remain locked", async () => {
+  const hero = {
+    tournament_id: tournament,
+    city: "Hong Kong",
+    hero_image_url: "https://example.test/court.jpg",
+    hero_image_alt: "Badminton court in Hong Kong",
+  };
+  await asUser(alice, () =>
+    assert.rejects(
+      rpc("v1_admin_save", ["tournament_hero", hero]),
+      /desk access/,
+    ),
+  );
+  const featured = await asUser(admin, async () => {
+    await assert.rejects(
+      rpc("v1_admin_save", [
+        "tournament_hero",
+        { ...hero, hero_image_alt: "" },
+      ]),
+      /Check the fields/,
+    );
+    assert.equal(
+      await rpc("v1_admin_save", ["tournament_hero", hero]),
+      tournament,
+    );
+    return rpc("v1_admin_save", [
+      "match",
+      {
+        tournament_id: tournament,
+        athlete_a: "Orchid",
+        athlete_b: "Maple",
+        opens_at: "2098-12-30T00:00:00Z",
+        closes_at: "2099-01-01T00:00:00Z",
+      },
+    ]);
+  });
+  await asUser(alice, () =>
+    assert.rejects(rpc("v1_predict", [featured, "Orchid"]), /not open yet/),
+  );
+  assert.deepEqual(
+    await scalar(
+      "select city,hero_image_url,hero_image_alt from public.tournaments where id=$1",
+      [tournament],
+    ),
+    {
+      city: hero.city,
+      hero_image_url: hero.hero_image_url,
+      hero_image_alt: hero.hero_image_alt,
+    },
+  );
+});

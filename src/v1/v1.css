@@ -780,3 +780,170 @@
 .v1 .race-card details[open] + .race-pinned {
   display: none;
 }
+
+.v1 .arena-event-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: end;
+  min-height: clamp(180px, 27vw, 310px);
+  padding: clamp(18px, 4vw, 44px);
+  overflow: hidden;
+  border: 1px solid #75415a;
+  border-radius: 22px;
+  background: linear-gradient(125deg, #0a1d3b 32%, #6a1733);
+}
+.v1 .arena-event-hero img {
+  object-fit: cover;
+  z-index: -2;
+}
+.v1 .arena-event-hero img[hidden] {
+  display: none;
+}
+.v1 .arena-event-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(0deg, #06152cf5, #06152c20);
+}
+.v1 .arena-event-hero h1 {
+  margin-block: 0 8px;
+}
+.v1 .arena-event-hero p {
+  color: #e7edf8;
+  margin: 0;
+}
+.v1 .arena-rankings,
+.v1 .arena-challenges {
+  margin-block: 24px;
+}
+.v1 .arena-rankings h2,
+.v1 .arena-challenges h2 {
+  margin-bottom: 14px;
+}
+.v1 .arena-rank-track {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.v1 .arena-rank-card {
+  display: block;
+  padding: 16px;
+}
+.v1 .arena-rank-card h3 {
+  margin: 0 0 10px;
+  font-size: 21px;
+}
+.v1 .arena-rank-card h3 span {
+  float: right;
+  color: #ffad7b;
+}
+.v1 .arena-rank-card li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 8px 5px;
+  border-bottom: 1px solid var(--line);
+}
+.v1 .arena-rank-card li[data-place="1"] b {
+  color: #ffda83;
+}
+.v1 .arena-rank-card li[data-place="2"] b {
+  color: #dae6f9;
+}
+.v1 .arena-rank-card li[data-place="3"] b {
+  color: #ffd1ac;
+}
+.v1 .arena-rank-card li[data-gained="true"] {
+  animation: arena-rank-rise 900ms ease-out;
+}
+@keyframes arena-rank-rise {
+  from {
+    background: #23523f;
+  }
+  to {
+    background: transparent;
+  }
+}
+.v1 .arena-rank-card .arena-own-rank {
+  color: #ffbc92;
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+.v1 .arena-rank-dots {
+  display: none;
+}
+.v1 .arena-challenge-list {
+  display: grid;
+  gap: 10px;
+}
+.v1 .arena-challenge {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 13px;
+}
+.v1 .arena-challenge h3 {
+  margin: 3px 0;
+  font-size: 17px;
+}
+.v1 .arena-challenge p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.v1 .arena-challenge p svg {
+  display: inline;
+  vertical-align: middle;
+}
+.v1 .arena-challenge[data-state="open"] {
+  border-color: #c77949;
+}
+.v1 .arena-challenge[data-state="open"] > svg {
+  color: #ffad7b;
+}
+.v1 .arena-challenge[data-state="done"] {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+.v1 .arena-challenge .button {
+  padding-inline: 10px;
+  white-space: nowrap;
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .v1 .arena-rank-track {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    padding: 4px;
+  }
+  .v1 .arena-rank-card {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+    scroll-margin-inline: 4px;
+  }
+  .v1 .arena-rank-dots {
+    display: flex;
+    justify-content: center;
+  }
+  .v1 .arena-rank-dots button {
+    min-width: 44px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+  .v1 .arena-rank-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #7897b8;
+  }
+  .v1 .arena-rank-dots button[aria-current] span {
+    background: #ff914c;
+  }
+}
