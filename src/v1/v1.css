@@ -716,3 +716,67 @@
     scroll-margin-bottom: calc(var(--tab-clearance) + 12px);
   }
 }
+
+.v1 .race-grid {
+  display: grid;
+  gap: 14px;
+  margin-block: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.v1 .race-tabs {
+  display: none;
+}
+.v1 .race-card h2 {
+  font-size: 24px;
+  margin-block: 4px 10px;
+}
+.v1 .race-card li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 9px;
+  padding: 10px 5px;
+  border-bottom: 1px solid var(--line);
+}
+.v1 .race-card li small {
+  display: block;
+  color: var(--muted);
+}
+.v1 .race-own {
+  background: #224365;
+  border-radius: 6px;
+}
+.v1 .race-card details summary {
+  cursor: pointer;
+  padding-block: 14px;
+  color: #ffb98e;
+  font-weight: 800;
+}
+.v1 .race-summary {
+  display: grid;
+  gap: 4px;
+  margin-top: 18px;
+}
+.v1 .race-summary strong {
+  color: #ffb98e;
+}
+.v1 .race-past {
+  margin-top: 20px;
+}
+.v1 .race-past h3 {
+  margin-bottom: 8px;
+}
+@media (max-width: 760px) {
+  .v1 .race-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .v1 .race-tabs {
+    display: flex;
+  }
+  .v1 .race-card[data-selected="false"] {
+    display: none;
+  }
+}
+
+.v1 .race-card details[open] + .race-pinned {
+  display: none;
+}

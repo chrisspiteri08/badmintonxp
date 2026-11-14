@@ -392,7 +392,7 @@ test("www redirects to canonical apex and preserves password-reset query paramet
   }
 });
 
-test("empty rankings have a clean caption and health exposes only database availability", async ({
+test("standings and health stay available without an active event", async ({
   page,
   request,
 }) => {
@@ -411,13 +411,19 @@ test("empty rankings have a clean caption and health exposes only database avail
       },
     }),
   );
+  await page.route("**/rest/v1/rpc/v1_tournament_rankings", (route) =>
+    route.fulfill({
+      json: {
+        tournament_id: null,
+        final: false,
+        past: [],
+        boards: { countries: [], teams: [], players: [] },
+      },
+    }),
+  );
   await page.goto("/leaderboards");
   await expect(page).toHaveURL(origin + "/play/standings");
-  await expect(page.locator("caption")).toHaveText("Individual rankings");
-  await page.getByRole("button", { name: "Teams", exact: true }).click();
-  await expect(page.locator("caption")).toHaveText("Team rankings");
-  await page.getByRole("button", { name: "Season", exact: true }).click();
-  await expect(page.locator("caption")).toHaveText("Season · Team rankings");
+  await expect(page.getByText("The first event is on its way.")).toBeVisible();
   const response = await request.get(origin + "/api/health");
   expect(response.status()).toBe(200);
   expect(await response.json()).toEqual({ databaseConnected: true });
@@ -425,15 +431,27 @@ test("empty rankings have a clean caption and health exposes only database avail
   expect(response.headers()["x-powered-by"]).toBeUndefined();
 });
 
-test("rankings wait for results and hide zero-XP rows", async ({ page }) => {
+test("tournament rankings show countries first, the gap and full standings", async ({
+  page,
+}, info) => {
+  const viewport =
+    info.project.name === "mobile"
+      ? { width: 360, height: 800 }
+      : { width: 1440, height: 900 };
+  await page.setViewportSize(viewport);
   await page.route("**/rest/v1/rpc/v1_home", (route) =>
     route.fulfill({
       json: {
-        server_now: new Date().toISOString(),
+        server_now: "2026-11-14T12:00:00Z",
         profile: null,
         admin: false,
         teams: [],
-        tournament: { id: "test-event", name: "Test Event" },
+        tournament: {
+          id: "event",
+          name: "Tour Finals Test Cup",
+          starts_at: "2026-11-12T00:00:00Z",
+          ends_at: "2026-11-18T00:00:00Z",
+        },
         quizzes: [],
         matches: [],
         lifetime_xp: 0,
@@ -441,46 +459,77 @@ test("rankings wait for results and hide zero-XP rows", async ({ page }) => {
       },
     }),
   );
-  const zero = { id: "zero", name: "Zero XP Player", xp: 0, rank: 1 };
-  let releaseEvent!: () => void;
-  const eventResponse = new Promise<void>((resolve) => {
-    releaseEvent = resolve;
+  let release!: () => void;
+  const response = new Promise<void>((resolve) => {
+    release = resolve;
   });
-  await page.route("**/rest/v1/rpc/v1_leaderboard", async (route) => {
-    const { p_scope } = route.request().postDataJSON();
-    if (p_scope === "event") {
-      await eventResponse;
-      await route.fulfill({ json: [zero] });
-    } else {
-      await route.fulfill({
-        json: [
-          { id: "scorer", name: "Scoring Player", xp: 10, rank: 1 },
-          { ...zero, rank: 2 },
-        ],
-      });
-    }
+  await page.route("**/rest/v1/rpc/v1_tournament_rankings", async (route) => {
+    await response;
+    const row = (
+      id: string,
+      name: string,
+      rank: number,
+      xp: number,
+      gap: number | null,
+      fans = 1,
+    ) => ({ id, name, rank, xp, gap, fans });
+    await route.fulfill({
+      json: {
+        tournament_id: "event",
+        final: false,
+        past: [],
+        boards: {
+          countries: [
+            row("ID", "ID", 1, 240, null, 23),
+            row("MY", "MY", 2, 200, 40, 15),
+            row("JP", "JP", 3, 180, 20, 12),
+            row("DK", "DK", 4, 150, 30, 9),
+            row("TH", "TH", 5, 140, 10, 8),
+            row("SG", "SG", 6, 120, 20, 4),
+          ],
+          teams: [row("neon", "Neon Shuttles", 1, 200, null, 12)],
+          players: [row("fan", "ShuttleAce", 1, 60, null)],
+        },
+      },
+    });
   });
-
   await page.goto("/play/standings");
-  const loading = page.getByRole("status", { name: "Loading rankings" });
-  const empty = page.getByText("No scores yet. Be the first to rally.", {
-    exact: true,
-  });
-  const rows = page.getByTestId("v1-standings").locator("tbody tr");
   try {
-    await expect(loading).toBeVisible();
-    await expect(empty).toHaveCount(0);
-    await expect(rows).toHaveCount(0);
+    await expect(
+      page.getByRole("status", { name: "Loading rankings" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("No scores yet. Be the first to rally."),
+    ).toHaveCount(0);
   } finally {
-    releaseEvent();
+    release();
   }
-  await expect(empty).toBeVisible();
-  await expect(rows).toHaveCount(0);
-  await expect(loading).toHaveCount(0);
-
-  await page.getByRole("button", { name: "Season", exact: true }).click();
-  await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText("#1");
-  await expect(rows.first()).toContainText("Scoring Player");
-  await expect(empty).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Tour Finals Test Cup" }),
+  ).toBeVisible();
+  await expect(page.getByText("Day 3 of 6")).toBeVisible();
+  const countries = page.getByRole("region", { name: "Countries" });
+  await expect(countries).toContainText("40 XP behind");
+  await expect(countries).toContainText("23 fans");
+  await expect(countries.getByText("Singapore")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Season" })).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: path.resolve(
+      "../../outputs",
+      `BadmintonXP-tournament-rankings-${viewport.width}x${viewport.height}.png`,
+    ),
+    fullPage: true,
+  });
+  await countries.getByText("View full countries standings").click();
+  await expect(countries.getByText(/Singapore/)).toBeVisible();
+  if (info.project.name === "mobile")
+    await page.getByRole("button", { name: "Teams", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Teams" })).toContainText(
+    "Neon Shuttles",
+  );
 });

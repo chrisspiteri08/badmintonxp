@@ -99,9 +99,15 @@ export function Admin({
               ? "Draft question removed. Check numbering before publishing."
               : kind === "question" && fields.id
                 ? "Draft question updated. Review it before publishing."
-                : kind === "season" || kind === "team"
-                  ? `${kind === "season" ? "Season" : "Team"} saved.`
-                  : "Saved as a draft. Review it before publishing.",
+                : kind === "match" &&
+                    data?.tournaments.some(
+                      (event) =>
+                        event.id === fields.tournament_id && event.published,
+                    )
+                  ? "Match added to the published tournament."
+                  : kind === "season" || kind === "team"
+                    ? `${kind === "season" ? "Season" : "Team"} saved.`
+                    : "Saved as a draft. Review it before publishing.",
       );
     });
   const submit = (kind: string) => (event: FormEvent<HTMLFormElement>) => {
@@ -140,7 +146,8 @@ export function Admin({
           disabled={
             busy ||
             (kind === "tournament" && !data?.seasons.length) ||
-            (["match", "quiz"].includes(kind) && !draftTournaments.length) ||
+            (kind === "match" && !matchTournaments.length) ||
+            (kind === "quiz" && !draftTournaments.length) ||
             (kind === "question" && !draftQuizzes.length)
           }
         >
@@ -164,12 +171,21 @@ export function Admin({
   );
   const draftTournaments = data?.tournaments.filter((t) => !t.published) || [];
   const draftQuizzes = data?.quizzes.filter((q) => !q.published) || [];
-  const tournamentSelect = (
+  const matchTournaments =
+    data?.tournaments.filter(
+      (t) =>
+        !t.published ||
+        Date.parse(t.ends_at) > Date.parse(data.server_now) ||
+        data.matches.some(
+          (match) => match.tournament_id === t.id && !match.winner,
+        ),
+    ) || [];
+  const tournamentSelect = (choices: typeof draftTournaments) => (
     <label>
       Tournament
       <select name="tournament_id" required>
-        <option value="">Choose a draft tournament</option>
-        {draftTournaments.map((t) => (
+        <option value="">Choose a tournament</option>
+        {choices.map((t) => (
           <option key={t.id} value={t.id}>
             {t.name}
           </option>
@@ -208,8 +224,8 @@ export function Admin({
           )}
           {!draftTournaments.length && (
             <p role="status">
-              Create a draft tournament to add matches and quizzes. Published
-              fixtures are locked.
+              Create a draft tournament to add quizzes. You can add matches to a
+              published tournament until it is finished.
             </p>
           )}
           {!draftQuizzes.length && (
@@ -264,7 +280,7 @@ export function Admin({
             "4. Add a match",
             "match",
             <>
-              {tournamentSelect}
+              {tournamentSelect(matchTournaments)}
               <label>
                 First athlete or pair
                 <input name="athlete_a" minLength={2} maxLength={80} required />
@@ -283,7 +299,7 @@ export function Admin({
             "5. Create a quiz",
             "quiz",
             <>
-              {tournamentSelect}
+              {tournamentSelect(draftTournaments)}
               <label>
                 Quiz title
                 <input name="title" minLength={2} maxLength={100} required />

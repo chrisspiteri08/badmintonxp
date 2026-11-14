@@ -180,15 +180,16 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   );
   await expect(page.getByTestId("v1-lifetime-xp")).toHaveText("40 XP");
   await page.getByRole("link", { name: "Rankings", exact: true }).click();
-  await expect(page.getByTestId("v1-standings")).toContainText(username);
-  await expect(page.getByTestId("v1-standings")).toContainText("40");
+  const showRanking = async (name: string) => {
+    const tab = page.getByRole("button", { name, exact: true });
+    if (info.project.name === "mobile") await tab.click();
+    return page.getByRole("region", { name, exact: true });
+  };
+  await expect(await showRanking("Fans")).toContainText(username);
+  await expect(await showRanking("Fans")).toContainText("40 XP");
   await capture("rankings");
-  await page.getByRole("button", { name: "Teams", exact: true }).click();
-  await expect(page.getByTestId("v1-standings")).toContainText(`Neon ${tag}`);
-  await page.getByRole("button", { name: "Countries", exact: true }).click();
-  await expect(page.getByTestId("v1-standings")).toContainText("MY");
-  await page.getByRole("button", { name: "Season", exact: true }).click();
-  await expect(page.getByTestId("v1-standings")).toContainText("40");
+  await expect(await showRanking("Teams")).toContainText(`Neon ${tag}`);
+  await expect(await showRanking("Countries")).toContainText("Malaysia");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -200,8 +201,7 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
     page.getByRole("heading", { name: "Join the rally." }),
   ).toBeVisible();
   await page.goto("/play/standings");
-  await page.getByRole("button", { name: "Individuals", exact: true }).click();
-  await expect(page.getByTestId("v1-standings")).toContainText(username);
+  await expect(await showRanking("Fans")).toContainText(username);
   // Real Auth login and password recovery through the local mail server.
   await page.goto("/play/account");
   await page.getByLabel("Email", { exact: true }).fill(email);
@@ -515,7 +515,7 @@ test("content editor sees readiness, repairs a draft question and publishes/sett
   });
 });
 
-test("game HUD waits for the account, celebrates levels, and pins live rank movement", async ({
+test("game HUD waits for the account, celebrates levels, and switches quiz cards", async ({
   page,
 }, info) => {
   const f = await fixture(randomUUID().slice(0, 8));
@@ -584,49 +584,6 @@ test("game HUD waits for the account, celebrates levels, and pins live rank move
   await dialog.getByRole("button", { name: "Keep playing" }).click();
   await expect(dialog).toHaveCount(0);
   await expect(progress).toHaveAttribute("aria-valuenow", "0");
-
-  let moved = false;
-  await page.route("**/rest/v1/rpc/v1_leaderboard", (route) =>
-    route.fulfill({
-      json: [
-        { id: "gold", name: "ShuttleAce", xp: 120, rank: 1 },
-        { id: "silver", name: "NetNinja", xp: 100, rank: 2 },
-        { id: "bronze", name: "RallyRider", xp: 80, rank: moved ? 4 : 3 },
-        {
-          id: f.user.id,
-          name: "Your test player",
-          xp: moved ? 90 : 60,
-          rank: moved ? 3 : 4,
-        },
-      ].sort((a, b) => a.rank - b.rank),
-    }),
-  );
-  await page.clock.install();
-  const nav = page.getByRole("navigation", { name: "Fan arena" });
-  const rankingsTab = nav.getByRole("link", { name: "Rankings", exact: true });
-  await rankingsTab.click();
-  const podium = page.getByRole("list", { name: "Top three" });
-  await expect(podium.getByRole("listitem")).toHaveCount(3);
-  const pinned = page.getByTestId("v1-standings").locator("tbody tr").first();
-  await expect(pinned).toHaveClass(/game-pinned/);
-  await expect(pinned).toContainText("#4");
-  await expect(pinned).toContainText("Your test player");
-  moved = true;
-  await page.clock.fastForward(30_500);
-  await expect(pinned.getByRole("img", { name: "Up 1 place" })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Down 1 place" })).toBeVisible();
-  await expect(pinned).toContainText("#3");
-  await expect(rankingsTab).toHaveAttribute("aria-current", "page");
-  if (info.project.name === "mobile") {
-    await expect(nav).toHaveCSS("position", "fixed");
-    await expect(rankingsTab).toHaveCSS("min-height", "52px");
-  }
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await capture("podium");
 
   sql(`
     insert into public.quizzes (tournament_id, title, opens_at, closes_at, published)

@@ -106,7 +106,7 @@ test("v1: every app table has RLS and clients cannot read answer keys", async ()
       "select relname,relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and relkind='r'",
     )
   ).rows;
-  assert.equal(tables.length, 15);
+  assert.equal(tables.length, 16);
   assert.ok(tables.every((t) => t.relrowsecurity));
   await asUser(alice, async () => {
     await assert.rejects(
@@ -534,4 +534,104 @@ test("v1: content editors manage content/results without player, role or manual-
     await rpc("v1_settle_match", [m, "Editor A"]);
     await rpc("v1_settle_match", [m, "Editor A"]);
   });
+});
+
+test("published tournaments accept future matches and freeze the champions using top-ten scores", async () => {
+  await db.exec("begin");
+  try {
+    const payload = {
+      tournament_id: tournament,
+      athlete_a: "Aster",
+      athlete_b: "Blaze",
+    };
+    const featured = await asUser(admin, async () => {
+      await db.exec("savepoint rejected_match");
+      await assert.rejects(
+        rpc("v1_admin_save", [
+          "match",
+          { ...payload, closes_at: "2020-01-01T00:00:00Z" },
+        ]),
+        /future/,
+      );
+      await db.exec("rollback to savepoint rejected_match");
+      return rpc("v1_admin_save", [
+        "match",
+        { ...payload, closes_at: "2099-01-01T00:00:00Z" },
+      ]);
+    });
+    await db.exec("update public.tournaments set active=false where active");
+    await db.query("update public.tournaments set active=true where id=$1", [
+      tournament,
+    ]);
+    for (let index = 1; index <= 11; index++) {
+      const id = `7${String(index).padStart(7, "0")}-0000-0000-0000-000000000000`;
+      await db.query("insert into auth.users(id,email) values($1,$2)", [
+        id,
+        `rank${index}@example.test`,
+      ]);
+      await db.query(
+        "insert into public.xp_ledger(user_id,tournament_id,season_id,team_id,country,source_type,source_id,xp) values($1,$2,$3,$4,'JP','quiz',gen_random_uuid(),$5)",
+        [id, tournament, season, team, index * 30],
+      );
+    }
+    await db.query(
+      "update public.tournaments set ends_at=clock_timestamp()+interval '1 second' where id=$1",
+      [tournament],
+    );
+    await db.query(
+      "update public.tournaments set ends_at=clock_timestamp()-interval '1 millisecond' where id=$1",
+      [tournament],
+    );
+    const read = () =>
+      asUser(null, () => rpc("v1_tournament_rankings"), "anon");
+    const pending = await read();
+    assert.equal(pending.final, false);
+    const country = pending.boards.countries.find((row) => row.id === "JP");
+    assert.equal(country.xp, 1950);
+    assert.equal(country.fans, 11);
+    const teamXp = (
+      await db.query(
+        "select sum(xp) as xp from (select sum(xp) xp from public.xp_ledger where tournament_id=$1 and team_id=$2 group by user_id order by xp desc limit 10) top_fans",
+        [tournament, team],
+      )
+    ).rows[0].xp;
+    assert.equal(
+      pending.boards.teams.find((row) => row.id === team).xp,
+      Number(teamXp),
+    );
+    await db.query(
+      "update public.matches set winner=athlete_a,settled_at=clock_timestamp() where tournament_id=$1 and winner is null",
+      [tournament],
+    );
+    const result = await read();
+    assert.equal(result.final, true);
+    assert.equal(result.boards.players[0].xp, 330);
+    assert.equal(result.boards.countries[0].id, "JP");
+    await db.query("update public.xp_ledger set xp=0 where tournament_id=$1", [
+      tournament,
+    ]);
+    assert.deepEqual((await read()).boards, result.boards);
+    await asUser(admin, async () => {
+      await db.exec("savepoint rejected_match");
+      await assert.rejects(
+        rpc("v1_admin_save", [
+          "match",
+          { ...payload, closes_at: "2099-01-02T00:00:00Z" },
+        ]),
+        /finished/,
+      );
+      await db.exec("rollback to savepoint rejected_match");
+    });
+    await db.query("update public.tournaments set active=false where id=$1", [
+      tournament,
+    ]);
+    const history = (await read()).past.find(
+      (event) => event.id === tournament,
+    );
+    assert.equal(history.winners.countries.id, "JP");
+    assert.equal(history.winners.players.xp, 330);
+    assert.ok(featured);
+  } finally {
+    await db.exec("rollback");
+  }
 });

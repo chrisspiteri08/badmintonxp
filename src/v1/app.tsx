@@ -10,8 +10,6 @@ import {
 } from "react";
 import {
   AlarmClock,
-  ArrowDown,
-  ArrowUp,
   CircleUserRound,
   House,
   Play,
@@ -32,11 +30,15 @@ import {
 } from "./game-ui";
 import type { SupabaseClient, Session } from "@supabase/supabase-js";
 import { friendlyError, v1Client } from "./client";
-import type { Attempt, Home, Match, Rank, Screen } from "./types";
+import type { Attempt, Home, Match, Screen } from "./types";
 import { Admin } from "./admin";
 import { emailReturnUrl } from "./domain";
 import { QuizAnswers, QuizTimer } from "./quiz-ui";
-import { rankingsCaption } from "./copy";
+import {
+  RaceSummary,
+  TournamentStandings,
+  type TournamentRankings,
+} from "./tournament-rankings";
 const navigation = [
   ["Arena", "/play", House],
   ["Quiz", "/play/quiz", Play],
@@ -44,7 +46,6 @@ const navigation = [
   ["Rankings", "/play/standings", Trophy],
   ["Profile", "/play/profile", CircleUserRound],
 ] as const;
-type Standing = Rank & { movement: number };
 const countries = [
   ["MY", "Malaysia"],
   ["ID", "Indonesia"],
@@ -84,18 +85,11 @@ export function V1App({ screen }: { screen: Screen }) {
   const [pick, setPick] = useState<{ match: Match; athlete: string } | null>(
     null,
   );
-  const [scope, setScope] = useState("event");
-  const [league, setLeague] = useState("players");
-  const [rankings, setRankings] = useState<
-    { key: string; rows: Standing[] } | { key: string; failed: true } | null
-  >(null);
-  const rankSnapshots = useRef(new Map<string, Map<string, number>>());
-  const tournamentId = home?.tournament?.id;
-  const rankingKey = JSON.stringify([tournamentId, scope, league]);
-  const currentRankings = rankings?.key === rankingKey ? rankings : null;
-  const ranks =
-    currentRankings && "rows" in currentRankings ? currentRankings.rows : [];
-  const loadingRankings = Boolean(tournamentId && !currentRankings);
+  const [rankings, setRankings] = useState<TournamentRankings | null>(null);
+  const [rankingsFailed, setRankingsFailed] = useState(false);
+  const tournamentId = home?.tournament?.id ?? null;
+  const currentRankings =
+    rankings?.tournament_id === tournamentId ? rankings : null;
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot">(
     "login",
   );
@@ -291,37 +285,14 @@ export function V1App({ screen }: { screen: Screen }) {
     void perform(() => quizAction(attempt.quiz_id, "resume"));
   }, [screen, attempt, remaining, quizAction, perform]);
   useEffect(() => {
-    if (!client || !tournamentId || screen !== "standings") return;
+    if (!client || (screen !== "standings" && (screen !== "arena" || !session)))
+      return;
     let active = true;
     const load = async () => {
-      const { data, error } = await client.rpc("v1_leaderboard", {
-        p_tournament_id: tournamentId,
-        p_scope: scope,
-        p_league: league,
-      });
-      if (active) {
-        if (error) {
-          setRankings((previous) =>
-            previous?.key === rankingKey
-              ? previous
-              : { key: rankingKey, failed: true },
-          );
-        } else {
-          const prior = rankSnapshots.current.get(rankingKey);
-          const rows = (data as Rank[]).filter((row) => Number(row.xp) > 0);
-          rankSnapshots.current.set(
-            rankingKey,
-            new Map(rows.map((row) => [row.id, row.rank])),
-          );
-          setRankings({
-            key: rankingKey,
-            rows: rows.map((row) => ({
-              ...row,
-              movement: (prior?.get(row.id) ?? row.rank) - row.rank,
-            })),
-          });
-        }
-      }
+      const { data, error } = await client.rpc("v1_tournament_rankings");
+      if (!active) return;
+      setRankingsFailed(Boolean(error));
+      if (!error) setRankings(data as TournamentRankings);
     };
     void load();
     const timer = setInterval(() => void load(), 30000);
@@ -329,7 +300,7 @@ export function V1App({ screen }: { screen: Screen }) {
       active = false;
       clearInterval(timer);
     };
-  }, [client, tournamentId, screen, scope, league, rankingKey]);
+  }, [client, screen, session, tournamentId]);
   const onAuth = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -375,17 +346,6 @@ export function V1App({ screen }: { screen: Screen }) {
     !ready || Boolean(client && (!home || (session && !signedIn)));
   const needsLogin =
     ["quiz", "predict", "profile", "admin"].includes(screen) && !signedIn;
-  const ownId =
-    league === "players"
-      ? home?.profile?.id
-      : league === "teams"
-        ? home?.profile?.team_id
-        : home?.profile?.country;
-  const ownRank = signedIn ? ranks.find((row) => row.id === ownId) : undefined;
-  const orderedRanks = ownRank
-    ? [ownRank, ...ranks.filter((row) => row !== ownRank)]
-    : ranks;
-  const podium = ranks.filter((row) => row.rank <= 3).slice(0, 3);
   return (
     <div className="demo v1" onClickCapture={activateAudio}>
       <a className="skip" href="#v1-content">
@@ -521,6 +481,13 @@ export function V1App({ screen }: { screen: Screen }) {
                       <strong>{home.event_xp} XP</strong>
                     </div>
                   </section>
+                )}
+                {signedIn && home.profile && tournament && currentRankings && (
+                  <RaceSummary
+                    data={currentRankings}
+                    profile={home.profile}
+                    tournament={tournament}
+                  />
                 )}
                 <div className="arena-grid">
                   <section className="play-cards">
@@ -1210,134 +1177,13 @@ export function V1App({ screen }: { screen: Screen }) {
                   </section>
                 )}
                 {screen === "standings" && (
-                  <section className="standings-section">
-                    <span className="eyebrow">FRIENDLY RIVALRY</span>
-                    <h1>Never rise alone.</h1>
-                    <p>
-                      {tournament?.name || "The first event is on its way."}
-                    </p>
-                    <div className="filter-row" aria-label="Standings period">
-                      {["event", "season"].map((s) => (
-                        <button
-                          key={s}
-                          aria-pressed={scope === s}
-                          onClick={() => setScope(s)}
-                        >
-                          {s === "event" ? "Current event" : "Season"}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="filter-row" aria-label="Standings group">
-                      {["players", "teams", "countries"].map((l) => (
-                        <button
-                          key={l}
-                          aria-pressed={league === l}
-                          onClick={() => setLeague(l)}
-                        >
-                          {l === "players"
-                            ? "Individuals"
-                            : l === "teams"
-                              ? "Teams"
-                              : "Countries"}
-                        </button>
-                      ))}
-                    </div>
-                    {podium.length > 0 && (
-                      <ol className="game-podium" aria-label="Top three">
-                        {podium.map((row) => (
-                          <li key={row.id} data-place={row.rank}>
-                            <Trophy size={22} aria-hidden="true" />
-                            <span>#{row.rank}</span>
-                            <strong>{row.name}</strong>
-                            <small>{row.xp} XP</small>
-                          </li>
-                        ))}
-                      </ol>
-                    )}
-                    <div className="table-wrap game-rankings">
-                      <table
-                        data-testid="v1-standings"
-                        aria-busy={loadingRankings}
-                      >
-                        <caption>
-                          {rankingsCaption(tournament?.name, scope, league)}
-                        </caption>
-                        <thead>
-                          <tr>
-                            <th scope="col">Rank</th>
-                            <th scope="col">
-                              {league === "players"
-                                ? "Player"
-                                : league === "teams"
-                                  ? "Team"
-                                  : "Country"}
-                            </th>
-                            <th scope="col">XP</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {orderedRanks.map((r) => (
-                            <tr
-                              key={r.id}
-                              className={
-                                r === ownRank ? "you game-pinned" : undefined
-                              }
-                            >
-                              <td>
-                                <span className="game-rank-number">
-                                  #{r.rank}
-                                  {r.movement !== 0 && (
-                                    <span
-                                      className={
-                                        r.movement > 0 ? "rank-up" : "rank-down"
-                                      }
-                                      role="img"
-                                      aria-label={`${r.movement > 0 ? "Up" : "Down"} ${Math.abs(r.movement)} ${Math.abs(r.movement) === 1 ? "place" : "places"}`}
-                                    >
-                                      {r.movement > 0 ? (
-                                        <ArrowUp size={16} aria-hidden="true" />
-                                      ) : (
-                                        <ArrowDown
-                                          size={16}
-                                          aria-hidden="true"
-                                        />
-                                      )}
-                                    </span>
-                                  )}
-                                </span>
-                              </td>
-                              <th scope="row">
-                                {r.name}
-                                {r === ownRank && (
-                                  <span className="game-you">
-                                    {league === "players" ? "You" : "Yours"}
-                                  </span>
-                                )}
-                              </th>
-                              <td>{r.xp}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {loadingRankings && (
-                        <div className="game-rank-skeleton">
-                          <ArenaSkeleton label="Loading rankings" />
-                        </div>
-                      )}
-                      {currentRankings && "failed" in currentRankings && (
-                        <p role="status">
-                          Rankings are temporarily unavailable.
-                        </p>
-                      )}
-                      {currentRankings &&
-                        "rows" in currentRankings &&
-                        ranks.length === 0 && (
-                          <p role="status">
-                            No scores yet. Be the first to rally.
-                          </p>
-                        )}
-                    </div>
-                  </section>
+                  <TournamentStandings
+                    tournament={tournament ?? null}
+                    now={gameNow}
+                    data={currentRankings}
+                    failed={rankingsFailed}
+                    profile={signedIn ? home.profile : null}
+                  />
                 )}
                 {screen === "admin" &&
                   signedIn &&
