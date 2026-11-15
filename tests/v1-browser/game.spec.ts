@@ -108,7 +108,7 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
           teams: [
             {
               id: f.team,
-              name: `Neon ${tag}`,
+              name: f.teamName,
               rank: movedUp ? 2 : 3,
               xp: 20,
               gap: null,
@@ -198,15 +198,18 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
     });
   await nativePrompt();
   await expect(
-    page.getByRole("heading", { name: "Add BadmintonXP to your home screen" }),
+    page.getByRole("complementary", {
+      name: "Add BadmintonXP to your home screen",
+    }),
   ).toHaveCount(0);
   movedUp = true;
   await page.getByRole("button", { name: "C 16", exact: true }).click();
   await expect(page.getByTestId("v1-quiz-score")).toHaveText("+20 XP");
+  await expect(page.getByTestId("v1-quiz-score")).toBeInViewport();
   await expect(page.getByText("🇲🇾 Malaysia moved up to #8!")).toBeVisible();
-  await expect(page.getByText(`Neon ${tag} moved up to #2!`)).toBeVisible();
+  await expect(page.getByText(`${f.teamName} moved up to #2!`)).toBeVisible();
   const installCard = page.getByRole("complementary", {
-    name: "Install and reminders",
+    name: "Add BadmintonXP to your home screen",
   });
   await expect(installCard).toContainText(
     "Add BadmintonXP to your home screen",
@@ -216,6 +219,16 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
       ? { width: 360, height: 800 }
       : { width: 1440, height: 900 },
   );
+  const score = page.getByTestId("v1-quiz-score");
+  const toast = page.locator(".rank-toasts");
+  const scoreBox = await score.boundingBox();
+  const toastBox = await toast.boundingBox();
+  const stripBox = await installCard.boundingBox();
+  expect(toastBox!.y + toastBox!.height).toBeLessThan(scoreBox!.y);
+  expect(stripBox!.y).toBeGreaterThan(scoreBox!.y + scoreBox!.height);
+  await expect(
+    page.getByRole("heading", { name: "Shuttle IQ", exact: true }),
+  ).toBeVisible();
   await page.screenshot({
     path: path.resolve(
       "../../outputs",
@@ -223,6 +236,7 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
     ),
     animations: "disabled",
   });
+  await expect(toast).toBeHidden({ timeout: 4200 });
   await installCard
     .getByRole("button", { name: "Install BadmintonXP" })
     .click();
@@ -281,7 +295,7 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   await expect(await showRanking("Fans")).toContainText(username);
   await expect(await showRanking("Fans")).toContainText("40 XP");
   await capture("rankings");
-  await expect(await showRanking("Teams")).toContainText(`Neon ${tag}`);
+  await expect(await showRanking("Teams")).toContainText(f.teamName);
   await expect(await showRanking("Countries")).toContainText("Malaysia");
   expect(
     await page.evaluate(

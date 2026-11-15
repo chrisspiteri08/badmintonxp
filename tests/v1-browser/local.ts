@@ -65,7 +65,10 @@ export async function fixture(tag: string) {
     if (result.error) throw new Error(result.error.message);
     return result.data as string;
   };
-  const team = await save("team", { name: `Neon ${tag}` });
+  const teamName = "Neon Shuttles";
+  const team = sql(
+    "insert into public.teams(name) values('Neon Shuttles') on conflict(name) do update set name=excluded.name returning id",
+  ).split("\n")[0];
   const season = await save("season", { name: `Test season ${tag}` });
   const tournament = await save("tournament", {
     name: `Isolated Cup ${tag}`,
@@ -81,7 +84,7 @@ export async function fixture(tag: string) {
   });
   const quiz = await save("quiz", {
     tournament_id: tournament,
-    title: `Shuttle IQ ${tag}`,
+    title: "Shuttle IQ",
     opens_at: new Date(Date.now() - 3600000).toISOString(),
     closes_at: new Date(Date.now() + 3600000).toISOString(),
   });
@@ -96,5 +99,16 @@ export async function fixture(tag: string) {
     });
   await save("publish_quiz", { id: quiz });
   await save("publish_tournament", { id: tournament });
-  return { owner, admin, email, pass, team, tournament, match, quiz, user };
+  return {
+    owner,
+    admin,
+    email,
+    pass,
+    team,
+    teamName,
+    tournament,
+    match,
+    quiz,
+    user,
+  };
 }

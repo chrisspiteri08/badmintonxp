@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type NativeInstallPrompt = Event & {
@@ -74,11 +75,13 @@ export function PwaControls({
   client,
   userId,
   played,
+  resultScreen,
   profile,
 }: {
   client: SupabaseClient;
   userId: string;
   played: boolean;
+  resultScreen: boolean;
   profile: boolean;
 }) {
   const { prompt, installed, clearPrompt } = useContext(InstallContext);
@@ -210,36 +213,53 @@ export function PwaControls({
   }
 
   const showInstall =
-    eligible && !installed && !dismissed && (Boolean(prompt) || ios);
+    resultScreen &&
+    eligible &&
+    !installed &&
+    !dismissed &&
+    (Boolean(prompt) || ios);
   const showReminder =
     (eligible || installed || profile) &&
     (profile ||
       Boolean(notice) ||
       (!subscription && checked && Boolean(publicKey)));
-  if (!showInstall && !showReminder) return null;
+  const slot = showInstall ? document.getElementById("pwa-install-slot") : null;
   return (
-    <aside className="panel pwa-controls" aria-label="Install and reminders">
-      {showInstall && (
-        <div>
-          <h2>Add BadmintonXP to your home screen</h2>
-          {prompt ? (
+    <>
+      {slot &&
+        createPortal(
+          <aside
+            className="pwa-install-strip"
+            aria-label="Add BadmintonXP to your home screen"
+          >
+            <div>
+              <strong>Add BadmintonXP to your home screen</strong>
+              {!prompt && (
+                <small>In Safari, tap Share → Add to Home Screen.</small>
+              )}
+            </div>
+            {prompt && (
+              <button
+                type="button"
+                className="primary"
+                onClick={() => void install()}
+              >
+                Install BadmintonXP
+              </button>
+            )}
             <button
               type="button"
-              className="primary"
-              onClick={() => void install()}
+              className="pwa-install-dismiss"
+              aria-label="Maybe later"
+              onClick={dismiss}
             >
-              Install BadmintonXP
+              ×
             </button>
-          ) : (
-            <p>In Safari, tap Share → Add to Home Screen.</p>
-          )}
-          <button type="button" onClick={dismiss}>
-            Maybe later
-          </button>
-        </div>
-      )}
+          </aside>,
+          slot,
+        )}
       {showReminder && (
-        <div>
+        <aside className="panel pwa-controls" aria-label="Game reminders">
           <h2>Game reminders</h2>
           {subscription || publicKey ? (
             <button type="button" disabled={busy} onClick={() => void toggle()}>
@@ -255,9 +275,9 @@ export function PwaControls({
             </p>
           )}
           {notice && <p role="status">{notice}</p>}
-        </div>
+        </aside>
       )}
-    </aside>
+    </>
   );
 }
 

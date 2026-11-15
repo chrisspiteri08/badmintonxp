@@ -105,6 +105,12 @@ export function V1App({ screen }: { screen: Screen }) {
   const [rankings, setRankings] = useState<TournamentRankings | null>(null);
   const [rankingsFailed, setRankingsFailed] = useState(false);
   const [rankToasts, setRankToasts] = useState<string[]>([]);
+  const [pendingRankToasts, setPendingRankToasts] = useState<string[]>([]);
+  useEffect(() => {
+    if (!pendingRankToasts.length) return;
+    const delay = setTimeout(() => setRankToasts(pendingRankToasts), 650);
+    return () => clearTimeout(delay);
+  }, [pendingRankToasts]);
   const priorRankings = useRef<{
     player: string;
     xp: number;
@@ -115,7 +121,7 @@ export function V1App({ screen }: { screen: Screen }) {
   const eventXp = home?.event_xp;
   useEffect(() => {
     if (!rankToasts.length) return;
-    const timer = setTimeout(() => setRankToasts([]), 4600);
+    const timer = setTimeout(() => setRankToasts([]), 3000);
     return () => clearTimeout(timer);
   }, [rankToasts]);
 
@@ -148,6 +154,10 @@ export function V1App({ screen }: { screen: Screen }) {
               setSession(next);
               setAttempt(null);
               setHome(null);
+              if (event === "SIGNED_OUT") {
+                setPendingRankToasts([]);
+                setRankToasts([]);
+              }
             }
           });
           unsubscribe = () => listener.data.subscription.unsubscribe();
@@ -355,7 +365,7 @@ export function V1App({ screen }: { screen: Screen }) {
           team_id: rankingTeam ?? null,
           username: "",
         });
-        if (notices.length) setRankToasts(notices);
+        if (notices.length) setPendingRankToasts(notices);
       }
     };
     void load();
@@ -491,27 +501,14 @@ export function V1App({ screen }: { screen: Screen }) {
           </Link>
         ))}
       </nav>
-      {signedIn && rankToasts.length > 0 && (
-        <div className="rank-toasts" role="status">
-          {rankToasts.map((notice) => (
-            <p key={notice}>{notice}</p>
-          ))}
-        </div>
-      )}
       <div className="arena-scroll">
         <main id="v1-content" tabIndex={-1}>
-          {signedIn && client && session && home && (
-            <PwaControls
-              key={session.user.id}
-              client={client}
-              userId={session.user.id}
-              played={Boolean(
-                attempt?.complete ||
-                home.quizzes.some((quiz) => quiz.attempt?.complete) ||
-                home.matches.some((match) => match.entry),
-              )}
-              profile={screen === "profile"}
-            />
+          {signedIn && rankToasts.length > 0 && (
+            <div className="rank-toasts" role="status">
+              {rankToasts.map((notice) => (
+                <p key={notice}>{notice}</p>
+              ))}
+            </div>
           )}
           {screen === "admin" && signedIn && home?.admin && session && (
             <AdminPush accessToken={session.access_token} />
@@ -1026,7 +1023,7 @@ export function V1App({ screen }: { screen: Screen }) {
                                 </button>
                               </>
                             ) : attempt.complete ? (
-                              <div role="status">
+                              <div className="v1-quiz-result" role="status">
                                 {lastAnswer && answerKey === freshAnswer && (
                                   <QuizFeedback
                                     key={answerKey}
@@ -1309,6 +1306,24 @@ export function V1App({ screen }: { screen: Screen }) {
               )}
             </>
           )}
+          {signedIn && client && session && home && (
+            <PwaControls
+              key={session.user.id}
+              client={client}
+              userId={session.user.id}
+              played={Boolean(
+                attempt?.complete ||
+                home.quizzes.some((quiz) => quiz.attempt?.complete) ||
+                home.matches.some((match) => match.entry),
+              )}
+              resultScreen={
+                (screen === "quiz" && Boolean(attempt?.complete)) ||
+                (screen === "predict" &&
+                  home.matches.some((match) => match.entry && match.winner))
+              }
+              profile={screen === "profile"}
+            />
+          )}
         </main>
         {celebration !== null &&
           signedIn &&
@@ -1330,6 +1345,7 @@ export function V1App({ screen }: { screen: Screen }) {
           </Link>
         </footer>
       </div>
+      <div id="pwa-install-slot" />
     </div>
   );
 }
