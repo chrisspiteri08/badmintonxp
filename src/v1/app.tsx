@@ -37,6 +37,7 @@ import { ArenaChallenges } from "./arena-challenges";
 import { QuizAnswers, QuizTimer } from "./quiz-ui";
 import {
   ArenaRankings,
+  affiliationRankGains,
   tournamentStatus,
   TournamentStandings,
   type TournamentRankings,
@@ -102,6 +103,21 @@ export function V1App({ screen }: { screen: Screen }) {
   );
   const [rankings, setRankings] = useState<TournamentRankings | null>(null);
   const [rankingsFailed, setRankingsFailed] = useState(false);
+  const [rankToasts, setRankToasts] = useState<string[]>([]);
+  const priorRankings = useRef<{
+    player: string;
+    xp: number;
+    boards: TournamentRankings;
+  } | null>(null);
+  const rankingProfile = home?.profile;
+  const rankingPlayer = rankingProfile?.id;
+  const eventXp = home?.event_xp;
+  useEffect(() => {
+    if (!rankToasts.length) return;
+    const timer = setTimeout(() => setRankToasts([]), 4600);
+    return () => clearTimeout(timer);
+  }, [rankToasts]);
+
   const tournamentId = home?.tournament?.id ?? null;
   const currentRankings =
     rankings?.tournament_id === tournamentId ? rankings : null;
@@ -308,14 +324,38 @@ export function V1App({ screen }: { screen: Screen }) {
       return;
     void perform(() => quizAction(attempt.quiz_id, "resume"));
   }, [screen, attempt, remaining, quizAction, perform]);
+  const showRankings = screen === "standings" || screen === "arena";
+  const rankingCountry = rankingProfile?.country;
+  const rankingTeam = rankingProfile?.team_id;
   useEffect(() => {
-    if (!client || (screen !== "standings" && screen !== "arena")) return;
+    if (!client || (!showRankings && (!rankingPlayer || !tournamentId))) return;
     let active = true;
     const load = async () => {
       const { data, error } = await client.rpc("v1_tournament_rankings");
       if (!active) return;
       setRankingsFailed(Boolean(error));
-      if (!error) setRankings(data as TournamentRankings);
+      if (error) return;
+      const boards = data as TournamentRankings;
+      setRankings(boards);
+      if (
+        !rankingPlayer ||
+        !rankingCountry ||
+        session?.user.id !== rankingPlayer ||
+        eventXp === undefined ||
+        boards.tournament_id !== tournamentId
+      )
+        return;
+      const previous = priorRankings.current;
+      priorRankings.current = { player: rankingPlayer, xp: eventXp, boards };
+      if (previous?.player === rankingPlayer && eventXp > previous.xp) {
+        const notices = affiliationRankGains(previous.boards, boards, {
+          id: rankingPlayer,
+          country: rankingCountry,
+          team_id: rankingTeam ?? null,
+          username: "",
+        });
+        if (notices.length) setRankToasts(notices);
+      }
     };
     void load();
     const timer = setInterval(() => void load(), 30000);
@@ -323,7 +363,16 @@ export function V1App({ screen }: { screen: Screen }) {
       active = false;
       clearInterval(timer);
     };
-  }, [client, screen, session, tournamentId]);
+  }, [
+    client,
+    showRankings,
+    session?.user.id,
+    tournamentId,
+    rankingPlayer,
+    rankingCountry,
+    rankingTeam,
+    eventXp,
+  ]);
   const onAuth = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -441,6 +490,13 @@ export function V1App({ screen }: { screen: Screen }) {
           </Link>
         ))}
       </nav>
+      {signedIn && rankToasts.length > 0 && (
+        <div className="rank-toasts" role="status">
+          {rankToasts.map((notice) => (
+            <p key={notice}>{notice}</p>
+          ))}
+        </div>
+      )}
       <div className="arena-scroll">
         <main id="v1-content" tabIndex={-1}>
           {error && (

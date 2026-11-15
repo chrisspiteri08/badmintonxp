@@ -1036,3 +1036,73 @@
     min-height: 44px;
   }
 }
+
+.v1 .arena-rank-link {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.v1 button.top-fans-info {
+  align-self: flex-start;
+  min-height: 28px;
+  border: 0;
+  border-radius: 5px;
+  padding: 4px 0;
+  background: none;
+  box-shadow: none;
+  color: #ffbc92;
+  font-size: 12px;
+  gap: 5px;
+}
+.v1 button.top-fans-info:hover {
+  text-decoration: underline;
+}
+.v1 .top-fans-sheet {
+  position: fixed;
+  inset: auto 0 0;
+  margin: 0 auto;
+  width: min(100%, 520px);
+  max-width: 100%;
+  border: 1px solid #54789d;
+  border-radius: 22px 22px 0 0;
+  background: #0c2545;
+  color: white;
+}
+.v1 .top-fans-sheet > div {
+  padding: 22px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.v1 .top-fans-sheet::backdrop {
+  background: #02091bbd;
+}
+.v1 .top-fans-sheet h2 {
+  margin: 0;
+}
+.v1 .rank-toasts {
+  position: fixed;
+  z-index: 6;
+  right: 16px;
+  bottom: calc(var(--tab-clearance, 0px) + 12px);
+  max-width: calc(100vw - 32px);
+  padding: 8px 14px;
+  border: 1px solid #74b894;
+  border-radius: 14px;
+  background: #164236;
+  color: #c3f9d8;
+  box-shadow: 0 4px 15px #020d20a0;
+  pointer-events: none;
+}
+.v1 .rank-toasts p {
+  margin: 4px 0;
+  font-weight: 800;
+}
+@media (max-width: 600px) {
+  .v1 .arena-rank-card li {
+    padding-block: 5px;
+  }
+  .v1 .arena-rank-card h3 {
+    margin-bottom: 6px;
+  }
+  .v1 .arena-rank-card .arena-own-rank {
+    padding-top: 6px;
+  }
+}

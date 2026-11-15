@@ -698,8 +698,8 @@ test.describe("arena in a non-UTC timezone", () => {
     if (info.project.name === "mobile") {
       const track = ranks.locator(".arena-rank-track");
       const [first, next] = await Promise.all([
-        track.locator("a").nth(0).boundingBox(),
-        track.locator("a").nth(1).boundingBox(),
+        track.locator(".arena-rank-card").nth(0).boundingBox(),
+        track.locator(".arena-rank-card").nth(1).boundingBox(),
       ]);
       const bounds = await track.boundingBox();
       expect(first!.width / bounds!.width).toBeCloseTo(0.86, 1);
@@ -732,11 +732,39 @@ test.describe("arena in a non-UTC timezone", () => {
       fullPage: false,
       animations: "disabled",
     });
+    const countryInfo = ranks.getByRole("button", {
+      name: "Top 10 fans count (country)",
+    });
+    await countryInfo.click();
+    const sheet = page.getByRole("dialog", { name: "Top 10 fans count" });
+    await expect(sheet).toContainText(
+      "Each country's score is its top 10 fans' XP this tournament.",
+    );
+    await page.screenshot({
+      path: path.resolve(
+        "../../outputs",
+        `BadmintonXP-top-fans-sheet-${viewport.width}x${viewport.height}.png`,
+      ),
+      animations: "disabled",
+    });
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+    await expect(countryInfo).toBeFocused();
     if (info.project.name === "mobile")
       await ranks.getByRole("button", { name: "Show Teams" }).click();
     await ranks.getByRole("link", { name: /Teams/ }).click();
     await expect(page).toHaveURL(/\/play\/standings\?league=teams$/);
     await expect(page.getByRole("region", { name: "Teams" })).toBeVisible();
+    await page
+      .getByRole("region", { name: "Teams" })
+      .getByRole("button", { name: "Top 10 fans count (team)" })
+      .click();
+    await expect(sheet).toContainText(
+      "Each team's score is its top 10 fans' XP this tournament.",
+    );
+    await sheet.getByRole("button", { name: "Got it" }).click();
+    await expect(sheet).toBeHidden();
+
     home.server_now = "2026-11-23T10:00:00Z";
     await page.goto("/play");
     await expect(

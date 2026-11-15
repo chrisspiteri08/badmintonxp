@@ -86,10 +86,45 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   await expect(
     page.getByRole("heading", { name: "Players’ side." }),
   ).toBeVisible();
+  let movedUp = false;
+  const rankingsRpc = "**/rest/v1/rpc/v1_tournament_rankings";
+  await page.route(rankingsRpc, (route) =>
+    route.fulfill({
+      json: {
+        tournament_id: f.tournament,
+        final: false,
+        past: [],
+        boards: {
+          countries: [
+            {
+              id: "MY",
+              name: "MY",
+              rank: movedUp ? 8 : 9,
+              xp: 20,
+              gap: null,
+              fans: 1,
+            },
+          ],
+          teams: [
+            {
+              id: f.team,
+              name: `Neon ${tag}`,
+              rank: movedUp ? 2 : 3,
+              xp: 20,
+              gap: null,
+              fans: 1,
+            },
+          ],
+          players: [],
+        },
+      },
+    }),
+  );
   await page.goto("/play");
   await expect(
     page.getByRole("heading", { name: `Isolated Cup ${tag}` }),
   ).toBeVisible();
+  await expect(page.getByText("You · Your country: #9")).toBeVisible();
   await capture("home");
   if (info.project.name === "mobile") {
     const scroll = page.locator(".arena-scroll");
@@ -150,8 +185,12 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   await expect(page.locator(".result-wrong")).toContainText("Not this rally.");
   await expect(page.getByText("0 streak", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Next question" }).click();
+  movedUp = true;
   await page.getByRole("button", { name: "C 16", exact: true }).click();
   await expect(page.getByTestId("v1-quiz-score")).toHaveText("+20 XP");
+  await expect(page.getByText("🇲🇾 Malaysia moved up to #8!")).toBeVisible();
+  await expect(page.getByText(`Neon ${tag} moved up to #2!`)).toBeVisible();
+  await page.unroute(rankingsRpc);
   await page.reload();
   await expect(page.getByTestId("v1-quiz-score")).toHaveText("+20 XP");
   await expect(page.getByTestId("v1-lifetime-xp")).toHaveText("20 XP");

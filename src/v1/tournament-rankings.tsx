@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Profile, Tournament } from "./types";
 import { ArenaSkeleton } from "./game-ui";
 
@@ -74,6 +74,56 @@ function WinnerList({ winners }: { winners: Winners }) {
       })}
     </ul>
   );
+}
+
+function TopFansInfo({ group }: { group: "country" | "team" }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const title = useId();
+  return (
+    <>
+      <button
+        type="button"
+        className="top-fans-info"
+        aria-haspopup="dialog"
+        aria-label={`Top 10 fans count (${group})`}
+        onClick={() => dialog.current?.showModal()}
+      >
+        Top 10 fans count <span aria-hidden="true">ⓘ</span>
+      </button>
+      <dialog
+        ref={dialog}
+        className="top-fans-sheet"
+        aria-labelledby={title}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) event.currentTarget.close();
+        }}
+      >
+        <div>
+          <h2 id={title}>Top 10 fans count</h2>
+          <p>{`Each ${group}'s score is its top 10 fans' XP this tournament. Bring your friends — every fan can make the top 10.`}</p>
+          <form method="dialog">
+            <button className="primary">Got it</button>
+          </form>
+        </div>
+      </dialog>
+    </>
+  );
+}
+
+export function affiliationRankGains(
+  before: TournamentRankings,
+  after: TournamentRankings,
+  profile: Profile,
+) {
+  if (!after.tournament_id || before.tournament_id !== after.tournament_id)
+    return [];
+  return (["countries", "teams"] as const).flatMap((league) => {
+    const old = ownEntry(before.boards[league], league, profile);
+    const current = ownEntry(after.boards[league], league, profile);
+    return old && current && current.rank < old.rank
+      ? [`${entryName(current, league)} moved up to #${current.rank}!`]
+      : [];
+  });
 }
 
 function ownEntry(rows: Entry[], league: League, profile: Profile | null) {
@@ -180,48 +230,54 @@ export function ArenaRankings({
               const own = ownEntry(rows, league, profile);
               const above = own && rows[rows.indexOf(own) - 1];
               return (
-                <Link
-                  className="panel arena-rank-card"
-                  href={`/play/standings?league=${league}`}
-                  key={league}
-                >
-                  <h3>
-                    {names[league]} <span aria-hidden="true">↗</span>
-                  </h3>
-                  <ol>
-                    {rows.slice(0, 3).map((row, index) => (
-                      <li
-                        key={row.id}
-                        data-place={index + 1}
-                        data-gained={gainers.includes(`${league}:${row.id}`)}
-                      >
-                        <b>#{row.rank}</b>
-                        <span>
-                          {league === "countries"
-                            ? entryName(row, league)
-                            : `${["🥇", "🥈", "🥉"][index]} ${row.name}`}
-                        </span>
-                        <AnimatedRankScore xp={row.xp} />
-                      </li>
-                    ))}
-                  </ol>
-                  {!rows.length && <p>No scores yet</p>}
-                  <p className="arena-own-rank">
-                    {profile ? (
-                      <>
-                        <strong>You</strong>
-                        {league !== "players" &&
-                          ` · Your ${titles[league].toLowerCase()}`}
-                        :{" "}
-                        {own
-                          ? `#${own.rank}${own.gap && above ? ` · ${own.gap} XP behind #${above.rank}` : ""}`
-                          : "Unranked"}
-                      </>
-                    ) : (
-                      "Sign in to join your country"
-                    )}
-                  </p>
-                </Link>
+                <div className="panel arena-rank-card" key={league}>
+                  <Link
+                    className="arena-rank-link"
+                    href={`/play/standings?league=${league}`}
+                  >
+                    <h3>
+                      {names[league]} <span aria-hidden="true">↗</span>
+                    </h3>
+                    <ol>
+                      {rows.slice(0, 3).map((row, index) => (
+                        <li
+                          key={row.id}
+                          data-place={index + 1}
+                          data-gained={gainers.includes(`${league}:${row.id}`)}
+                        >
+                          <b>#{row.rank}</b>
+                          <span>
+                            {league === "countries"
+                              ? entryName(row, league)
+                              : `${["🥇", "🥈", "🥉"][index]} ${row.name}`}
+                          </span>
+                          <AnimatedRankScore xp={row.xp} />
+                        </li>
+                      ))}
+                    </ol>
+                    {!rows.length && <p>No scores yet</p>}
+                    <p className="arena-own-rank">
+                      {profile ? (
+                        <>
+                          <strong>You</strong>
+                          {league !== "players" &&
+                            ` · Your ${titles[league].toLowerCase()}`}
+                          :{" "}
+                          {own
+                            ? `#${own.rank}${own.gap && above ? ` · ${own.gap} XP behind #${above.rank}` : ""}`
+                            : "Unranked"}
+                        </>
+                      ) : (
+                        "Sign in to join your country"
+                      )}
+                    </p>
+                  </Link>
+                  {league !== "players" && (
+                    <TopFansInfo
+                      group={league === "countries" ? "country" : "team"}
+                    />
+                  )}
+                </div>
               );
             })}
           </div>
@@ -370,7 +426,11 @@ export function TournamentStandings({
                           ? "Country vs country"
                           : names[league]}
                       </h2>
-                      {league !== "players" && <p>Top 10 fans count</p>}
+                      {league !== "players" && (
+                        <TopFansInfo
+                          group={league === "countries" ? "country" : "team"}
+                        />
+                      )}
                       {top.length ? (
                         <ol>{top.map(rowItem)}</ol>
                       ) : (
