@@ -92,15 +92,18 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   ).toBeVisible();
   await capture("home");
   if (info.project.name === "mobile") {
-    await page.evaluate(() =>
-      window.scrollTo(0, document.documentElement.scrollHeight),
-    );
+    const scroll = page.locator(".arena-scroll");
+    await scroll.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
     const footer = await page.getByRole("contentinfo").boundingBox();
     const tabs = await page
       .getByRole("navigation", { name: "Fan arena" })
       .boundingBox();
     expect(footer!.y + footer!.height).toBeLessThan(tabs!.y);
-    await page.evaluate(() => window.scrollTo(0, 0));
+    await scroll.evaluate((element) => {
+      element.scrollTop = 0;
+    });
   }
   await page.getByRole("link", { name: "Quiz", exact: true }).click();
   await expect(page.getByRole("group", { name: "Choose a quiz" })).toHaveCount(
@@ -179,6 +182,14 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
     "Ember wins! You called it. +20 XP",
   );
   await expect(page.getByTestId("v1-lifetime-xp")).toHaveText("40 XP");
+  await page.getByRole("link", { name: "Arena", exact: true }).click();
+  const you = page.locator(".arena-own-rank");
+  await expect(you).toHaveText([
+    "You · Your country: #1",
+    "You · Your team: #1",
+    "You: #1",
+  ]);
+
   await page.getByRole("link", { name: "Rankings", exact: true }).click();
   const showRanking = async (name: string) => {
     const tab = page.getByRole("button", { name, exact: true });

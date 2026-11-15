@@ -613,6 +613,20 @@
     --tab-clearance: calc(var(--tab-height) + env(safe-area-inset-bottom, 0px));
     padding-bottom: calc(var(--tab-clearance) + 16px);
   }
+  .v1[data-screen="arena"] {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .v1[data-screen="arena"] .arena-scroll {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding: 4px 4px 24px;
+    margin-inline: -4px;
+  }
   .v1 .demo-header {
     gap: 5px;
     padding: 12px 0 16px;
@@ -921,8 +935,13 @@
     scrollbar-width: none;
     padding: 4px;
   }
+  .v1 .arena-rank-track::after {
+    content: "";
+    flex: 0 0 max(0px, calc(12% - 12px));
+  }
   .v1 .arena-rank-card {
-    flex: 0 0 100%;
+    flex: 0 0 88%;
+    min-width: 0;
     scroll-snap-align: start;
     scroll-margin-inline: 4px;
   }
@@ -946,4 +965,13 @@
   .v1 .arena-rank-dots button[aria-current] span {
     background: #ff914c;
   }
+}
+
+.v1 .arena-rank-card {
+  display: flex;
+  flex-direction: column;
+}
+.v1 .arena-rank-card .arena-own-rank {
+  margin-top: auto;
+  padding-top: 10px;
 }

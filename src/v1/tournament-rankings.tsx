@@ -201,19 +201,21 @@ export function ArenaRankings({
                     ))}
                   </ol>
                   {!rows.length && <p>No scores yet</p>}
-                  {profile && (
-                    <p className="arena-own-rank">
-                      {league === "players"
-                        ? "You"
-                        : league === "teams"
-                          ? "Your team"
-                          : "Your country"}
-                      :{" "}
-                      {own
-                        ? `#${own.rank}${own.gap && above ? ` · ${own.gap} XP behind #${above.rank}` : ""}`
-                        : "Unranked"}
-                    </p>
-                  )}
+                  <p className="arena-own-rank">
+                    {profile ? (
+                      <>
+                        <strong>You</strong>
+                        {league !== "players" &&
+                          ` · Your ${titles[league].toLowerCase()}`}
+                        :{" "}
+                        {own
+                          ? `#${own.rank}${own.gap && above ? ` · ${own.gap} XP behind #${above.rank}` : ""}`
+                          : "Unranked"}
+                      </>
+                    ) : (
+                      "Sign in to join your country"
+                    )}
+                  </p>
                 </Link>
               );
             })}

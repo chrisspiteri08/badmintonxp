@@ -3,11 +3,10 @@ import { Check, Clock3, Play, Target } from "lucide-react";
 import { deadlineLabel } from "./game-ui";
 import type { Home } from "./types";
 
-const opensAt = new Intl.DateTimeFormat("en-GB", {
+const localTime = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
   hour: "2-digit",
   minute: "2-digit",
-  timeZone: "UTC",
 });
 
 export function ArenaChallenges({
@@ -89,12 +88,22 @@ export function ArenaChallenges({
                   <p>
                     {item.state === 0 ? (
                       seconds ? (
-                        deadlineLabel(seconds)
+                        <>
+                          {deadlineLabel(seconds)} ·{" "}
+                          <time dateTime={new Date(item.closes).toISOString()}>
+                            {localTime.format(item.closes)}
+                          </time>
+                        </>
                       ) : (
                         "Quiz in progress"
                       )
                     ) : item.state === 1 ? (
-                      `Opens ${opensAt.format(item.opens)} UTC`
+                      <>
+                        Opens{" "}
+                        <time dateTime={new Date(item.opens).toISOString()}>
+                          {localTime.format(item.opens)}
+                        </time>
+                      </>
                     ) : item.result.startsWith("+") ? (
                       <>
                         <Check size={16} aria-hidden="true" /> {item.result}

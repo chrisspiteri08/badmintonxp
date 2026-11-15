@@ -381,7 +381,11 @@ export function V1App({ screen }: { screen: Screen }) {
   const needsLogin =
     ["quiz", "predict", "profile", "admin"].includes(screen) && !signedIn;
   return (
-    <div className="demo v1" onClickCapture={activateAudio}>
+    <div
+      className="demo v1"
+      data-screen={screen}
+      onClickCapture={activateAudio}
+    >
       <a className="skip" href="#v1-content">
         Skip to content
       </a>
@@ -437,808 +441,819 @@ export function V1App({ screen }: { screen: Screen }) {
           </Link>
         ))}
       </nav>
-      <main id="v1-content" tabIndex={-1}>
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
-        {message && (
-          <p className="v1-notice" role="status">
-            {message}
-          </p>
-        )}
-        {!ready ? (
-          <ArenaSkeleton />
-        ) : !client ? (
-          <section className="panel">
-            <h1>We’ll be back shortly.</h1>
-            <p>The arena is taking a break. Please try again soon.</p>
-            <Link className="button primary" href="/demo">
-              Play the guest demo →
-            </Link>
-          </section>
-        ) : !home || waitingForAccount ? (
-          !error && <ArenaSkeleton />
-        ) : (
-          <>
-            {screen === "arena" && (
-              <>
-                <section
-                  className="arena-event-hero"
-                  aria-labelledby="v1-event-title"
-                >
-                  {tournament?.hero_image_url && (
-                    <Image
-                      src={tournament.hero_image_url}
-                      alt={tournament.hero_image_alt ?? ""}
-                      fill
-                      unoptimized
-                      priority
-                      sizes="(max-width: 760px) 100vw, 1180px"
-                      onError={(event) => {
-                        event.currentTarget.hidden = true;
-                      }}
-                    />
-                  )}
-                  <div>
-                    <h1 id="v1-event-title">
-                      {tournament?.name || "The next rally"}
-                    </h1>
-                    {tournament ? (
-                      <p>
-                        {[
-                          tournament.city,
-                          eventDates.formatRange(
-                            new Date(tournament.starts_at),
-                            new Date(tournament.ends_at),
-                          ),
-                          tournamentStatus(
-                            tournament,
-                            gameNow,
-                            currentRankings?.final ?? false,
-                          ),
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                    ) : (
-                      <p>
-                        The first tournament will appear here when it’s ready.
-                      </p>
-                    )}
-                  </div>
-                </section>
-                <ArenaRankings
-                  data={currentRankings}
-                  profile={signedIn ? home.profile : null}
-                  failed={rankingsFailed}
-                />
-                <ArenaChallenges
-                  home={home}
-                  now={gameNow}
-                  signedIn={signedIn}
-                />
-                {signedIn && (
+      <div className="arena-scroll">
+        <main id="v1-content" tabIndex={-1}>
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          {message && (
+            <p className="v1-notice" role="status">
+              {message}
+            </p>
+          )}
+          {!ready ? (
+            <ArenaSkeleton />
+          ) : !client ? (
+            <section className="panel">
+              <h1>We’ll be back shortly.</h1>
+              <p>The arena is taking a break. Please try again soon.</p>
+              <Link className="button primary" href="/demo">
+                Play the guest demo →
+              </Link>
+            </section>
+          ) : !home || waitingForAccount ? (
+            !error && <ArenaSkeleton />
+          ) : (
+            <>
+              {screen === "arena" && (
+                <>
                   <section
-                    className="level-card game-home-scores"
-                    aria-label="Player progress"
+                    className="arena-event-hero"
+                    aria-labelledby="v1-event-title"
                   >
-                    <div className="game-home-level">
-                      <strong>Level progress</strong>
-                      <XPProgress
-                        xp={home.lifetime_xp}
-                        label="Lifetime XP toward next level"
+                    {tournament?.hero_image_url && (
+                      <Image
+                        src={tournament.hero_image_url}
+                        alt={tournament.hero_image_alt ?? ""}
+                        fill
+                        unoptimized
+                        priority
+                        sizes="(max-width: 760px) 100vw, 1180px"
+                        onError={(event) => {
+                          event.currentTarget.hidden = true;
+                        }}
                       />
-                      <small>
-                        {home.lifetime_xp} lifetime XP ·{" "}
-                        {250 - (home.lifetime_xp % 250)} XP to next level
-                      </small>
-                    </div>
-                    <div className="game-event-score">
-                      <span>Event score</span>
-                      <strong>{home.event_xp} XP</strong>
+                    )}
+                    <div>
+                      <h1 id="v1-event-title">
+                        {tournament?.name || "The next rally"}
+                      </h1>
+                      {tournament ? (
+                        <p>
+                          {[
+                            tournament.city,
+                            eventDates.formatRange(
+                              new Date(tournament.starts_at),
+                              new Date(tournament.ends_at),
+                            ),
+                            tournamentStatus(
+                              tournament,
+                              gameNow,
+                              currentRankings?.final ?? false,
+                            ),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      ) : (
+                        <p>
+                          The first tournament will appear here when it’s ready.
+                        </p>
+                      )}
                     </div>
                   </section>
-                )}
-              </>
-            )}
-            {needsLogin ? (
-              <section className="panel">
-                <h1>Join the rally.</h1>
-                <p>Sign in to save your scores and compete with your people.</p>
-                <Link className="button primary" href="/play/account">
-                  Sign in or create an account →
-                </Link>
-              </section>
-            ) : (
-              <>
-                {screen === "account" &&
-                  (signedIn ? (
-                    <section className="panel">
-                      <h1>You’re in.</h1>
-                      <p>Welcome, {home.profile?.username}.</p>
-                      <Link className="button primary" href="/play/profile">
-                        Set up your profile →
-                      </Link>
-                      <Link className="button" href="/play">
-                        Enter the arena →
-                      </Link>
+                  <ArenaRankings
+                    data={currentRankings}
+                    profile={signedIn ? home.profile : null}
+                    failed={rankingsFailed}
+                  />
+                  <ArenaChallenges
+                    home={home}
+                    now={gameNow}
+                    signedIn={signedIn}
+                  />
+                  {signedIn && (
+                    <section
+                      className="level-card game-home-scores"
+                      aria-label="Player progress"
+                    >
+                      <div className="game-home-level">
+                        <strong>Level progress</strong>
+                        <XPProgress
+                          xp={home.lifetime_xp}
+                          label="Lifetime XP toward next level"
+                        />
+                        <small>
+                          {home.lifetime_xp} lifetime XP ·{" "}
+                          {250 - (home.lifetime_xp % 250)} XP to next level
+                        </small>
+                      </div>
+                      <div className="game-event-score">
+                        <span>Event score</span>
+                        <strong>{home.event_xp} XP</strong>
+                      </div>
                     </section>
-                  ) : (
-                    <section className="panel v1-form-panel">
-                      <span className="eyebrow">YOUR NEXT RALLY</span>
-                      <h1>
-                        {authMode === "signup"
-                          ? "Join your people."
-                          : authMode === "forgot"
-                            ? "Back in the game."
-                            : "Welcome back."}
-                      </h1>
-                      <form onSubmit={onAuth}>
-                        <label>
-                          Email
-                          <input
-                            name="email"
-                            type="email"
-                            autoComplete="email"
-                            required
-                            maxLength={254}
-                          />
-                        </label>
-                        {authMode !== "forgot" && (
+                  )}
+                </>
+              )}
+              {needsLogin ? (
+                <section className="panel">
+                  <h1>Join the rally.</h1>
+                  <p>
+                    Sign in to save your scores and compete with your people.
+                  </p>
+                  <Link className="button primary" href="/play/account">
+                    Sign in or create an account →
+                  </Link>
+                </section>
+              ) : (
+                <>
+                  {screen === "account" &&
+                    (signedIn ? (
+                      <section className="panel">
+                        <h1>You’re in.</h1>
+                        <p>Welcome, {home.profile?.username}.</p>
+                        <Link className="button primary" href="/play/profile">
+                          Set up your profile →
+                        </Link>
+                        <Link className="button" href="/play">
+                          Enter the arena →
+                        </Link>
+                      </section>
+                    ) : (
+                      <section className="panel v1-form-panel">
+                        <span className="eyebrow">YOUR NEXT RALLY</span>
+                        <h1>
+                          {authMode === "signup"
+                            ? "Join your people."
+                            : authMode === "forgot"
+                              ? "Back in the game."
+                              : "Welcome back."}
+                        </h1>
+                        <form onSubmit={onAuth}>
                           <label>
-                            Password
+                            Email
                             <input
-                              name="password"
-                              type="password"
-                              autoComplete={
-                                authMode === "signup"
-                                  ? "new-password"
-                                  : "current-password"
+                              name="email"
+                              type="email"
+                              autoComplete="email"
+                              required
+                              maxLength={254}
+                            />
+                          </label>
+                          {authMode !== "forgot" && (
+                            <label>
+                              Password
+                              <input
+                                name="password"
+                                type="password"
+                                autoComplete={
+                                  authMode === "signup"
+                                    ? "new-password"
+                                    : "current-password"
+                                }
+                                minLength={6}
+                                maxLength={128}
+                                required
+                              />
+                            </label>
+                          )}
+                          <button className="primary wide" disabled={busy}>
+                            {authMode === "signup"
+                              ? "Create account"
+                              : authMode === "forgot"
+                                ? "Send reset link"
+                                : "Sign in"}
+                          </button>
+                        </form>
+                        <div className="button-row">
+                          <button
+                            onClick={() => {
+                              setAuthMode(
+                                authMode === "signup" ? "login" : "signup",
+                              );
+                              setMessage("");
+                            }}
+                          >
+                            {authMode === "signup"
+                              ? "I have an account"
+                              : "Create an account"}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setAuthMode("forgot");
+                              setMessage("");
+                            }}
+                          >
+                            Forgot password?
+                          </button>
+                        </div>
+                        <p className="muted">
+                          Your username, country, team and leaderboard totals
+                          are visible to other fans. Your email and individual
+                          answers stay private.
+                        </p>
+                      </section>
+                    ))}
+                  {screen === "reset" && (
+                    <section className="panel v1-form-panel">
+                      <h1>A fresh start.</h1>
+                      {session ? (
+                        <form
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const data = new FormData(event.currentTarget);
+                            void perform(async () => {
+                              const password = String(data.get("password"));
+                              if (password !== data.get("confirmation")) {
+                                setError("Passwords don’t match.");
+                                return;
                               }
+                              const { error } = await client.auth.updateUser({
+                                password,
+                              });
+                              if (error) throw error;
+                              await client.auth.signOut({ scope: "global" });
+                              setMessage(
+                                "Password updated. Sign in with your new password.",
+                              );
+                            });
+                          }}
+                        >
+                          <label>
+                            New password
+                            <input
+                              type="password"
+                              name="password"
                               minLength={6}
                               maxLength={128}
+                              autoComplete="new-password"
                               required
                             />
                           </label>
-                        )}
-                        <button className="primary wide" disabled={busy}>
-                          {authMode === "signup"
-                            ? "Create account"
-                            : authMode === "forgot"
-                              ? "Send reset link"
-                              : "Sign in"}
-                        </button>
-                      </form>
-                      <div className="button-row">
-                        <button
-                          onClick={() => {
-                            setAuthMode(
-                              authMode === "signup" ? "login" : "signup",
-                            );
-                            setMessage("");
-                          }}
-                        >
-                          {authMode === "signup"
-                            ? "I have an account"
-                            : "Create an account"}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setAuthMode("forgot");
-                            setMessage("");
-                          }}
-                        >
-                          Forgot password?
-                        </button>
-                      </div>
-                      <p className="muted">
-                        Your username, country, team and leaderboard totals are
-                        visible to other fans. Your email and individual answers
-                        stay private.
-                      </p>
+                          <label>
+                            Confirm password
+                            <input
+                              type="password"
+                              name="confirmation"
+                              minLength={6}
+                              maxLength={128}
+                              autoComplete="new-password"
+                              required
+                            />
+                          </label>
+                          <button className="primary" disabled={busy}>
+                            Save new password
+                          </button>
+                        </form>
+                      ) : (
+                        <p>
+                          Open the password reset link from your email on the
+                          same browser where you requested it.
+                          <br />
+                          <Link className="button" href="/play/account">
+                            Request a new link
+                          </Link>
+                        </p>
+                      )}
                     </section>
-                  ))}
-                {screen === "reset" && (
-                  <section className="panel v1-form-panel">
-                    <h1>A fresh start.</h1>
-                    {session ? (
+                  )}
+                  {screen === "profile" && signedIn && (
+                    <section className="panel v1-form-panel">
+                      <span className="eyebrow">YOUR PLAYER CARD</span>
+                      <h1>Find your people.</h1>
                       <form
+                        key={home.profile?.id}
                         onSubmit={(event) => {
                           event.preventDefault();
                           const data = new FormData(event.currentTarget);
                           void perform(async () => {
-                            const password = String(data.get("password"));
-                            if (password !== data.get("confirmation")) {
-                              setError("Passwords don’t match.");
-                              return;
-                            }
-                            const { error } = await client.auth.updateUser({
-                              password,
+                            const { error } = await client.rpc("v1_profile", {
+                              p_username: data.get("username"),
+                              p_country: data.get("country"),
+                              p_team_id: data.get("team") || null,
                             });
                             if (error) throw error;
-                            await client.auth.signOut({ scope: "global" });
-                            setMessage(
-                              "Password updated. Sign in with your new password.",
-                            );
+                            await refresh(client);
+                            setMessage("Player profile saved.");
                           });
                         }}
                       >
                         <label>
-                          New password
+                          Username
                           <input
-                            type="password"
-                            name="password"
-                            minLength={6}
-                            maxLength={128}
-                            autoComplete="new-password"
+                            name="username"
+                            defaultValue={home.profile?.username}
+                            minLength={3}
+                            maxLength={24}
+                            pattern="[A-Za-z0-9_]{3,24}"
                             required
+                            autoComplete="nickname"
                           />
                         </label>
                         <label>
-                          Confirm password
-                          <input
-                            type="password"
-                            name="confirmation"
-                            minLength={6}
-                            maxLength={128}
-                            autoComplete="new-password"
-                            required
-                          />
+                          Country
+                          <select
+                            name="country"
+                            defaultValue={home.profile?.country}
+                          >
+                            {countries.map(([code, name]) => (
+                              <option value={code} key={code}>
+                                {name}
+                              </option>
+                            ))}
+                            {home.profile &&
+                              !countries.some(
+                                ([code]) => code === home.profile?.country,
+                              ) && <option>{home.profile.country}</option>}
+                          </select>
                         </label>
+                        <label>
+                          Team
+                          <select
+                            name="team"
+                            defaultValue={home.profile?.team_id || ""}
+                          >
+                            <option value="">Independent fan</option>
+                            {home.teams.map((t) => (
+                              <option value={t.id} key={t.id}>
+                                {t.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <p className="muted">
+                          Choose your team and country before playing. They lock
+                          with your first quiz or prediction.
+                        </p>
                         <button className="primary" disabled={busy}>
-                          Save new password
+                          Save profile
                         </button>
                       </form>
-                    ) : (
                       <p>
-                        Open the password reset link from your email on the same
-                        browser where you requested it.
-                        <br />
-                        <Link className="button" href="/play/account">
-                          Request a new link
+                        Lifetime XP: <strong>{home.lifetime_xp}</strong> · This
+                        event: <strong>{home.event_xp}</strong>
+                      </p>
+                      {(home.admin || home.content_editor) && (
+                        <Link className="button" href="/play/admin">
+                          Tournament admin →
                         </Link>
-                      </p>
-                    )}
-                  </section>
-                )}
-                {screen === "profile" && signedIn && (
-                  <section className="panel v1-form-panel">
-                    <span className="eyebrow">YOUR PLAYER CARD</span>
-                    <h1>Find your people.</h1>
-                    <form
-                      key={home.profile?.id}
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        const data = new FormData(event.currentTarget);
-                        void perform(async () => {
-                          const { error } = await client.rpc("v1_profile", {
-                            p_username: data.get("username"),
-                            p_country: data.get("country"),
-                            p_team_id: data.get("team") || null,
-                          });
-                          if (error) throw error;
-                          await refresh(client);
-                          setMessage("Player profile saved.");
-                        });
-                      }}
-                    >
-                      <label>
-                        Username
-                        <input
-                          name="username"
-                          defaultValue={home.profile?.username}
-                          minLength={3}
-                          maxLength={24}
-                          pattern="[A-Za-z0-9_]{3,24}"
-                          required
-                          autoComplete="nickname"
-                        />
-                      </label>
-                      <label>
-                        Country
-                        <select
-                          name="country"
-                          defaultValue={home.profile?.country}
-                        >
-                          {countries.map(([code, name]) => (
-                            <option value={code} key={code}>
-                              {name}
-                            </option>
-                          ))}
-                          {home.profile &&
-                            !countries.some(
-                              ([code]) => code === home.profile?.country,
-                            ) && <option>{home.profile.country}</option>}
-                        </select>
-                      </label>
-                      <label>
-                        Team
-                        <select
-                          name="team"
-                          defaultValue={home.profile?.team_id || ""}
-                        >
-                          <option value="">Independent fan</option>
-                          {home.teams.map((t) => (
-                            <option value={t.id} key={t.id}>
-                              {t.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <p className="muted">
-                        Choose your team and country before playing. They lock
-                        with your first quiz or prediction.
-                      </p>
-                      <button className="primary" disabled={busy}>
-                        Save profile
+                      )}
+                      <button
+                        onClick={() =>
+                          void perform(async () => {
+                            const { error } = await client.auth.signOut({
+                              scope: "global",
+                            });
+                            if (error) throw error;
+                            setHome(null);
+                            setAttempt(null);
+                            setSession(null);
+                            await refresh(client);
+                          })
+                        }
+                        disabled={busy}
+                      >
+                        Sign out all sessions
                       </button>
-                    </form>
-                    <p>
-                      Lifetime XP: <strong>{home.lifetime_xp}</strong> · This
-                      event: <strong>{home.event_xp}</strong>
-                    </p>
-                    {(home.admin || home.content_editor) && (
-                      <Link className="button" href="/play/admin">
-                        Tournament admin →
-                      </Link>
-                    )}
-                    <button
-                      onClick={() =>
-                        void perform(async () => {
-                          const { error } = await client.auth.signOut({
-                            scope: "global",
-                          });
-                          if (error) throw error;
-                          setHome(null);
-                          setAttempt(null);
-                          setSession(null);
-                          await refresh(client);
-                        })
-                      }
-                      disabled={busy}
-                    >
-                      Sign out all sessions
-                    </button>
-                  </section>
-                )}
-                {screen === "quiz" && signedIn && (
-                  <section className="challenge-section">
-                    <span className="eyebrow">SHUTTLE IQ</span>
-                    <h1>
-                      Know the game.
-                      <br />
-                      <span>Own the rally.</span>
-                    </h1>
-                    {home.quizzes.length === 0 ? (
-                      <div className="panel">
-                        <p>
-                          No quiz is open yet. Come back when the tournament
-                          begins.
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        {home.quizzes.length > 1 && (
-                          <details
-                            className="game-quiz-choices"
-                            key={String(solePlayableSelected)}
-                            open={!solePlayableSelected}
-                          >
-                            <summary>
-                              {solePlayableSelected
-                                ? "Other quizzes"
-                                : "Choose a quiz"}
-                            </summary>
-                            <div
-                              className="game-quiz-picker"
-                              role="group"
-                              aria-label="Choose a quiz"
+                    </section>
+                  )}
+                  {screen === "quiz" && signedIn && (
+                    <section className="challenge-section">
+                      <span className="eyebrow">SHUTTLE IQ</span>
+                      <h1>
+                        Know the game.
+                        <br />
+                        <span>Own the rally.</span>
+                      </h1>
+                      {home.quizzes.length === 0 ? (
+                        <div className="panel">
+                          <p>
+                            No quiz is open yet. Come back when the tournament
+                            begins.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          {home.quizzes.length > 1 && (
+                            <details
+                              className="game-quiz-choices"
+                              key={String(solePlayableSelected)}
+                              open={!solePlayableSelected}
                             >
-                              {home.quizzes.map((item) => {
-                                const opensIn = secondsUntil(item.opens_at);
-                                const closesIn = secondsUntil(item.closes_at);
-                                const status =
-                                  item.id === quizId
-                                    ? quizStatus
-                                    : item.attempt?.complete
-                                      ? "SETTLED"
-                                      : opensIn || !closesIn
-                                        ? "LOCKED"
-                                        : "OPEN";
-                                if (solePlayableSelected && item.id === quizId)
-                                  return null;
-                                return (
-                                  <button
-                                    key={item.id}
-                                    type="button"
-                                    aria-pressed={item.id === quizId}
-                                    disabled={busy}
-                                    onClick={() => {
-                                      if (item.id === quizId) return;
-                                      setSelectedQuiz(item.id);
-                                      setAttempt(null);
-                                    }}
-                                  >
-                                    <strong>{item.title}</strong>
-                                    <span className="game-card-meta">
-                                      <span
-                                        className="game-status"
-                                        data-state={status}
-                                      >
-                                        {status}
-                                      </span>
-                                      {status !== "SETTLED" && (
-                                        <span>
-                                          {opensIn
-                                            ? deadlineLabel(opensIn, "Opens")
-                                            : closesIn
-                                              ? deadlineLabel(closesIn)
-                                              : "Entries closed"}
-                                        </span>
-                                      )}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </details>
-                        )}
-                        <div
-                          className="panel quiz-panel"
-                          data-live={quizStatus === "LIVE"}
-                        >
-                          <div className="game-card-art game-quiz-art">
-                            <div className="game-card-meta">
-                              <span
-                                className="game-status"
-                                data-state={quizStatus}
+                              <summary>
+                                {solePlayableSelected
+                                  ? "Other quizzes"
+                                  : "Choose a quiz"}
+                              </summary>
+                              <div
+                                className="game-quiz-picker"
+                                role="group"
+                                aria-label="Choose a quiz"
                               >
-                                {quizStatus}
-                              </span>
-                              {!attempt?.complete &&
-                                !quiz?.attempt?.complete && (
-                                  <span>
-                                    {quizOpensIn
-                                      ? deadlineLabel(quizOpensIn, "Opens")
-                                      : quizClosesIn
-                                        ? deadlineLabel(quizClosesIn)
-                                        : "Entries closed"}
-                                  </span>
-                                )}
-                            </div>
-                            <h2>{quiz?.title}</h2>
-                          </div>
-                          {busy && !attempt ? (
-                            <ArenaSkeleton />
-                          ) : !attempt ? (
-                            <>
-                              <p>
-                                15 seconds per question. Your first answer is
-                                final. Earn 10 XP for each correct answer.
-                              </p>
-                              <p className="muted">
-                                The clock keeps running if you leave. You can
-                                play each quiz once.
-                              </p>
-                              <button
-                                className="primary wide"
-                                disabled={busy}
-                                onClick={() =>
-                                  void perform(() =>
-                                    quizAction(quizId, "start"),
+                                {home.quizzes.map((item) => {
+                                  const opensIn = secondsUntil(item.opens_at);
+                                  const closesIn = secondsUntil(item.closes_at);
+                                  const status =
+                                    item.id === quizId
+                                      ? quizStatus
+                                      : item.attempt?.complete
+                                        ? "SETTLED"
+                                        : opensIn || !closesIn
+                                          ? "LOCKED"
+                                          : "OPEN";
+                                  if (
+                                    solePlayableSelected &&
+                                    item.id === quizId
                                   )
-                                }
-                              >
-                                <Play
-                                  size={18}
-                                  fill="currentColor"
-                                  aria-hidden="true"
-                                />{" "}
-                                Start quiz
-                              </button>
-                            </>
-                          ) : attempt.complete ? (
-                            <div role="status">
-                              {lastAnswer && answerKey === freshAnswer && (
-                                <QuizFeedback
-                                  key={answerKey}
-                                  answer={lastAnswer}
-                                  animate
-                                />
-                              )}
-                              <Streak count={streak} />
-                              <div className="eyebrow">RALLY COMPLETE</div>
-                              <h2>That’s your rally.</h2>
-                              <strong
-                                className="big-xp"
-                                data-testid="v1-quiz-score"
-                              >
-                                +{attempt.score} XP
-                              </strong>
-                              <ol className="answer-review">
-                                {attempt.answers.map((a) => (
-                                  <li key={a.position}>
-                                    <strong>
-                                      Q{a.position + 1} ·{" "}
-                                      {a.option === null
-                                        ? "Timed out"
-                                        : a.xp
-                                          ? "Correct"
-                                          : "Incorrect"}{" "}
-                                      · {a.xp} XP
-                                    </strong>
-                                    <span>{a.explanation}</span>
-                                  </li>
-                                ))}
-                              </ol>
-                              <Link
-                                className="button primary"
-                                href="/play/predict"
-                              >
-                                Make your match call →
-                              </Link>
-                            </div>
-                          ) : attempt.awaiting_next ? (
-                            <div role="status" className="game-reveal">
-                              {lastAnswer && (
-                                <QuizFeedback
-                                  key={answerKey}
-                                  answer={lastAnswer}
-                                  animate={answerKey === freshAnswer}
-                                />
-                              )}
-                              <Streak count={streak} />
-                              <p>{lastAnswer?.explanation}</p>
-                              <button
-                                className="primary wide"
-                                disabled={busy}
-                                onClick={() =>
-                                  void perform(() => quizAction(quizId, "next"))
-                                }
-                              >
-                                Next question →
-                              </button>
-                            </div>
-                          ) : (
-                            attempt.question && (
-                              <>
-                                <div className="section-head">
-                                  <div className="game-question-meta">
-                                    <span className="eyebrow">
-                                      QUESTION {attempt.question.position + 1} /{" "}
-                                      {quiz?.question_count}
-                                    </span>
-                                    <div className="game-question-feedback">
-                                      <Streak count={streak} />
-                                      {lastAnswer?.option === null &&
-                                        answerKey === freshAnswer && (
-                                          <span
-                                            key={answerKey}
-                                            className="game-buzzer"
-                                            role="status"
-                                          >
-                                            <AlarmClock
-                                              size={15}
-                                              aria-hidden="true"
-                                            />{" "}
-                                            Time’s up!
+                                    return null;
+                                  return (
+                                    <button
+                                      key={item.id}
+                                      type="button"
+                                      aria-pressed={item.id === quizId}
+                                      disabled={busy}
+                                      onClick={() => {
+                                        if (item.id === quizId) return;
+                                        setSelectedQuiz(item.id);
+                                        setAttempt(null);
+                                      }}
+                                    >
+                                      <strong>{item.title}</strong>
+                                      <span className="game-card-meta">
+                                        <span
+                                          className="game-status"
+                                          data-state={status}
+                                        >
+                                          {status}
+                                        </span>
+                                        {status !== "SETTLED" && (
+                                          <span>
+                                            {opensIn
+                                              ? deadlineLabel(opensIn, "Opens")
+                                              : closesIn
+                                                ? deadlineLabel(closesIn)
+                                                : "Entries closed"}
                                           </span>
                                         )}
-                                    </div>
-                                  </div>
-                                  <QuizTimer remaining={remaining} />
-                                </div>
-                                <h2 data-testid="v1-question">
-                                  {attempt.question.prompt}
-                                </h2>
-                                <QuizAnswers
-                                  options={attempt.question.options}
-                                  disabled={busy || remaining === 0}
-                                  onAnswer={(index) =>
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </details>
+                          )}
+                          <div
+                            className="panel quiz-panel"
+                            data-live={quizStatus === "LIVE"}
+                          >
+                            <div className="game-card-art game-quiz-art">
+                              <div className="game-card-meta">
+                                <span
+                                  className="game-status"
+                                  data-state={quizStatus}
+                                >
+                                  {quizStatus}
+                                </span>
+                                {!attempt?.complete &&
+                                  !quiz?.attempt?.complete && (
+                                    <span>
+                                      {quizOpensIn
+                                        ? deadlineLabel(quizOpensIn, "Opens")
+                                        : quizClosesIn
+                                          ? deadlineLabel(quizClosesIn)
+                                          : "Entries closed"}
+                                    </span>
+                                  )}
+                              </div>
+                              <h2>{quiz?.title}</h2>
+                            </div>
+                            {busy && !attempt ? (
+                              <ArenaSkeleton />
+                            ) : !attempt ? (
+                              <>
+                                <p>
+                                  15 seconds per question. Your first answer is
+                                  final. Earn 10 XP for each correct answer.
+                                </p>
+                                <p className="muted">
+                                  The clock keeps running if you leave. You can
+                                  play each quiz once.
+                                </p>
+                                <button
+                                  className="primary wide"
+                                  disabled={busy}
+                                  onClick={() =>
                                     void perform(() =>
-                                      quizAction(
-                                        quizId,
-                                        "answer",
-                                        attempt.question!.position,
-                                        index,
-                                      ),
+                                      quizAction(quizId, "start"),
                                     )
                                   }
-                                />
-                                <p className="muted">
-                                  First tap. Final answer.
-                                </p>
+                                >
+                                  <Play
+                                    size={18}
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                  />{" "}
+                                  Start quiz
+                                </button>
                               </>
-                            )
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </section>
-                )}
-                {screen === "predict" && signedIn && (
-                  <section className="challenge-section">
-                    <span className="eyebrow">THE MATCH CALL</span>
-                    <h1>Back your instinct.</h1>
-                    {home.matches.length === 0 && (
-                      <p className="panel">No matches announced yet.</p>
-                    )}
-                    {home.matches.map((m) => {
-                      const seconds = secondsUntil(m.closes_at);
-                      const opens = m.opens_at ? secondsUntil(m.opens_at) : 0;
-                      const matchStatus = m.winner
-                        ? "SETTLED"
-                        : m.entry || !seconds || opens
-                          ? "LOCKED"
-                          : "OPEN";
-                      return (
-                        <section
-                          className="panel v1-match"
-                          key={m.id}
-                          id={`match-${m.id}`}
-                        >
-                          <div className="game-card-art game-match-art">
-                            <div className="game-card-meta">
-                              <span
-                                className="game-status"
-                                data-state={matchStatus}
-                              >
-                                {matchStatus}
-                              </span>
-                              <span>
-                                {m.winner
-                                  ? "Result confirmed"
-                                  : seconds
-                                    ? opens
-                                      ? deadlineLabel(opens, "Opens")
-                                      : deadlineLabel(seconds)
-                                    : "Entries closed"}
-                              </span>
-                            </div>
-                            <h2>
-                              {m.athlete_a} <span>vs</span> {m.athlete_b}
-                            </h2>
-                          </div>
-                          <div className="answer-grid prediction-grid">
-                            {[m.athlete_a, m.athlete_b].map((athlete, i) => (
-                              <button
-                                key={athlete}
-                                disabled={
-                                  busy ||
-                                  !!m.entry ||
-                                  !!m.winner ||
-                                  seconds === 0 ||
-                                  opens > 0
-                                }
-                                aria-pressed={m.entry?.pick === athlete}
-                                onClick={() => setPick({ match: m, athlete })}
-                              >
-                                <span className="athlete-number">0{i + 1}</span>
-                                <strong>{athlete}</strong>
-                                <small>
-                                  {m.entry?.pick === athlete
-                                    ? "YOUR LOCKED PICK ✓"
-                                    : m.entry
-                                      ? "Not picked"
-                                      : "MAKE YOUR CALL"}
-                                </small>
-                              </button>
-                            ))}
-                          </div>
-                          {pick?.match.id === m.id &&
-                            !m.entry &&
-                            !m.winner &&
-                            seconds > 0 &&
-                            !opens && (
-                              <div
-                                className="reset-confirm"
-                                role="group"
-                                aria-label="Confirm prediction"
-                              >
-                                <p>
-                                  Lock {pick.athlete}? You can’t change your
-                                  pick.
-                                </p>
-                                <div className="button-row">
-                                  <button
-                                    className="primary"
-                                    disabled={busy}
-                                    onClick={() =>
-                                      void perform(async () => {
-                                        const { error } = await client.rpc(
-                                          "v1_predict",
-                                          {
-                                            p_match_id: m.id,
-                                            p_pick: pick.athlete,
-                                          },
-                                        );
-                                        if (error) throw error;
-                                        feedback("locked");
-                                        setPick(null);
-                                        await refresh(client);
-                                      })
-                                    }
-                                  >
-                                    Lock {pick.athlete}
-                                  </button>
-                                  <button
-                                    autoFocus
-                                    onClick={() => setPick(null)}
-                                  >
-                                    Keep choosing
-                                  </button>
-                                </div>
+                            ) : attempt.complete ? (
+                              <div role="status">
+                                {lastAnswer && answerKey === freshAnswer && (
+                                  <QuizFeedback
+                                    key={answerKey}
+                                    answer={lastAnswer}
+                                    animate
+                                  />
+                                )}
+                                <Streak count={streak} />
+                                <div className="eyebrow">RALLY COMPLETE</div>
+                                <h2>That’s your rally.</h2>
+                                <strong
+                                  className="big-xp"
+                                  data-testid="v1-quiz-score"
+                                >
+                                  +{attempt.score} XP
+                                </strong>
+                                <ol className="answer-review">
+                                  {attempt.answers.map((a) => (
+                                    <li key={a.position}>
+                                      <strong>
+                                        Q{a.position + 1} ·{" "}
+                                        {a.option === null
+                                          ? "Timed out"
+                                          : a.xp
+                                            ? "Correct"
+                                            : "Incorrect"}{" "}
+                                        · {a.xp} XP
+                                      </strong>
+                                      <span>{a.explanation}</span>
+                                    </li>
+                                  ))}
+                                </ol>
+                                <Link
+                                  className="button primary"
+                                  href="/play/predict"
+                                >
+                                  Make your match call →
+                                </Link>
                               </div>
+                            ) : attempt.awaiting_next ? (
+                              <div role="status" className="game-reveal">
+                                {lastAnswer && (
+                                  <QuizFeedback
+                                    key={answerKey}
+                                    answer={lastAnswer}
+                                    animate={answerKey === freshAnswer}
+                                  />
+                                )}
+                                <Streak count={streak} />
+                                <p>{lastAnswer?.explanation}</p>
+                                <button
+                                  className="primary wide"
+                                  disabled={busy}
+                                  onClick={() =>
+                                    void perform(() =>
+                                      quizAction(quizId, "next"),
+                                    )
+                                  }
+                                >
+                                  Next question →
+                                </button>
+                              </div>
+                            ) : (
+                              attempt.question && (
+                                <>
+                                  <div className="section-head">
+                                    <div className="game-question-meta">
+                                      <span className="eyebrow">
+                                        QUESTION {attempt.question.position + 1}{" "}
+                                        / {quiz?.question_count}
+                                      </span>
+                                      <div className="game-question-feedback">
+                                        <Streak count={streak} />
+                                        {lastAnswer?.option === null &&
+                                          answerKey === freshAnswer && (
+                                            <span
+                                              key={answerKey}
+                                              className="game-buzzer"
+                                              role="status"
+                                            >
+                                              <AlarmClock
+                                                size={15}
+                                                aria-hidden="true"
+                                              />{" "}
+                                              Time’s up!
+                                            </span>
+                                          )}
+                                      </div>
+                                    </div>
+                                    <QuizTimer remaining={remaining} />
+                                  </div>
+                                  <h2 data-testid="v1-question">
+                                    {attempt.question.prompt}
+                                  </h2>
+                                  <QuizAnswers
+                                    options={attempt.question.options}
+                                    disabled={busy || remaining === 0}
+                                    onAnswer={(index) =>
+                                      void perform(() =>
+                                        quizAction(
+                                          quizId,
+                                          "answer",
+                                          attempt.question!.position,
+                                          index,
+                                        ),
+                                      )
+                                    }
+                                  />
+                                  <p className="muted">
+                                    First tap. Final answer.
+                                  </p>
+                                </>
+                              )
                             )}
-                          <p role="status" data-testid="v1-prediction-status">
-                            {m.winner
-                              ? m.entry?.pick === m.winner
-                                ? `${m.winner} wins! You called it. +20 XP`
-                                : m.entry
-                                  ? `${m.winner} wins. Better luck next time.`
-                                  : `${m.winner} wins. No entry this time.`
-                              : m.entry
-                                ? `Your ${m.entry.pick} pick is locked. Waiting for the result.`
-                                : "A correct call earns 20 XP."}
-                          </p>
-                        </section>
-                      );
-                    })}
-                  </section>
-                )}
-                {screen === "standings" && (
-                  <TournamentStandings
-                    tournament={tournament ?? null}
-                    now={gameNow}
-                    data={currentRankings}
-                    failed={rankingsFailed}
-                    profile={signedIn ? home.profile : null}
-                  />
-                )}
-                {screen === "admin" &&
-                  signedIn &&
-                  (home.admin || home.content_editor ? (
-                    <Admin
-                      client={client}
-                      busy={busy}
-                      perform={perform}
-                      onSaved={() => refresh(client)}
-                    />
-                  ) : (
-                    <section className="panel">
-                      <h1>Players’ side.</h1>
-                      <p>This area is reserved for tournament admins.</p>
-                      <Link className="button" href="/play">
-                        Back to the arena →
-                      </Link>
+                          </div>
+                        </>
+                      )}
                     </section>
-                  ))}
-              </>
-            )}
-          </>
-        )}
-      </main>
-      {celebration !== null &&
-        signedIn &&
-        !(
-          screen === "quiz" &&
-          attempt?.question &&
-          !attempt.awaiting_next &&
-          !attempt.complete
-        ) && (
-          <LevelCelebration
-            level={celebration}
-            onClose={() => setCelebration(null)}
-          />
-        )}
-      <footer>
-        <p>Independent fan game. No prizes or payments.</p>
-        <Link className="button" href="/demo">
-          Try the fictional guest demo
-        </Link>
-      </footer>
+                  )}
+                  {screen === "predict" && signedIn && (
+                    <section className="challenge-section">
+                      <span className="eyebrow">THE MATCH CALL</span>
+                      <h1>Back your instinct.</h1>
+                      {home.matches.length === 0 && (
+                        <p className="panel">No matches announced yet.</p>
+                      )}
+                      {home.matches.map((m) => {
+                        const seconds = secondsUntil(m.closes_at);
+                        const opens = m.opens_at ? secondsUntil(m.opens_at) : 0;
+                        const matchStatus = m.winner
+                          ? "SETTLED"
+                          : m.entry || !seconds || opens
+                            ? "LOCKED"
+                            : "OPEN";
+                        return (
+                          <section
+                            className="panel v1-match"
+                            key={m.id}
+                            id={`match-${m.id}`}
+                          >
+                            <div className="game-card-art game-match-art">
+                              <div className="game-card-meta">
+                                <span
+                                  className="game-status"
+                                  data-state={matchStatus}
+                                >
+                                  {matchStatus}
+                                </span>
+                                <span>
+                                  {m.winner
+                                    ? "Result confirmed"
+                                    : seconds
+                                      ? opens
+                                        ? deadlineLabel(opens, "Opens")
+                                        : deadlineLabel(seconds)
+                                      : "Entries closed"}
+                                </span>
+                              </div>
+                              <h2>
+                                {m.athlete_a} <span>vs</span> {m.athlete_b}
+                              </h2>
+                            </div>
+                            <div className="answer-grid prediction-grid">
+                              {[m.athlete_a, m.athlete_b].map((athlete, i) => (
+                                <button
+                                  key={athlete}
+                                  disabled={
+                                    busy ||
+                                    !!m.entry ||
+                                    !!m.winner ||
+                                    seconds === 0 ||
+                                    opens > 0
+                                  }
+                                  aria-pressed={m.entry?.pick === athlete}
+                                  onClick={() => setPick({ match: m, athlete })}
+                                >
+                                  <span className="athlete-number">
+                                    0{i + 1}
+                                  </span>
+                                  <strong>{athlete}</strong>
+                                  <small>
+                                    {m.entry?.pick === athlete
+                                      ? "YOUR LOCKED PICK ✓"
+                                      : m.entry
+                                        ? "Not picked"
+                                        : "MAKE YOUR CALL"}
+                                  </small>
+                                </button>
+                              ))}
+                            </div>
+                            {pick?.match.id === m.id &&
+                              !m.entry &&
+                              !m.winner &&
+                              seconds > 0 &&
+                              !opens && (
+                                <div
+                                  className="reset-confirm"
+                                  role="group"
+                                  aria-label="Confirm prediction"
+                                >
+                                  <p>
+                                    Lock {pick.athlete}? You can’t change your
+                                    pick.
+                                  </p>
+                                  <div className="button-row">
+                                    <button
+                                      className="primary"
+                                      disabled={busy}
+                                      onClick={() =>
+                                        void perform(async () => {
+                                          const { error } = await client.rpc(
+                                            "v1_predict",
+                                            {
+                                              p_match_id: m.id,
+                                              p_pick: pick.athlete,
+                                            },
+                                          );
+                                          if (error) throw error;
+                                          feedback("locked");
+                                          setPick(null);
+                                          await refresh(client);
+                                        })
+                                      }
+                                    >
+                                      Lock {pick.athlete}
+                                    </button>
+                                    <button
+                                      autoFocus
+                                      onClick={() => setPick(null)}
+                                    >
+                                      Keep choosing
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            <p role="status" data-testid="v1-prediction-status">
+                              {m.winner
+                                ? m.entry?.pick === m.winner
+                                  ? `${m.winner} wins! You called it. +20 XP`
+                                  : m.entry
+                                    ? `${m.winner} wins. Better luck next time.`
+                                    : `${m.winner} wins. No entry this time.`
+                                : m.entry
+                                  ? `Your ${m.entry.pick} pick is locked. Waiting for the result.`
+                                  : "A correct call earns 20 XP."}
+                            </p>
+                          </section>
+                        );
+                      })}
+                    </section>
+                  )}
+                  {screen === "standings" && (
+                    <TournamentStandings
+                      tournament={tournament ?? null}
+                      now={gameNow}
+                      data={currentRankings}
+                      failed={rankingsFailed}
+                      profile={signedIn ? home.profile : null}
+                    />
+                  )}
+                  {screen === "admin" &&
+                    signedIn &&
+                    (home.admin || home.content_editor ? (
+                      <Admin
+                        client={client}
+                        busy={busy}
+                        perform={perform}
+                        onSaved={() => refresh(client)}
+                      />
+                    ) : (
+                      <section className="panel">
+                        <h1>Players’ side.</h1>
+                        <p>This area is reserved for tournament admins.</p>
+                        <Link className="button" href="/play">
+                          Back to the arena →
+                        </Link>
+                      </section>
+                    ))}
+                </>
+              )}
+            </>
+          )}
+        </main>
+        {celebration !== null &&
+          signedIn &&
+          !(
+            screen === "quiz" &&
+            attempt?.question &&
+            !attempt.awaiting_next &&
+            !attempt.complete
+          ) && (
+            <LevelCelebration
+              level={celebration}
+              onClose={() => setCelebration(null)}
+            />
+          )}
+        <footer>
+          <p>Independent fan game. No prizes or payments.</p>
+          <Link className="button" href="/demo">
+            Try the fictional guest demo
+          </Link>
+        </footer>
+      </div>
     </div>
   );
 }

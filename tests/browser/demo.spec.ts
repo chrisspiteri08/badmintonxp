@@ -550,164 +550,186 @@ test("tournament rankings show countries first, the gap and full standings", asy
   await expect(page.getByText("No scorer")).toHaveCount(0);
 });
 
-test("the arena shows tournament art, rankings and challenges in availability order", async ({
-  page,
-}, info) => {
-  const viewport =
-    info.project.name === "mobile"
-      ? { width: 360, height: 800 }
-      : { width: 1440, height: 900 };
-  await page.setViewportSize(viewport);
-  const row = (id: string, name: string, rank: number, xp: number) => ({
-    id,
-    name,
-    xp,
-    rank,
-    gap: null,
-    fans: 5,
-  });
-  const home = {
-    server_now: "2026-11-19T10:00:00Z",
-    profile: null,
-    admin: false,
-    teams: [],
-    lifetime_xp: 0,
-    event_xp: 0,
-    tournament: {
-      id: "event",
-      name: "Hong Kong Open 2026",
-      city: "Hong Kong",
-      starts_at: "2026-11-17T00:00:00Z",
-      ends_at: "2026-11-22T23:59:59Z",
-      hero_image_url: "/demo/badmintonxp-arena-unbranded.jpg",
-      hero_image_alt: "Players on the Hong Kong tournament court",
-    },
-    quizzes: [
-      {
-        id: "done",
-        title: "Day 2 quiz",
-        closes_at: "2026-11-18T15:00:00Z",
-        opens_at: "2026-11-18T00:00:00Z",
-        attempt: { complete: true, score: 40 },
+test.describe("arena in a non-UTC timezone", () => {
+  test.use({ timezoneId: "Asia/Singapore" });
+  test("the arena shows tournament art, rankings and challenges in availability order", async ({
+    page,
+  }, info) => {
+    const viewport =
+      info.project.name === "mobile"
+        ? { width: 360, height: 800 }
+        : { width: 1440, height: 900 };
+    await page.setViewportSize(viewport);
+    const row = (id: string, name: string, rank: number, xp: number) => ({
+      id,
+      name,
+      xp,
+      rank,
+      gap: null,
+      fans: 5,
+    });
+    const home = {
+      server_now: "2026-11-19T10:00:00Z",
+      profile: null,
+      admin: false,
+      teams: [],
+      lifetime_xp: 0,
+      event_xp: 0,
+      tournament: {
+        id: "event",
+        name: "Hong Kong Open 2026",
+        city: "Hong Kong",
+        starts_at: "2026-11-17T00:00:00Z",
+        ends_at: "2026-11-22T23:59:59Z",
+        hero_image_url: "/demo/badmintonxp-arena-unbranded.jpg",
+        hero_image_alt: "Players on the Hong Kong tournament court",
       },
-      {
-        id: "next",
-        title: "Day 4 quiz",
-        closes_at: "2026-11-20T15:00:00Z",
-        opens_at: "2026-11-20T00:00:00Z",
-        attempt: null,
-      },
-      {
-        id: "open",
-        title: "Day 3 quiz",
-        closes_at: "2026-11-19T15:00:00Z",
-        opens_at: "2026-11-19T00:00:00Z",
-        attempt: null,
-      },
-    ],
-    matches: [
-      {
-        id: "call",
-        athlete_a: "Aster",
-        athlete_b: "Blaze",
-        closes_at: "2026-11-19T13:00:00Z",
-        winner: null,
-        entry: null,
-      },
-      {
-        id: "next-call",
-        athlete_a: "Ember",
-        athlete_b: "Kite",
-        opens_at: "2026-11-20T00:00:00Z",
-        closes_at: "2026-11-20T13:00:00Z",
-        winner: null,
-        entry: null,
-      },
-      {
-        id: "miss",
-        athlete_a: "Orchid",
-        athlete_b: "Maple",
-        closes_at: "2026-11-18T10:00:00Z",
-        winner: "Maple",
-        entry: null,
-      },
-    ],
-  };
-  await page.route("**/rest/v1/rpc/v1_home", (route) =>
-    route.fulfill({ json: home }),
-  );
-  await page.route("**/rest/v1/rpc/v1_tournament_rankings", (route) =>
-    route.fulfill({
-      json: {
-        tournament_id: "event",
-        final: false,
-        past: [],
-        boards: {
-          countries: [
-            row("MY", "MY", 1, 240),
-            row("ID", "ID", 2, 210),
-            row("JP", "JP", 3, 160),
-          ],
-          teams: [
-            row("team1", "Neon Shuttles", 1, 230),
-            row("team2", "Court Crew", 2, 180),
-            row("team3", "Net Flyers", 3, 150),
-          ],
-          players: [
-            row("fan1", "ShuttleAce", 1, 80),
-            row("fan2", "NetNinja", 2, 70),
-            row("fan3", "RallyRider", 3, 60),
-          ],
+      quizzes: [
+        {
+          id: "done",
+          title: "Day 2 quiz",
+          closes_at: "2026-11-18T15:00:00Z",
+          opens_at: "2026-11-18T00:00:00Z",
+          attempt: { complete: true, score: 40 },
         },
-      },
-    }),
-  );
-  await page.goto("/play");
-  await expect(
-    page.getByRole("heading", { name: "Hong Kong Open 2026" }),
-  ).toBeVisible();
-  await expect(page.getByText(/Day 3 of 6/)).toBeVisible();
-  await expect(
-    page.getByRole("img", {
-      name: "Players on the Hong Kong tournament court",
-    }),
-  ).toBeVisible();
-  const ranks = page.getByRole("region", { name: "Tournament rankings" });
-  await expect(ranks.getByRole("link", { name: /Countries/ })).toContainText(
-    "Malaysia",
-  );
-  await expect(ranks.getByRole("link", { name: /Fans/ })).toHaveAttribute(
-    "href",
-    "/play/standings?league=players",
-  );
-  const cards = page
-    .getByRole("region", { name: "Tournament challenges" })
-    .getByRole("listitem");
-  await expect(cards).toHaveCount(6);
-  await expect(cards.nth(0)).toContainText("Aster vs Blaze");
-  await expect(cards.nth(1)).toContainText("Day 3 quiz");
-  await expect(cards.nth(2)).toContainText("Opens");
-  await expect(cards.nth(4)).toContainText("+40 XP");
-  await expect(cards.nth(5)).toContainText("Missed");
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await expect(ranks.getByRole("link", { name: /Countries/ })).toContainText(
-    "240 XP",
-  );
-  await page.screenshot({
-    path: path.resolve(
-      "../../outputs",
-      `BadmintonXP-arena-${viewport.width}x${viewport.height}.png`,
-    ),
-    fullPage: true,
-    animations: "disabled",
+        {
+          id: "next",
+          title: "Day 4 quiz",
+          closes_at: "2026-11-20T15:00:00Z",
+          opens_at: "2026-11-20T00:00:00Z",
+          attempt: null,
+        },
+        {
+          id: "open",
+          title: "Day 3 quiz",
+          closes_at: "2026-11-19T15:00:00Z",
+          opens_at: "2026-11-19T00:00:00Z",
+          attempt: null,
+        },
+      ],
+      matches: [
+        {
+          id: "call",
+          athlete_a: "Aster",
+          athlete_b: "Blaze",
+          closes_at: "2026-11-19T13:00:00Z",
+          winner: null,
+          entry: null,
+        },
+        {
+          id: "next-call",
+          athlete_a: "Ember",
+          athlete_b: "Kite",
+          opens_at: "2026-11-20T00:00:00Z",
+          closes_at: "2026-11-20T13:00:00Z",
+          winner: null,
+          entry: null,
+        },
+        {
+          id: "miss",
+          athlete_a: "Orchid",
+          athlete_b: "Maple",
+          closes_at: "2026-11-18T10:00:00Z",
+          winner: "Maple",
+          entry: null,
+        },
+      ],
+    };
+    await page.route("**/rest/v1/rpc/v1_home", (route) =>
+      route.fulfill({ json: home }),
+    );
+    await page.route("**/rest/v1/rpc/v1_tournament_rankings", (route) =>
+      route.fulfill({
+        json: {
+          tournament_id: "event",
+          final: false,
+          past: [],
+          boards: {
+            countries: [
+              row("MY", "MY", 1, 240),
+              row("ID", "ID", 2, 210),
+              row("JP", "JP", 3, 160),
+            ],
+            teams: [
+              row("team1", "Neon Shuttles", 1, 230),
+              row("team2", "Court Crew", 2, 180),
+              row("team3", "Net Flyers", 3, 150),
+            ],
+            players: [
+              row("fan1", "ShuttleAce", 1, 80),
+              row("fan2", "NetNinja", 2, 70),
+              row("fan3", "RallyRider", 3, 60),
+            ],
+          },
+        },
+      }),
+    );
+    await page.goto("/play");
+    await expect(
+      page.getByRole("heading", { name: "Hong Kong Open 2026" }),
+    ).toBeVisible();
+    await expect(page.getByText(/Day 3 of 6/)).toBeVisible();
+    await expect(
+      page.getByRole("img", {
+        name: "Players on the Hong Kong tournament court",
+      }),
+    ).toBeVisible();
+    const ranks = page.getByRole("region", { name: "Tournament rankings" });
+    await expect(ranks.getByRole("link", { name: /Countries/ })).toContainText(
+      "Malaysia",
+    );
+    await expect(ranks.getByRole("link", { name: /Fans/ })).toHaveAttribute(
+      "href",
+      "/play/standings?league=players",
+    );
+    const cards = page
+      .getByRole("region", { name: "Tournament challenges" })
+      .getByRole("listitem");
+    await expect(cards).toHaveCount(6);
+    await expect(cards.nth(0)).toContainText("Aster vs Blaze");
+    await expect(cards.nth(1)).toContainText("Day 3 quiz");
+    await expect(cards.nth(0).locator("time")).toHaveText("Thu 21:00");
+    await expect(cards.nth(2)).toContainText("Opens Fri 08:00");
+    await expect(
+      ranks.getByText("Sign in to join your country", { exact: true }),
+    ).toHaveCount(3);
+    if (info.project.name === "mobile") {
+      const track = ranks.locator(".arena-rank-track");
+      const [first, next] = await Promise.all([
+        track.locator("a").nth(0).boundingBox(),
+        track.locator("a").nth(1).boundingBox(),
+      ]);
+      const bounds = await track.boundingBox();
+      expect(first!.width / bounds!.width).toBeCloseTo(0.86, 1);
+      expect(next!.x).toBeLessThan(bounds!.x + bounds!.width);
+      const nav = await page
+        .getByRole("navigation", { name: "Fan arena" })
+        .boundingBox();
+      const content = await page.locator(".arena-scroll").boundingBox();
+      expect(content!.y + content!.height).toBeLessThan(nav!.y);
+    }
+    await expect(cards.nth(4)).toContainText("+40 XP");
+    await expect(cards.nth(5)).toContainText("Missed");
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await expect(ranks.getByRole("link", { name: /Countries/ })).toContainText(
+      "240 XP",
+    );
+    await page.screenshot({
+      path: path.resolve(
+        "../../outputs",
+        `BadmintonXP-arena-${viewport.width}x${viewport.height}.png`,
+      ),
+      fullPage: false,
+      animations: "disabled",
+    });
+    if (info.project.name === "mobile")
+      await ranks.getByRole("button", { name: "Show Teams" }).click();
+    await ranks.getByRole("link", { name: /Teams/ }).click();
+    await expect(page).toHaveURL(/\/play\/standings\?league=teams$/);
+    await expect(page.getByRole("region", { name: "Teams" })).toBeVisible();
   });
-  if (info.project.name === "mobile")
-    await ranks.getByRole("button", { name: "Show Teams" }).click();
-  await ranks.getByRole("link", { name: /Teams/ }).click();
-  await expect(page).toHaveURL(/\/play\/standings\?league=teams$/);
-  await expect(page.getByRole("region", { name: "Teams" })).toBeVisible();
 });
