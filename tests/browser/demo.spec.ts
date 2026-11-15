@@ -774,3 +774,70 @@ test.describe("arena in a non-UTC timezone", () => {
     await expect(page.getByText(/live now/)).toHaveCount(0);
   });
 });
+
+test("the arena is installable and serves an offline shell without caching API data", async ({
+  page,
+  request,
+}) => {
+  const manifestResponse = await request.get("/manifest.webmanifest");
+  expect(manifestResponse.status()).toBe(200);
+  const manifest = await manifestResponse.json();
+  expect(manifest).toMatchObject({
+    name: "BadmintonXP",
+    short_name: "BadmintonXP",
+    start_url: "/play",
+    display: "standalone",
+  });
+  for (const icon of manifest.icons) {
+    const response = await request.get(icon.src);
+    expect(response.status()).toBe(200);
+    const png = await response.body();
+    expect(`${png.readUInt32BE(16)}x${png.readUInt32BE(20)}`).toBe(icon.sizes);
+  }
+  expect(
+    manifest.icons.some(
+      (icon: { purpose: string }) => icon.purpose === "maskable",
+    ),
+  ).toBe(true);
+  await page.goto("/play");
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
+    "href",
+    "/icons/badmintonxp-apple.png",
+  );
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+  await expect
+    .poll(() =>
+      page.evaluate(() => navigator.serviceWorker.controller?.scriptURL),
+    )
+    .toContain("/badmintonxp-sw.js");
+  const deviceConfig = await page.evaluate(() =>
+    fetch("/api/push/config").then((response) => response.json()),
+  );
+  expect(Object.keys(deviceConfig)).toEqual(["publicKey"]);
+  expect(
+    (await request.post("/api/push/send", { data: { kind: "quiz" } })).status(),
+  ).toBe(401);
+  const cached = await page.evaluate(async () => {
+    const names = (await caches.keys()).filter((name) =>
+      name.startsWith("badmintonxp-shell-"),
+    );
+    return (
+      await Promise.all(
+        names.map(async (name) =>
+          (await (await caches.open(name)).keys()).map(
+            (entry) => new URL(entry.url).pathname,
+          ),
+        ),
+      )
+    ).flat();
+  });
+  expect(cached).toContain("/badmintonxp-offline.html");
+  expect(cached.some((url) => url.startsWith("/api/") || url === "/play")).toBe(
+    false,
+  );
+  await page.context().setOffline(true);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "You’re offline" }),
+  ).toBeVisible();
+});

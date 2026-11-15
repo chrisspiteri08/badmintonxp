@@ -1106,3 +1106,20 @@
     padding-top: 6px;
   }
 }
+
+.v1 .pwa-controls {
+  margin-block: 10px 16px;
+}
+.v1 .pwa-controls h2 {
+  margin: 0 0 10px;
+  font-size: 21px;
+}
+.v1 .pwa-controls p {
+  margin: 7px 0;
+}
+.v1 .pwa-controls button {
+  margin: 3px 6px 3px 0;
+}
+.v1 .pwa-controls > div + div {
+  margin-top: 14px;
+}

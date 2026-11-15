@@ -31,6 +31,7 @@ import {
 import type { SupabaseClient, Session } from "@supabase/supabase-js";
 import { friendlyError, v1Client } from "./client";
 import type { Attempt, Home, Match, Screen } from "./types";
+import { AdminPush, PwaControls } from "@/pwa/client";
 import { Admin } from "./admin";
 import { emailReturnUrl } from "./domain";
 import { ArenaChallenges } from "./arena-challenges";
@@ -499,6 +500,22 @@ export function V1App({ screen }: { screen: Screen }) {
       )}
       <div className="arena-scroll">
         <main id="v1-content" tabIndex={-1}>
+          {signedIn && client && session && home && (
+            <PwaControls
+              key={session.user.id}
+              client={client}
+              userId={session.user.id}
+              played={Boolean(
+                attempt?.complete ||
+                home.quizzes.some((quiz) => quiz.attempt?.complete) ||
+                home.matches.some((match) => match.entry),
+              )}
+              profile={screen === "profile"}
+            />
+          )}
+          {screen === "admin" && signedIn && home?.admin && session && (
+            <AdminPush accessToken={session.access_token} />
+          )}
           {error && (
             <p className="error" role="alert">
               {error}

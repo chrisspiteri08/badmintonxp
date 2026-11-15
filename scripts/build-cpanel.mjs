@@ -22,7 +22,7 @@ const env = {
 for (const name of Object.keys(env)) {
   if (
     name.startsWith("NEXT_PUBLIC_") ||
-    /^(V1_|SUPABASE_|OPENAI_|GOOGLE_|GEMINI_|GENKIT_)/.test(name)
+    /^(VAPID_|V1_|SUPABASE_|OPENAI_|GOOGLE_|GEMINI_|GENKIT_)/.test(name)
   )
     delete env[name];
 }

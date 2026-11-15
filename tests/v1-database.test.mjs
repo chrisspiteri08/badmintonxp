@@ -106,7 +106,7 @@ test("v1: every app table has RLS and clients cannot read answer keys", async ()
       "select relname,relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and relkind='r'",
     )
   ).rows;
-  assert.equal(tables.length, 16);
+  assert.equal(tables.length, 17);
   assert.ok(tables.every((t) => t.relrowsecurity));
   await asUser(alice, async () => {
     await assert.rejects(
@@ -723,4 +723,65 @@ test("tournament desk saves accessible hero art and scheduled predictions remain
       hero_image_alt: hero.hero_image_alt,
     },
   );
+});
+
+test("push devices are private and only owner admins can list or remove expired recipients", async () => {
+  const endpoint = "https://fcm.googleapis.com/fcm/send/test-device";
+  const keys = { p256dh: "A".repeat(87), auth: "B".repeat(22) };
+  await asUser(alice, async () => {
+    await db.query(
+      "insert into public.push_subscriptions(user_id,endpoint,keys) values ($1,$2,$3)",
+      [alice, endpoint, keys],
+    );
+    assert.equal(
+      (await db.query("select endpoint from public.push_subscriptions")).rows[0]
+        .endpoint,
+      endpoint,
+    );
+    await assert.rejects(
+      db.query(
+        "insert into public.push_subscriptions(user_id,endpoint,keys) values($1,$2,$3)",
+        [bob, endpoint + "-other", keys],
+      ),
+      /row-level security/,
+    );
+  });
+  await asUser(bob, async () => {
+    assert.equal(
+      (await db.query("select * from public.push_subscriptions")).rows.length,
+      0,
+    );
+    assert.equal(
+      (
+        await db.query(
+          "delete from public.push_subscriptions where endpoint=$1 returning endpoint",
+          [endpoint],
+        )
+      ).rows.length,
+      0,
+    );
+    await assert.rejects(rpc("v1_push_recipients"), /Admin access required/);
+  });
+  await asUser(
+    null,
+    () =>
+      assert.rejects(
+        db.query("select * from public.push_subscriptions"),
+        /permission denied/,
+      ),
+    "anon",
+  );
+  await asUser(admin, async () => {
+    assert.deepEqual(
+      (await db.query("select * from public.v1_push_recipients()")).rows,
+      [{ endpoint, keys }],
+    );
+    await db.query("select * from public.v1_push_recipients(p_expired => $1)", [
+      [endpoint],
+    ]);
+    assert.equal(
+      (await db.query("select * from public.v1_push_recipients()")).rows.length,
+      0,
+    );
+  });
 });

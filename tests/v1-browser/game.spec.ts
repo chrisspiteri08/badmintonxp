@@ -185,14 +185,57 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   await expect(page.locator(".result-wrong")).toContainText("Not this rally.");
   await expect(page.getByText("0 streak", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Next question" }).click();
+  const nativePrompt = () =>
+    page.evaluate(() => {
+      const event = new Event("beforeinstallprompt", { cancelable: true });
+      Object.assign(event, {
+        prompt: async () => {
+          document.documentElement.dataset.nativeInstall = "called";
+        },
+        userChoice: Promise.resolve({ outcome: "dismissed" }),
+      });
+      window.dispatchEvent(event);
+    });
+  await nativePrompt();
+  await expect(
+    page.getByRole("heading", { name: "Add BadmintonXP to your home screen" }),
+  ).toHaveCount(0);
   movedUp = true;
   await page.getByRole("button", { name: "C 16", exact: true }).click();
   await expect(page.getByTestId("v1-quiz-score")).toHaveText("+20 XP");
   await expect(page.getByText("🇲🇾 Malaysia moved up to #8!")).toBeVisible();
   await expect(page.getByText(`Neon ${tag} moved up to #2!`)).toBeVisible();
+  const installCard = page.getByRole("complementary", {
+    name: "Install and reminders",
+  });
+  await expect(installCard).toContainText(
+    "Add BadmintonXP to your home screen",
+  );
+  await page.setViewportSize(
+    info.project.name === "mobile"
+      ? { width: 360, height: 800 }
+      : { width: 1440, height: 900 },
+  );
+  await page.screenshot({
+    path: path.resolve(
+      "../../outputs",
+      `BadmintonXP-PWA-${info.project.name === "mobile" ? "360x800" : "1440x900"}.png`,
+    ),
+    animations: "disabled",
+  });
+  await installCard
+    .getByRole("button", { name: "Install BadmintonXP" })
+    .click();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-native-install",
+    "called",
+  );
+  await expect(installCard).toBeHidden();
   await page.unroute(rankingsRpc);
   await page.reload();
   await expect(page.getByTestId("v1-quiz-score")).toHaveText("+20 XP");
+  await nativePrompt();
+  await expect(installCard).toBeHidden();
   await expect(page.getByTestId("v1-lifetime-xp")).toHaveText("20 XP");
   await page.getByRole("link", { name: "Make your match call" }).click();
   await expect(page.getByRole("button", { name: /01 Ember/ })).toBeEnabled();

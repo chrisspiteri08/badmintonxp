@@ -37,7 +37,7 @@ await cp("deployment/cpanel/UPLOAD.md", path.join(output, "UPLOAD.md"));
 // Production JS was compiled locally. Install these runtime packages on the host,
 // rather than shipping Mac native modules or overwriting cPanel's node_modules link.
 const dependencies = {};
-for (const name of ["next", "react", "react-dom", "zod"])
+for (const name of ["next", "react", "react-dom", "zod", "web-push"])
   dependencies[name] = require(`${name}/package.json`).version;
 const manifest = {
   name: "badmintonxp-cpanel-guest",
