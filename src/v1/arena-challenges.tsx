@@ -64,12 +64,20 @@ export function ArenaChallenges({
           ? a.opens - b.opens
           : b.closes - a.closes),
   );
+  const openCount = challenges.filter(
+    (item) => item.state === 0 && item.closes > now,
+  ).length;
   return (
     <section
       className="arena-challenges"
       aria-labelledby="arena-challenges-title"
     >
-      <h2 id="arena-challenges-title">Tournament challenges</h2>
+      <div className="arena-section-title">
+        <h2 id="arena-challenges-title">Your challenges</h2>
+        {openCount > 0 && (
+          <span className="arena-live-count">{openCount} live now</span>
+        )}
+      </div>
       {challenges.length ? (
         <ul className="arena-challenge-list">
           {challenges.map((item) => {

@@ -975,3 +975,64 @@
   margin-top: auto;
   padding-top: 10px;
 }
+
+.v1 .arena-section-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.v1 div.arena-section-title {
+  margin-bottom: 10px;
+}
+.v1 div.arena-section-title h2 {
+  margin: 0;
+}
+.v1 .arena-live-dot {
+  flex: 0 0 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff6274;
+  animation: arena-live-pulse 2s ease-out infinite;
+}
+@keyframes arena-live-pulse {
+  from {
+    box-shadow: 0 0 0 0 #ff627480;
+  }
+  to {
+    box-shadow: 0 0 0 7px #ff627400;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v1 .arena-live-dot {
+    animation: none;
+  }
+}
+.v1 .arena-live-count {
+  padding: 3px 8px;
+  border: 1px solid #ad514d;
+  border-radius: 999px;
+  color: #ffd1be;
+  background: #522635;
+  font-size: 12px;
+  font-weight: 800;
+}
+@media (max-width: 600px) {
+  .v1 .arena-event-hero {
+    min-height: 160px;
+  }
+  .v1 .arena-rankings,
+  .v1 .arena-challenges {
+    margin-block: 16px;
+  }
+  .v1 .arena-rankings h2 {
+    margin-top: 0;
+    margin-bottom: 8px;
+  }
+  .v1 .arena-rank-card {
+    padding-block: 12px;
+  }
+  .v1 .arena-rank-dots button {
+    min-height: 44px;
+  }
+}

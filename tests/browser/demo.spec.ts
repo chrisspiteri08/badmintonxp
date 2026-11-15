@@ -674,7 +674,7 @@ test.describe("arena in a non-UTC timezone", () => {
         name: "Players on the Hong Kong tournament court",
       }),
     ).toBeVisible();
-    const ranks = page.getByRole("region", { name: "Tournament rankings" });
+    const ranks = page.getByRole("region", { name: "Live rankings" });
     await expect(ranks.getByRole("link", { name: /Countries/ })).toContainText(
       "Malaysia",
     );
@@ -683,9 +683,11 @@ test.describe("arena in a non-UTC timezone", () => {
       "/play/standings?league=players",
     );
     const cards = page
-      .getByRole("region", { name: "Tournament challenges" })
+      .getByRole("region", { name: "Your challenges" })
       .getByRole("listitem");
     await expect(cards).toHaveCount(6);
+    await expect(page.getByText("2 live now", { exact: true })).toBeVisible();
+    await expect(ranks.locator(".arena-live-dot")).toBeVisible();
     await expect(cards.nth(0)).toContainText("Aster vs Blaze");
     await expect(cards.nth(1)).toContainText("Day 3 quiz");
     await expect(cards.nth(0).locator("time")).toHaveText("Thu 21:00");
@@ -707,6 +709,10 @@ test.describe("arena in a non-UTC timezone", () => {
         .boundingBox();
       const content = await page.locator(".arena-scroll").boundingBox();
       expect(content!.y + content!.height).toBeLessThan(nav!.y);
+      const firstChallenge = await cards.first().boundingBox();
+      expect(firstChallenge!.y + firstChallenge!.height).toBeLessThanOrEqual(
+        content!.y + content!.height,
+      );
     }
     await expect(cards.nth(4)).toContainText("+40 XP");
     await expect(cards.nth(5)).toContainText("Missed");
@@ -731,5 +737,12 @@ test.describe("arena in a non-UTC timezone", () => {
     await ranks.getByRole("link", { name: /Teams/ }).click();
     await expect(page).toHaveURL(/\/play\/standings\?league=teams$/);
     await expect(page.getByRole("region", { name: "Teams" })).toBeVisible();
+    home.server_now = "2026-11-23T10:00:00Z";
+    await page.goto("/play");
+    await expect(
+      page.getByRole("heading", { name: "Final rankings" }),
+    ).toBeVisible();
+    await expect(page.locator(".arena-live-dot")).toHaveCount(0);
+    await expect(page.getByText(/live now/)).toHaveCount(0);
   });
 });

@@ -116,10 +116,12 @@ export function ArenaRankings({
   data,
   profile,
   failed,
+  ended,
 }: {
   data: TournamentRankings | null;
   profile: Profile | null;
   failed: boolean;
+  ended: boolean;
 }) {
   const track = useRef<HTMLDivElement>(null);
   const previous = useRef<TournamentRankings | null>(null);
@@ -145,7 +147,10 @@ export function ArenaRankings({
     data && leagues.some((league) => data.boards[league].length > 0);
   return (
     <section className="arena-rankings" aria-labelledby="arena-rankings-title">
-      <h2 id="arena-rankings-title">Tournament rankings</h2>
+      <h2 className="arena-section-title" id="arena-rankings-title">
+        {!ended && <span className="arena-live-dot" aria-hidden="true" />}
+        {ended ? "Final rankings" : "Live rankings"}
+      </h2>
       {failed ? (
         <p role="status">Rankings are temporarily unavailable.</p>
       ) : data === null ? (

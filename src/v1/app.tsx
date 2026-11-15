@@ -518,6 +518,9 @@ export function V1App({ screen }: { screen: Screen }) {
                     data={currentRankings}
                     profile={signedIn ? home.profile : null}
                     failed={rankingsFailed}
+                    ended={Boolean(
+                      tournament && gameNow >= Date.parse(tournament.ends_at),
+                    )}
                   />
                   <ArenaChallenges
                     home={home}
