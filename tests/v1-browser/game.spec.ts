@@ -72,7 +72,10 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
     if (m.type() === "error") errors.push(m.text());
   });
   await page.goto("/");
-  await page.getByRole("link", { name: "Register free" }).click();
+  await page
+    .locator(".launch-hero")
+    .getByRole("link", { name: "Register free" })
+    .click();
   await page.getByLabel("Player name").fill(username);
   await page.getByLabel("Country").selectOption("MY");
   await page.getByRole("radio", { name: "Join an existing team" }).check();

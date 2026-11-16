@@ -26,7 +26,7 @@ export default function LaunchLayout({
       </header>
       {children}
       <footer className="launch-footer">
-        <p>Free · No prizes · Independent fan game</p>
+        <p>Independent fan game</p>
         <nav aria-label="BadmintonXP information">
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>

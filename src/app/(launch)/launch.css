@@ -49,7 +49,7 @@
   position: relative;
   isolation: isolate;
   display: flex;
-  flex: 1;
+  min-height: calc(100svh - 166px);
   padding: 36px max(18px, calc((100% - 1120px) / 2));
   background: linear-gradient(130deg, #06152c 15%, #143151);
   border-block: 1px solid #344c69;
@@ -128,6 +128,7 @@
 }
 @media (min-width: 800px) {
   .launch-hero {
+    min-height: calc(100svh - 128px);
     padding-block: 54px;
   }
 }
@@ -139,4 +140,68 @@
 
 .launch-footer p {
   margin: 0;
+}
+
+.launch-benefits {
+  width: min(1120px, calc(100% - 36px));
+  margin-inline: auto;
+  padding-block: 24px 28px;
+  text-align: center;
+}
+.launch-benefit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.launch-benefit {
+  padding: 13px;
+  border: 1px solid #355273;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #122945, #0a203b);
+}
+.launch-benefit-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 8px;
+  border-radius: 9px;
+  background: #71304655;
+  box-shadow: 0 0 15px #ff6c4333;
+  font-size: 18px;
+}
+.launch-benefit h2 {
+  margin-bottom: 5px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.launch-benefit p,
+.launch-benefit-note {
+  color: #c4d3e6;
+  font-size: 13px;
+  line-height: 1.42;
+}
+.launch-benefit-note {
+  margin-block: 16px 12px;
+}
+@media (min-width: 800px) {
+  .launch-benefit-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .launch-benefit {
+    padding: 20px;
+  }
+  .launch-benefit h2 {
+    font-size: 18px;
+  }
+  .launch-benefit p {
+    font-size: 15px;
+  }
 }

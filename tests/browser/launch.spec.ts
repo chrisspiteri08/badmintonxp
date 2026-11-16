@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import path from "node:path";
 
-test("landing fits one screen and sends fans to registration", async ({
+test("landing shows the benefits and both registration links", async ({
   page,
   request,
 }, info) => {
@@ -18,24 +18,70 @@ test("landing fits one screen and sends fans to registration", async ({
   await expect(page.locator("main")).toContainText(
     "A free badminton quiz and prediction game. Officially launching at the World Tour Finals, 9–13 Dec.",
   );
-  await expect(page.locator("footer")).toContainText(
-    "Free · No prizes · Independent fan game",
+  const benefits = page.getByRole("region", { name: "Why play BadmintonXP" });
+  await expect(page.locator(".launch-hero + .launch-benefits")).toBeVisible();
+  await expect(page.getByRole("listitem")).toHaveCount(4);
+  for (const [title, copy] of [
+    [
+      "Play for your country",
+      "Every point you score lifts your nation in the live country rankings.",
+    ],
+    [
+      "Call the big match",
+      "Predict one featured match a day. Get it right for +20 XP.",
+    ],
+    [
+      "Daily badminton quiz",
+      "Quick questions every day of the tournament, easy to hard. +10 XP each.",
+    ],
+    [
+      "Build your team",
+      "Start a team, invite friends, and climb together. Your top 10 count.",
+    ],
+  ]) {
+    const card = benefits
+      .getByRole("listitem")
+      .filter({ has: page.getByRole("heading", { name: title }) });
+    await expect(card).toContainText(copy);
+    await expect(card.locator(".launch-benefit-icon")).toBeVisible();
+  }
+  await expect(benefits).toContainText(
+    "Free to play. Every tournament starts at 0.",
   );
-  await expect(page.locator("main form, main section")).toHaveCount(0);
-  await expect(page.locator("main a")).toHaveCount(1);
+  await expect(page.getByRole("contentinfo")).not.toContainText(
+    /prizes|payments/i,
+  );
+  const register = page.getByRole("link", {
+    name: "Register free",
+    exact: true,
+  });
+  await expect(register).toHaveCount(2);
+  for (const link of await register.all())
+    await expect(link).toHaveAttribute("href", "/play/account?mode=signup");
   expect(
-    await page.evaluate(
-      () =>
-        document.documentElement.scrollWidth <= innerWidth &&
-        document.documentElement.scrollHeight <= innerHeight,
-    ),
-  ).toBe(true);
+    await page.evaluate(() => {
+      const cards = Array.from(document.querySelectorAll(".launch-benefit"));
+      return {
+        columns: cards.filter(
+          (card) =>
+            card.getBoundingClientRect().top ===
+            cards[0].getBoundingClientRect().top,
+        ).length,
+        fits:
+          document.documentElement.scrollWidth <= innerWidth &&
+          document.documentElement.scrollHeight <= 2 * innerHeight,
+      };
+    }),
+  ).toEqual({ columns: viewport.width === 360 ? 2 : 4, fits: true });
+  if (process.env.LAUNCH_BENEFITS_SCREENSHOTS === "1") {
+    await benefits.scrollIntoViewIfNeeded();
+  }
   await page.screenshot({
     path: path.resolve(
       process.env.LAUNCH_SCREENSHOT_DIR || "../../outputs",
-      `BadmintonXP-registration-${viewport.width}x${viewport.height}.png`,
+      `BadmintonXP-benefits-${viewport.width}x${viewport.height}.png`,
     ),
-    fullPage: true,
+    fullPage: process.env.LAUNCH_BENEFITS_SCREENSHOTS !== "1",
     animations: "disabled",
   });
 
@@ -50,7 +96,7 @@ test("landing fits one screen and sends fans to registration", async ({
   const image = await request.get(new URL(ogImage!).pathname);
   expect(image.status()).toBe(200);
   expect(image.headers()["content-type"]).toContain("image/png");
-  await page.getByRole("link", { name: "Register free" }).click();
+  await benefits.getByRole("link", { name: "Register free" }).click();
   await expect(page).toHaveURL(/\/play\/account\?mode=signup$/);
   await expect(page.locator(".v1")).toBeVisible();
 });
