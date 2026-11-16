@@ -485,12 +485,55 @@ test("server timeout advances a real unanswered question and saves the final sco
   await page.getByLabel("Password", { exact: true }).fill(pass);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "You’re in." })).toBeVisible();
+  await page.clock.install();
+  let started = false;
+  let heldRefresh = false;
+  let timeoutResumes = 0;
+  let releaseRefresh!: () => void;
+  const refreshGate = new Promise<void>((resolve) => {
+    releaseRefresh = resolve;
+  });
+  await page.route("**/rest/v1/rpc/v1_quiz", async (route) => {
+    const action = route.request().postDataJSON().p_action;
+    if (action === "start") started = true;
+    if (action === "resume" && started) timeoutResumes++;
+    await route.continue();
+  });
+  await page.route("**/rest/v1/rpc/v1_home", async (route) => {
+    if (!started || heldRefresh) {
+      await route.continue();
+      return;
+    }
+    heldRefresh = true;
+    await refreshGate;
+    const response = await route.fetch();
+    const home = await response.json();
+    // Keep the held refresh in sync with the intentionally advanced browser clock.
+    home.server_now = await page.evaluate(() => new Date().toISOString());
+    await route.fulfill({ response, json: home });
+  });
   await page.goto("/play/quiz");
   await page.getByRole("button", { name: "Start quiz" }).click();
   await expect(page.getByTestId("v1-question")).toContainText("Round 1");
-  await expect(page.getByRole("timer")).toHaveClass(/urgent/, {
-    timeout: 17000,
-  });
+  await expect.poll(() => heldRefresh).toBe(true);
+  try {
+    await page.clock.fastForward(11_000);
+    await expect(page.getByRole("timer")).toHaveClass(/urgent/);
+    await page.clock.fastForward(5_000);
+    await expect(
+      page.getByRole("timer", { name: "0 seconds remaining" }),
+    ).toBeVisible();
+    expect(timeoutResumes).toBe(0);
+
+    // The browser clock cannot advance PostgreSQL's clock.
+    const { error } = await f.admin
+      .from("attempts")
+      .update({ deadline: new Date(Date.now() - 1000).toISOString() })
+      .eq("quiz_id", f.quiz);
+    expect(error).toBeNull();
+  } finally {
+    releaseRefresh();
+  }
   await expect(page.getByTestId("v1-question")).toContainText("Round 2", {
     timeout: 22000,
   });

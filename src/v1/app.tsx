@@ -334,11 +334,15 @@ export function V1App({ screen }: { screen: Screen }) {
       !attempt ||
       attempt.complete ||
       attempt.awaiting_next ||
-      remaining > 0
+      remaining !== 0 ||
+      busy
     )
       return;
-    void perform(() => quizAction(attempt.quiz_id, "resume"));
-  }, [screen, attempt, remaining, quizAction, perform]);
+    const retry = window.setTimeout(() => {
+      void perform(() => quizAction(attempt.quiz_id, "resume"));
+    }, 250);
+    return () => window.clearTimeout(retry);
+  }, [screen, attempt, remaining, busy, quizAction, perform]);
   const showRankings = screen === "standings" || screen === "arena";
   const rankingCountry = rankingProfile?.country;
   const rankingTeam = rankingProfile?.team_id;
