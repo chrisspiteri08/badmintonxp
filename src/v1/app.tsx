@@ -46,7 +46,6 @@ import {
 const eventDates = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
-  timeZone: "UTC",
 });
 const navigation = [
   ["Arena", "/play", House],
@@ -588,9 +587,7 @@ export function V1App({ screen }: { screen: Screen }) {
                     data={currentRankings}
                     profile={signedIn ? home.profile : null}
                     failed={rankingsFailed}
-                    ended={Boolean(
-                      tournament && gameNow >= Date.parse(tournament.ends_at),
-                    )}
+                    ended={currentRankings?.final ?? false}
                   />
                   <ArenaChallenges
                     home={home}

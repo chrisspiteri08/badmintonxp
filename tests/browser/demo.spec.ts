@@ -638,11 +638,12 @@ test.describe("arena in a non-UTC timezone", () => {
     await page.route("**/rest/v1/rpc/v1_home", (route) =>
       route.fulfill({ json: home }),
     );
+    let finalRankings = false;
     await page.route("**/rest/v1/rpc/v1_tournament_rankings", (route) =>
       route.fulfill({
         json: {
           tournament_id: "event",
-          final: false,
+          final: finalRankings,
           past: [],
           boards: {
             countries: [
@@ -668,7 +669,9 @@ test.describe("arena in a non-UTC timezone", () => {
     await expect(
       page.getByRole("heading", { name: "Hong Kong Open 2026" }),
     ).toBeVisible();
-    await expect(page.getByText(/Day 3 of 6/)).toBeVisible();
+    await expect(
+      page.getByText(/17\s*[–-]\s*23 Nov.*Day 3 of 6/),
+    ).toBeVisible();
     await expect(
       page.getByRole("img", {
         name: "Players on the Hong Kong tournament court",
@@ -767,6 +770,12 @@ test.describe("arena in a non-UTC timezone", () => {
 
     home.server_now = "2026-11-23T10:00:00Z";
     await page.goto("/play");
+    await expect(
+      page.getByRole("heading", { name: "Live rankings" }),
+    ).toBeVisible();
+    await expect(page.getByText("Awaiting final results")).toBeVisible();
+    finalRankings = true;
+    await page.reload();
     await expect(
       page.getByRole("heading", { name: "Final rankings" }),
     ).toBeVisible();
