@@ -33,6 +33,8 @@ import { friendlyError, v1Client } from "./client";
 import type { Attempt, Home, Match, Screen } from "./types";
 import { AdminPush, PwaControls } from "@/pwa/client";
 import { Admin } from "./admin";
+import { LaunchCountdown } from "@/launch/live";
+import { PreviewFeedback } from "./preview-feedback";
 import { emailReturnUrl } from "./domain";
 import { ArenaChallenges } from "./arena-challenges";
 import { QuizAnswers, QuizTimer } from "./quiz-ui";
@@ -97,6 +99,8 @@ export function V1App({ screen }: { screen: Screen }) {
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     setChallengeLink({ quiz: query.get("quiz"), match: query.get("match") });
+    if (screen === "account" && query.get("mode") === "signup")
+      setAuthMode("signup");
   }, [screen]);
   const [pick, setPick] = useState<{ match: Match; athlete: string } | null>(
     null,
@@ -130,6 +134,9 @@ export function V1App({ screen }: { screen: Screen }) {
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot">(
     "login",
   );
+  const [registration, setRegistration] = useState<
+    "confirm" | "complete" | null
+  >(null);
   const refresh = useCallback(async (c: SupabaseClient) => {
     const { data, error } = await c.rpc("v1_home");
     if (error) throw error;
@@ -147,13 +154,18 @@ export function V1App({ screen }: { screen: Screen }) {
           const { data, error } = await c.auth.getSession();
           if (error) throw error;
           if (disposed) return;
+          let currentUserId = data.session?.user.id;
           setSession(data.session);
           const listener = c.auth.onAuthStateChange((event, next) => {
             if (!disposed && event !== "INITIAL_SESSION") {
               setSession(next);
-              setAttempt(null);
-              setHome(null);
+              if (currentUserId !== next?.user.id) {
+                currentUserId = next?.user.id;
+                setAttempt(null);
+                setHome(null);
+              }
               if (event === "SIGNED_OUT") {
+                setRegistration(null);
                 setPendingRankToasts([]);
                 setRankToasts([]);
               }
@@ -299,18 +311,11 @@ export function V1App({ screen }: { screen: Screen }) {
       feedback("level");
     }
   }, [session, home, feedback]);
+  const quizPlayer = session?.user.id;
   useEffect(() => {
-    if (screen !== "quiz" || !session || !quizId || !challengeLink) return;
+    if (screen !== "quiz" || !quizPlayer || !quizId || !challengeLink) return;
     void perform(() => quizAction(quizId, "resume"));
-  }, [
-    screen,
-    session?.user.id,
-    quizId,
-    quizAction,
-    perform,
-    session,
-    challengeLink,
-  ]);
+  }, [screen, quizPlayer, quizId, quizAction, perform, challengeLink]);
   const remaining = attempt
     ? Math.min(
         15,
@@ -404,14 +409,15 @@ export function V1App({ screen }: { screen: Screen }) {
           password,
           options: {
             emailRedirectTo: emailReturnUrl(location.origin, "account"),
+            data: {
+              username: data.get("username"),
+              country: data.get("country"),
+              team_id: data.get("team"),
+            },
           },
         });
         if (error) throw error;
-        setMessage(
-          result.session
-            ? "You’re in. Set up your player profile to get started."
-            : "Check your inbox to confirm your email, then sign in.",
-        );
+        setRegistration(result.session ? "complete" : "confirm");
       } else {
         const { error } = await client.auth.signInWithPassword({
           email,
@@ -555,6 +561,17 @@ export function V1App({ screen }: { screen: Screen }) {
                         }}
                       />
                     )}
+                    {tournament &&
+                      !/^world tour finals(?: [0-9]{4})?$/i.test(
+                        tournament.name.trim().replace(/\s+/g, " "),
+                      ) && (
+                        <PreviewFeedback
+                          key={tournament.id}
+                          client={client}
+                          tournamentId={tournament.id}
+                          signedIn={signedIn}
+                        />
+                      )}
                     <div>
                       <h1 id="v1-event-title">
                         {tournament?.name || "The next rally"}
@@ -631,7 +648,21 @@ export function V1App({ screen }: { screen: Screen }) {
               ) : (
                 <>
                   {screen === "account" &&
-                    (signedIn ? (
+                    (registration ? (
+                      <section className="panel registration-success">
+                        <h1>You&apos;re in for the World Tour Finals 🏸</h1>
+                        {registration === "confirm" && !signedIn && (
+                          <p role="status">
+                            Check your inbox to confirm your email before
+                            playing.
+                          </p>
+                        )}
+                        <LaunchCountdown />
+                        <Link className="button" href="/play">
+                          Try the preview · Hong Kong Open
+                        </Link>
+                      </section>
+                    ) : signedIn ? (
                       <section className="panel">
                         <h1>You’re in.</h1>
                         <p>Welcome, {home.profile?.username}.</p>
@@ -653,6 +684,48 @@ export function V1App({ screen }: { screen: Screen }) {
                               : "Welcome back."}
                         </h1>
                         <form onSubmit={onAuth}>
+                          {authMode === "signup" && (
+                            <>
+                              <label>
+                                Player name
+                                <input
+                                  name="username"
+                                  autoComplete="nickname"
+                                  minLength={3}
+                                  maxLength={24}
+                                  pattern="[A-Za-z0-9_]{3,24}"
+                                  required
+                                />
+                                <small>
+                                  3–24 letters, numbers or underscores.
+                                </small>
+                              </label>
+                              <label>
+                                Country
+                                <select name="country" defaultValue="" required>
+                                  <option value="" disabled>
+                                    Choose your country
+                                  </option>
+                                  {countries.map(([code, name]) => (
+                                    <option value={code} key={code}>
+                                      {name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label>
+                                Team
+                                <select name="team">
+                                  <option value="">Independent fan</option>
+                                  {home.teams.map((team) => (
+                                    <option value={team.id} key={team.id}>
+                                      {team.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </>
+                          )}
                           <label>
                             Email
                             <input

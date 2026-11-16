@@ -23,21 +23,14 @@ export default function LaunchLayout({
           />
           Badminton<span>XP</span>
         </Link>
-        <Link className="launch-button launch-secondary" href="/#waitlist">
-          Join waitlist
-        </Link>
       </header>
       {children}
       <footer className="launch-footer">
+        <p>Free · No prizes · Independent fan game</p>
         <nav aria-label="BadmintonXP information">
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
           <Link href="/about">About</Link>
-        </nav>
-        <nav aria-label="Social media">
-          <a href="https://x.com/badmintonxpgame">X</a>
-          <a href="https://instagram.com/badmintonxpgame">Instagram</a>
-          <a href="https://facebook.com/badmintonxp">Facebook</a>
         </nav>
       </footer>
     </div>

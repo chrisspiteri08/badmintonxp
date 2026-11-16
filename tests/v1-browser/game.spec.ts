@@ -60,16 +60,28 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(m.text());
   });
-  await page.goto("/play/account");
-  await page
-    .getByRole("button", { name: "Create an account", exact: true })
-    .click();
+  await page.goto("/");
+  await page.getByRole("link", { name: "Register free" }).click();
+  await page.getByLabel("Player name").fill(username);
+  await page.getByLabel("Country").selectOption("MY");
+  await page.getByLabel("Team").selectOption(f.team);
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill(pass);
   await page
     .getByRole("button", { name: "Create account", exact: true })
     .click();
   await expect(page.getByRole("status")).toContainText("Check your inbox");
+  await expect(
+    page.getByRole("heading", {
+      name: "You're in for the World Tour Finals 🏸",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("timer", { name: "Time until launch" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Try the preview · Hong Kong Open" }),
+  ).toHaveAttribute("href", "/play");
   await page.goto(await mailLink(request, email, "Confirm"));
   await expect(page.getByRole("heading", { name: "You’re in." })).toBeVisible();
   await page.getByRole("link", { name: "Set up your profile" }).click();
@@ -82,6 +94,33 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
     .selectOption(f.team);
   await page.getByRole("button", { name: "Save profile", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Player profile saved");
+  let sent = false;
+  await page.route("**/rest/v1/feedback", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toEqual({
+      tournament_id: f.tournament,
+      rating: 5,
+      comment: "Great preview!",
+    });
+    sent = true;
+    await route.fulfill({ status: 201 });
+  });
+  await page.goto("/play");
+  await expect(page.getByLabel("Preview edition")).toContainText(
+    "Help shape the game",
+  );
+  await page.getByRole("button", { name: "Feedback", exact: true }).click();
+  const feedback = page.getByRole("dialog", { name: "How’s the preview?" });
+  await feedback.getByRole("button", { name: "Send feedback" }).click();
+  expect(sent).toBe(false);
+  await feedback.getByLabel("Rating").selectOption("5");
+  await feedback.getByLabel("Comment (optional)").fill("Great preview!");
+  await feedback.getByRole("button", { name: "Send feedback" }).click();
+  await expect(feedback.getByRole("status")).toContainText(
+    "Thanks for helping",
+  );
+  expect(sent).toBe(true);
+  await feedback.getByRole("button", { name: "Close" }).click();
   await page.goto("/play/admin");
   await expect(
     page.getByRole("heading", { name: "Players’ side." }),
@@ -349,7 +388,25 @@ test("admin desk is role guarded and saves unpublished tournament drafts", async
   await page.getByLabel("Password", { exact: true }).fill(f.pass);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "You’re in." })).toBeVisible();
+  await page.route("**/rest/v1/feedback?*", (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: "feedback-test",
+          user_id: "fan-test",
+          tournament_id: "event-test",
+          rating: 4,
+          comment: "More doubles quizzes, please.",
+          created_at: "2026-11-16T12:00:00Z",
+        },
+      ],
+    }),
+  );
   await page.goto("/play/admin");
+  await expect(
+    page.getByRole("heading", { name: "Preview feedback" }),
+  ).toBeVisible();
+  await expect(page.getByText("More doubles quizzes, please.")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Set the stage." }),
   ).toBeVisible();

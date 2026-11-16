@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { heroBucket, TournamentHeroForm } from "./tournament-hero";
+import { AdminFeedback } from "./preview-feedback";
 import type { AdminData } from "./types";
 import { tournamentPublicationHeld } from "./domain";
 import { quizPublishIssues, tournamentPublishIssues } from "./admin-readiness";
@@ -655,6 +656,13 @@ export function Admin({
               </div>
             ))}
           </section>
+          {data.role === "admin" && (
+            <AdminFeedback
+              client={client}
+              players={data.players}
+              tournaments={data.tournaments}
+            />
+          )}
           {data.role === "admin" && (
             <section className="panel v1-admin-section">
               <h2>Players</h2>

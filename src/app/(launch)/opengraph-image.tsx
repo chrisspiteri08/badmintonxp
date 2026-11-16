@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "BadmintonXP | The badminton community game";
+export const alt = "BadmintonXP | A free badminton quiz and prediction game";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -30,7 +30,7 @@ export default function OpenGraphImage() {
         BADMINTON<span style={{ color: "#ff914c" }}>XP</span>
       </div>
       <div style={{ display: "flex", fontSize: 90, fontWeight: 900 }}>
-        Predict. Quiz.
+        Pick your country.
       </div>
       <div
         style={{
@@ -40,10 +40,10 @@ export default function OpenGraphImage() {
           color: "#ff914c",
         }}
       >
-        Earn XP for your country.
+        Beat the world.
       </div>
       <div style={{ display: "flex", fontSize: 28, marginTop: 30 }}>
-        The badminton community game
+        A free badminton quiz and prediction game
       </div>
     </div>,
     size,

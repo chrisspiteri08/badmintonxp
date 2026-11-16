@@ -29,7 +29,7 @@ async function asUser(id, fn, role = "authenticated") {
 }
 before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
- create table auth.users(id uuid primary key,email text);
+ create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb);
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  grant usage on schema auth to anon,authenticated; grant execute on function auth.uid() to anon,authenticated;`);
   await db.exec(`
@@ -117,7 +117,7 @@ test("v1: every app table has RLS and clients cannot read answer keys", async ()
       "select relname,relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and relkind='r'",
     )
   ).rows;
-  assert.equal(tables.length, 17);
+  assert.equal(tables.length, 18);
   assert.ok(tables.every((t) => t.relrowsecurity));
   await asUser(alice, async () => {
     await assert.rejects(
@@ -883,4 +883,93 @@ test("tournament hero storage allows public reads and only editors or admins can
       2,
     );
   });
+});
+
+test("registration saves profile choices from Auth metadata", async () => {
+  const id = "60000000-0000-0000-0000-000000000001";
+  const duplicate = "70000000-0000-0000-0000-000000000001";
+  const metadata = { username: "PreviewFan", country: "MT", team_id: team };
+  for (const player of [id, duplicate]) {
+    await db.query(
+      "insert into auth.users(id,email,raw_user_meta_data) values($1,$2,$3)",
+      [player, `${player}@example.test`, metadata],
+    );
+  }
+  assert.deepEqual(
+    await scalar(
+      "select username,country,team_id from public.profiles where id=$1",
+      [id],
+    ),
+    {
+      username: "PreviewFan",
+      country: "MT",
+      team_id: team,
+    },
+  );
+  assert.match(
+    (
+      await scalar("select username from public.profiles where id=$1", [
+        duplicate,
+      ])
+    ).username,
+    /^player_/,
+  );
+});
+
+test("feedback is insert-only for fans and readable only by admins", async () => {
+  const submit = (rating) =>
+    db.query(
+      "insert into public.feedback(tournament_id,rating,comment) values($1,$2,'Great preview!')",
+      [tournament, rating],
+    );
+  await asUser(
+    null,
+    () => assert.rejects(submit(5), /permission denied/),
+    "anon",
+  );
+  await asUser(alice, () => assert.rejects(submit(5), /row-level security/));
+  await db.exec("update public.tournaments set active=false where active");
+  await db.query("update public.tournaments set active=true where id=$1", [
+    tournament,
+  ]);
+  await asUser(alice, async () => {
+    await assert.rejects(submit(6), /check constraint/);
+    await assert.rejects(
+      db.query(
+        "insert into public.feedback(user_id,tournament_id,rating) values($1,$2,5)",
+        [bob, tournament],
+      ),
+      /permission denied/,
+    );
+    await submit(5);
+    assert.equal(
+      (await db.query("select * from public.feedback")).rows.length,
+      0,
+    );
+    await assert.rejects(
+      db.query("update public.feedback set rating=1"),
+      /permission denied/,
+    );
+  });
+  await asUser(admin, async () => {
+    assert.deepEqual(
+      await scalar("select user_id,rating,comment from public.feedback"),
+      {
+        user_id: alice,
+        rating: 5,
+        comment: "Great preview!",
+      },
+    );
+  });
+  await db.query(
+    "insert into private.content_editors(user_id) values($1) on conflict do nothing",
+    [bob],
+  );
+  await asUser(bob, async () => {
+    assert.equal(
+      (await db.query("select * from public.feedback")).rows.length,
+      0,
+    );
+  });
+  await db.query("delete from private.content_editors where user_id=$1", [bob]);
 });

@@ -677,6 +677,17 @@ test.describe("arena in a non-UTC timezone", () => {
         name: "Players on the Hong Kong tournament court",
       }),
     ).toBeVisible();
+    const preview = page.getByRole("complementary", {
+      name: "Preview edition",
+    });
+    await expect(preview).toContainText(
+      "Preview edition · Help shape the game",
+    );
+    await preview.getByRole("button", { name: "Feedback" }).click();
+    await expect(
+      page.getByRole("link", { name: "Sign in to give feedback" }),
+    ).toHaveAttribute("href", "/play/account");
+    await page.keyboard.press("Escape");
     const ranks = page.getByRole("region", { name: "Live rankings" });
     await expect(ranks.getByRole("link", { name: /Countries/ })).toContainText(
       "Malaysia",
@@ -781,6 +792,12 @@ test.describe("arena in a non-UTC timezone", () => {
     ).toBeVisible();
     await expect(page.locator(".arena-live-dot")).toHaveCount(0);
     await expect(page.getByText(/live now/)).toHaveCount(0);
+    home.tournament.name = "World Tour Finals 2026";
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: "World Tour Finals 2026" }),
+    ).toBeVisible();
+    await expect(preview).toHaveCount(0);
   });
 });
 
