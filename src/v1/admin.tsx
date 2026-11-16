@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { heroBucket, TournamentHeroForm } from "./tournament-hero";
 import type { AdminData } from "./types";
 import { tournamentPublicationHeld } from "./domain";
 import { quizPublishIssues, tournamentPublishIssues } from "./admin-readiness";
@@ -75,14 +76,38 @@ export function Admin({
   useEffect(() => {
     void perform(load);
   }, [perform, load]);
-  const save = (kind: string, fields: Record<string, unknown>) =>
+  const save = (
+    kind: string,
+    fields: Record<string, unknown>,
+    image?: Blob | null,
+  ) =>
     perform(async () => {
       setNotice("");
+      const bucket = client.storage.from(heroBucket);
+      let uploadedPath: string | undefined;
+      if (image) {
+        const path = `${fields.tournament_id}/${crypto.randomUUID()}.webp`;
+        const uploaded = await bucket.upload(path, image, {
+          contentType: "image/webp",
+          cacheControl: "31536000",
+        });
+        if (uploaded.error)
+          throw new Error(
+            "Tournament desk couldn’t upload the hero image. Try again or paste an HTTPS URL.",
+          );
+        uploadedPath = uploaded.data.path;
+        fields.hero_image_url =
+          bucket.getPublicUrl(uploadedPath).data.publicUrl;
+      }
       const { error } = await client.rpc("v1_admin_save", {
         p_kind: kind,
         p_data: fields,
       });
-      if (error) throw error;
+      if (error) {
+        if (uploadedPath && error.code)
+          await bucket.remove([uploadedPath]).catch(() => {});
+        throw error;
+      }
       await load();
       await onSaved();
       if (kind === "question" || kind === "delete_question") {
@@ -277,47 +302,23 @@ export function Admin({
           <details className="panel v1-admin-section">
             <summary>Tournament hero</summary>
             <p>
-              Paste a public HTTPS image URL or leave it blank for the
-              tournament gradient.
+              Choose a JPG, PNG or WebP up to 5 MB, or paste a public HTTPS
+              image URL.
             </p>
             {data.tournaments.map((event) => (
-              <form
-                key={event.id}
-                aria-label={`Hero for ${event.name}`}
-                onSubmit={submit("tournament_hero")}
-              >
-                <h3>{event.name}</h3>
-                <input type="hidden" name="tournament_id" value={event.id} />
-                <label>
-                  City
-                  <input
-                    name="city"
-                    defaultValue={event.city ?? ""}
-                    maxLength={100}
-                  />
-                </label>
-                <label>
-                  Hero image URL
-                  <input
-                    name="hero_image_url"
-                    type="url"
-                    pattern="https://.+"
-                    defaultValue={event.hero_image_url ?? ""}
-                    maxLength={2048}
-                  />
-                </label>
-                <label>
-                  Hero image alt text
-                  <input
-                    name="hero_image_alt"
-                    defaultValue={event.hero_image_alt ?? ""}
-                    maxLength={200}
-                  />
-                </label>
-                <button className="primary" disabled={busy}>
-                  Save hero
-                </button>
-              </form>
+              <TournamentHeroForm
+                key={JSON.stringify([
+                  event.id,
+                  event.hero_image_url,
+                  event.hero_image_alt,
+                  event.city,
+                ])}
+                event={event}
+                busy={busy}
+                onSave={(fields, image) =>
+                  save("tournament_hero", fields, image)
+                }
+              />
             ))}
           </details>
           {form(

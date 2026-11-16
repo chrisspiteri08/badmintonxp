@@ -32,6 +32,17 @@ before(async () => {
  create table auth.users(id uuid primary key,email text);
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  grant usage on schema auth to anon,authenticated; grant execute on function auth.uid() to anon,authenticated;`);
+  await db.exec(`
+    create schema storage;
+    create table storage.buckets(
+      id text primary key, name text not null, public boolean,
+      file_size_limit bigint, allowed_mime_types text[]
+    );
+    create table storage.objects(name text not null, bucket_id text references storage.buckets(id));
+    alter table storage.objects enable row level security;
+    grant usage on schema storage to anon, authenticated;
+    grant select, insert, update, delete on storage.objects to anon, authenticated;
+  `);
   const migrationDir = new URL("../supabase/migrations/", import.meta.url);
   for (const file of (await readdir(migrationDir))
     .filter((f) => f.endsWith(".sql"))
@@ -782,6 +793,94 @@ test("push devices are private and only owner admins can list or remove expired 
     assert.equal(
       (await db.query("select * from public.v1_push_recipients()")).rows.length,
       0,
+    );
+  });
+});
+
+test("tournament hero storage allows public reads and only editors or admins can write", async () => {
+  const bucket = "tournament-heroes";
+  const editor = "64000000-0000-0000-0000-000000000004";
+  const write = (name, target = bucket) =>
+    db.query("insert into storage.objects(name,bucket_id) values($1,$2)", [
+      name,
+      target,
+    ]);
+  await db.query("insert into auth.users(id,email) values($1,$2)", [
+    editor,
+    "hero-editor@example.test",
+  ]);
+  await db.query("insert into private.content_editors(user_id) values($1)", [
+    editor,
+  ]);
+  assert.deepEqual(
+    await scalar(
+      "select public,file_size_limit,allowed_mime_types from storage.buckets where id=$1",
+      [bucket],
+    ),
+    {
+      public: true,
+      file_size_limit: 5242880,
+      allowed_mime_types: ["image/webp"],
+    },
+  );
+  await db.exec(
+    "insert into storage.buckets(id,name) values ('other-bucket','other-bucket')",
+  );
+  await write("private.webp", "other-bucket");
+  await asUser(admin, () => write("court.webp"));
+  await asUser(editor, async () => {
+    await write("second.webp");
+    assert.equal(
+      (
+        await db.query(
+          "update storage.objects set name='renamed.webp' where name='court.webp' returning name",
+        )
+      ).rows.length,
+      1,
+    );
+    await assert.rejects(
+      write("outside.webp", "other-bucket"),
+      /row-level security/,
+    );
+    await assert.rejects(
+      db.query(
+        "update storage.objects set bucket_id='other-bucket' where name='renamed.webp'",
+      ),
+      /row-level security/,
+    );
+  });
+  await asUser(
+    null,
+    async () => {
+      assert.deepEqual(
+        (await db.query("select name from storage.objects order by name")).rows,
+        [{ name: "renamed.webp" }, { name: "second.webp" }],
+      );
+      await assert.rejects(write("anonymous.webp"), /row-level security/);
+    },
+    "anon",
+  );
+  await asUser(alice, async () => {
+    await assert.rejects(write("fan.webp"), /row-level security/);
+    assert.equal(
+      (
+        await db.query(
+          "update storage.objects set name='edited.webp' returning name",
+        )
+      ).rows.length,
+      0,
+    );
+    assert.equal(
+      (await db.query("delete from storage.objects returning name")).rows
+        .length,
+      0,
+    );
+  });
+  await asUser(editor, async () => {
+    assert.equal(
+      (await db.query("delete from storage.objects returning name")).rows
+        .length,
+      2,
     );
   });
 });

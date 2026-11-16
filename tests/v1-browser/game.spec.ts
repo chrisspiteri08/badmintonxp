@@ -709,3 +709,134 @@ test("game HUD waits for the account, celebrates levels, and switches quiz cards
   ).toBeVisible();
   await capture("quiz-picker");
 });
+
+test("tournament hero checks the file and alt text, compresses uploads, and supports replacing and removing", async ({
+  page,
+}) => {
+  const f = await fixture(randomUUID().slice(0, 8));
+  const { data } = await f.owner.rpc("v1_home");
+  const event = data.tournament;
+  const pattern = /\/storage\/v1\/object\/(?:public\/)?tournament-heroes\//;
+  const saved: Record<string, string> = {
+    hero_image_url: "",
+    hero_image_alt: "",
+    city: "",
+  };
+  const uploaded: { path: string; width: number; height: number }[] = [];
+  const source = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 2400;
+    canvas.height = 1200;
+    const context = canvas.getContext("2d")!;
+    context.fillStyle = "#142d54";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/png").split(",")[1];
+  });
+  await page.route(pattern, async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() === "GET") {
+      await route.fulfill({
+        contentType: "image/png",
+        body: Buffer.from(source, "base64"),
+      });
+      return;
+    }
+    const path = url.pathname.split("/tournament-heroes/")[1];
+    const body = request.postDataBuffer()!;
+    const start = body.indexOf("RIFF");
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body.toString("ascii", start + 8, start + 12)).toBe("WEBP");
+    const length = body.readUInt32LE(start + 4) + 8;
+    const dimensions = await page.evaluate(
+      async (bytes) => {
+        const image = await createImageBitmap(
+          new Blob([Uint8Array.from(bytes)], { type: "image/webp" }),
+        );
+        const { width, height } = image;
+        image.close();
+        return { width, height };
+      },
+      [...body.subarray(start, start + length)],
+    );
+    uploaded.push({ path, ...dimensions });
+    await route.fulfill({
+      json: { Key: `tournament-heroes/${path}`, Id: path },
+    });
+  });
+  await page.route("**/rest/v1/rpc/v1_admin_snapshot", async (route) => {
+    const response = await route.fetch();
+    const snapshot = await response.json();
+    snapshot.tournaments = snapshot.tournaments.map(
+      (tournament: { id: string }) =>
+        tournament.id === event.id ? { ...tournament, ...saved } : tournament,
+    );
+    await route.fulfill({ response, json: snapshot });
+  });
+  await page.route("**/rest/v1/rpc/v1_admin_save", async (route) => {
+    const { p_kind, p_data } = route.request().postDataJSON();
+    expect(p_kind).toBe("tournament_hero");
+    expect(p_data.tournament_id).toBe(event.id);
+    Object.assign(saved, p_data);
+    await route.fulfill({ json: event.id });
+  });
+  await page.goto("/play/account");
+  await page.getByLabel("Email", { exact: true }).fill(f.email);
+  await page.getByLabel("Password", { exact: true }).fill(f.pass);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "You’re in." })).toBeVisible();
+  await page.goto("/play/admin");
+  await page.getByText("Tournament hero", { exact: true }).click();
+  const form = page.getByRole("form", { name: `Hero for ${event.name}` });
+  const picker = form.locator('input[type="file"]');
+  await picker.setInputFiles({
+    name: "oversized.png",
+    mimeType: "image/png",
+    buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
+  });
+  await expect(form.getByRole("alert")).toContainText("up to 5 MB");
+  const file = {
+    name: "court.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(source, "base64"),
+  };
+  await picker.setInputFiles(file);
+  await expect(
+    form.getByRole("img", { name: "Tournament hero preview" }),
+  ).toHaveAttribute("src", /^blob:/);
+  const alt = form.getByLabel("Hero image alt text");
+  await expect(alt).toHaveJSProperty("required", true);
+  await form.getByRole("button", { name: "Save hero" }).click();
+  expect(uploaded).toHaveLength(0);
+  await alt.fill("Blue badminton court");
+  await form.getByRole("button", { name: "Save hero" }).click();
+  await expect(form.getByLabel("Hero image URL")).toHaveValue(
+    /\/object\/public\/tournament-heroes\/.*\.webp$/,
+  );
+  expect(uploaded[0]).toMatchObject({ width: 1920, height: 960 });
+  expect(saved.hero_image_url).toContain(uploaded[0].path);
+  expect(saved.hero_image_alt).toBe("Blue badminton court");
+  await picker.setInputFiles(file);
+  await expect(
+    form.getByRole("img", { name: "Tournament hero preview" }),
+  ).toHaveAttribute("src", /^blob:/);
+  await form.getByRole("button", { name: "Save hero" }).click();
+  await expect
+    .poll(() => uploaded[1] && saved.hero_image_url.includes(uploaded[1].path))
+    .toBe(true);
+  expect(uploaded[1].path).not.toBe(uploaded[0].path);
+  await form.getByRole("button", { name: "Remove hero image" }).click();
+  await form.getByRole("button", { name: "Save hero" }).click();
+  await expect.poll(() => saved.hero_image_url).toBe("");
+  await expect(
+    form.getByRole("img", { name: "Tournament hero preview" }),
+  ).toHaveCount(0);
+  await form
+    .getByLabel("Hero image URL")
+    .fill("https://example.test/manual-hero.webp");
+  await alt.fill("Manual tournament photo");
+  await form.getByRole("button", { name: "Save hero" }).click();
+  await expect
+    .poll(() => saved.hero_image_url)
+    .toBe("https://example.test/manual-hero.webp");
+});

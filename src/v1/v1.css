@@ -1208,3 +1208,12 @@
     margin-block: 8px;
   }
 }
+
+.v1 .admin-hero-preview {
+  width: min(100%, 480px);
+  height: auto;
+  aspect-ratio: 2 / 1;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
