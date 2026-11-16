@@ -7,7 +7,7 @@ export type Screen =
   | "standings"
   | "profile"
   | "admin";
-export type Team = { id: string; name: string };
+export type Team = { id: string; name: string; invite_code?: string };
 export type Profile = {
   id: string;
   username: string;

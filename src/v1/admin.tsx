@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { heroBucket, TournamentHeroForm } from "./tournament-hero";
+import { AdminFanTeams } from "./fan-teams";
 import { AdminFeedback } from "./preview-feedback";
 import type { AdminData } from "./types";
 import { tournamentPublicationHeld } from "./domain";
@@ -656,6 +657,7 @@ export function Admin({
               </div>
             ))}
           </section>
+          {data.role === "admin" && <AdminFanTeams client={client} />}
           {data.role === "admin" && (
             <AdminFeedback
               client={client}

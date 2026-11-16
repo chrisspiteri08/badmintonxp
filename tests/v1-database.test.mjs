@@ -117,7 +117,7 @@ test("v1: every app table has RLS and clients cannot read answer keys", async ()
       "select relname,relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and relkind='r'",
     )
   ).rows;
-  assert.equal(tables.length, 18);
+  assert.equal(tables.length, 20);
   assert.ok(tables.every((t) => t.relrowsecurity));
   await asUser(alice, async () => {
     await assert.rejects(
@@ -972,4 +972,108 @@ test("feedback is insert-only for fans and readable only by admins", async () =>
     );
   });
   await db.query("delete from private.content_editors where user_id=$1", [bob]);
+});
+
+test("fan teams validate names, limit creation, join by invite, and moderate without rewriting XP", async () => {
+  const captain = "80000000-0000-0000-0000-000000000001";
+  const member = "90000000-0000-0000-0000-000000000001";
+  await db.query(
+    "insert into auth.users(id,email) values($1,'captain@example.test'),($2,'member@example.test')",
+    [captain, member],
+  );
+  await db.exec("update public.tournaments set active=false where active");
+  await db.query("update public.tournaments set active=true where id=$1", [
+    tournament,
+  ]);
+
+  let created;
+  await asUser(captain, async () => {
+    await assert.rejects(
+      db.query("insert into public.teams(name) values('Direct insert')"),
+      /permission denied/,
+    );
+    assert.match((await rpc("v1_create_fan_team", ["ab"])).error, /3–30/);
+    assert.match(
+      (await rpc("v1_create_fan_team", ["shit smashers"])).error,
+      /profanity/,
+    );
+    created = await rpc("v1_create_fan_team", ["  Court Comets  "]);
+    assert.equal(created.name, "Court Comets");
+    assert.equal(created.member_count, 1);
+    assert.match(created.invite_code, /^[a-f0-9]{12}$/);
+    assert.deepEqual(await rpc("v1_my_team"), created);
+    assert.match(
+      (await rpc("v1_create_fan_team", ["Second Team"])).error,
+      /one team/,
+    );
+    assert.deepEqual(
+      await rpc("v1_create_fan_team", ["court comets"]),
+      created,
+    );
+    assert.match(
+      (await rpc("v1_create_fan_team", ["Second Team"])).error,
+      /wait a minute/,
+    );
+    await assert.rejects(rpc("v1_admin_fan_teams"), /Admin access/);
+  });
+
+  await asUser(
+    null,
+    async () => {
+      assert.deepEqual(
+        await rpc("v1_team_invite", [created.invite_code]),
+        created,
+      );
+      await assert.rejects(
+        rpc("v1_create_fan_team", ["Anonymous Team"]),
+        /permission denied/,
+      );
+    },
+    "anon",
+  );
+  await asUser(member, async () => {
+    assert.match(
+      (await rpc("v1_create_fan_team", ["court comets"])).error,
+      /taken/,
+    );
+    const previous = await rpc("v1_create_fan_team", ["Smash Crew"]);
+    assert.deepEqual(
+      await rpc("v1_join_fan_team", [created.invite_code, false]),
+      { confirm_switch: true },
+    );
+    assert.equal((await rpc("v1_my_team")).id, previous.id);
+    assert.equal(
+      (await rpc("v1_join_fan_team", [created.invite_code, true])).member_count,
+      2,
+    );
+  });
+  await db.query(
+    "insert into public.xp_ledger(user_id,tournament_id,season_id,team_id,country,source_type,source_id,xp) values($1,$2,$3,$4,'MY','quiz',$5,10)",
+    [member, tournament, season, created.id, quiz],
+  );
+  await asUser(admin, async () => {
+    const listed = (await rpc("v1_admin_fan_teams")).find(
+      (entry) => entry.id === created.id,
+    );
+    assert.equal(listed.member_count, 2);
+    assert.match(listed.creator, /^player_/);
+    await rpc("v1_admin_moderate_team", [created.id, "Court Aces"]);
+    assert.equal(
+      (await rpc("v1_team_invite", [created.invite_code])).name,
+      "Court Aces",
+    );
+    await rpc("v1_admin_moderate_team", [created.id, null]);
+    assert.equal(await rpc("v1_team_invite", [created.invite_code]), null);
+    assert.equal(
+      (await rpc("v1_home")).teams.some((entry) => entry.id === created.id),
+      false,
+    );
+  });
+  assert.deepEqual(
+    await scalar("select team_id,xp from public.xp_ledger where user_id=$1", [
+      member,
+    ]),
+    { team_id: created.id, xp: 10 },
+  );
+  await asUser(member, async () => assert.equal(await rpc("v1_my_team"), null));
 });

@@ -2,6 +2,17 @@ import { test, expect } from "@playwright/test";
 import { randomUUID, randomBytes } from "node:crypto";
 import path from "node:path";
 import { fixture, local, password, sql } from "./local";
+test.beforeEach(async ({ page }) => {
+  // The shared local Supabase test stack predates the fan-team migration.
+  for (const [name, data] of [
+    ["v1_my_team", null],
+    ["v1_admin_fan_teams", []],
+  ] as const) {
+    await page.route(`**/rest/v1/rpc/${name}`, (route) =>
+      route.fulfill({ json: data }),
+    );
+  }
+});
 async function mailLink(
   request: import("@playwright/test").APIRequestContext,
   email: string,
@@ -64,7 +75,8 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   await page.getByRole("link", { name: "Register free" }).click();
   await page.getByLabel("Player name").fill(username);
   await page.getByLabel("Country").selectOption("MY");
-  await page.getByLabel("Team").selectOption(f.team);
+  await page.getByRole("radio", { name: "Join an existing team" }).check();
+  await page.getByLabel("Choose a team").selectOption(f.team);
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill(pass);
   await page
@@ -459,7 +471,7 @@ test("admin desk is role guarded and saves unpublished tournament drafts", async
     path: path.resolve(
       `../../outputs/v1-screenshots/${info.project.name}-admin.png`,
     ),
-    fullPage: true,
+    animations: "disabled",
   });
 });
 

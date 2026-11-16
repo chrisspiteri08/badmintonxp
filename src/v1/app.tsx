@@ -33,6 +33,14 @@ import { friendlyError, v1Client } from "./client";
 import type { Attempt, Home, Match, Screen } from "./types";
 import { AdminPush, PwaControls } from "@/pwa/client";
 import { Admin } from "./admin";
+import {
+  ShareTeam,
+  TeamPicker,
+  TeamSharePrompt,
+  YourTeam,
+  teamAction,
+  type TeamInvite,
+} from "./fan-teams";
 import { LaunchCountdown } from "@/launch/live";
 import { PreviewFeedback } from "./preview-feedback";
 import { emailReturnUrl } from "./domain";
@@ -92,6 +100,15 @@ export function V1App({ screen }: { screen: Screen }) {
   const previousAttempt = useRef<Attempt | null>(null);
   const [freshAnswer, setFreshAnswer] = useState("");
   const [selectedQuiz, setSelectedQuiz] = useState("");
+  const [signupTeam, setSignupTeam] = useState<string | null>(null);
+  const [signupInvite, setSignupInvite] = useState<string | null>(null);
+  const [myTeam, setMyTeam] = useState<{
+    player: string;
+    team: TeamInvite | null;
+  } | null>(null);
+  const [createdTeam, setCreatedTeam] = useState<TeamInvite | null>(null);
+  const [freshPrediction, setFreshPrediction] = useState(false);
+  const signupRequest = useRef<string | null>(null);
   const [challengeLink, setChallengeLink] = useState<{
     quiz: string | null;
     match: string | null;
@@ -99,8 +116,11 @@ export function V1App({ screen }: { screen: Screen }) {
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     setChallengeLink({ quiz: query.get("quiz"), match: query.get("match") });
-    if (screen === "account" && query.get("mode") === "signup")
-      setAuthMode("signup");
+    if (screen === "account") {
+      if (query.get("mode") === "signup") setAuthMode("signup");
+      setSignupTeam(query.get("team"));
+      setSignupInvite(query.get("invite"));
+    }
   }, [screen]);
   const [pick, setPick] = useState<{ match: Match; athlete: string } | null>(
     null,
@@ -166,6 +186,9 @@ export function V1App({ screen }: { screen: Screen }) {
               }
               if (event === "SIGNED_OUT") {
                 setRegistration(null);
+                setCreatedTeam(null);
+                setFreshPrediction(false);
+                signupRequest.current = null;
                 setPendingRankToasts([]);
                 setRankToasts([]);
               }
@@ -439,6 +462,7 @@ export function V1App({ screen }: { screen: Screen }) {
               username: data.get("username"),
               country: data.get("country"),
               team_id: data.get("team"),
+              team_name_request: data.get("team-name"),
             },
           },
         });
@@ -450,10 +474,59 @@ export function V1App({ screen }: { screen: Screen }) {
           password,
         });
         if (error) throw error;
-        setMessage("Welcome back. Your arena is ready.");
+        if (signupInvite && /^[a-f0-9]{12}$/.test(signupInvite)) {
+          location.assign(`/join/${signupInvite}`);
+        } else {
+          setMessage("Welcome back. Your arena is ready.");
+        }
       }
     });
   };
+  const teamPlayer = session?.user.id;
+  const teamId = home?.profile?.team_id;
+  const requestedTeam = session?.user.user_metadata.team_name_request;
+  useEffect(() => {
+    if (
+      screen !== "account" ||
+      !client ||
+      !teamPlayer ||
+      busy ||
+      typeof requestedTeam !== "string" ||
+      signupRequest.current === teamPlayer
+    )
+      return;
+    signupRequest.current = teamPlayer;
+    void perform(async () => {
+      const result = await teamAction(client, "v1_create_fan_team", {
+        p_name: requestedTeam,
+      });
+      if ("error" in result) setError(result.error);
+      if ("id" in result) {
+        setCreatedTeam(result);
+        await refresh(client);
+      }
+      // A confirmed signup request is consumed after a definitive server response.
+      await client.auth.updateUser({ data: { team_name_request: null } });
+    });
+  }, [screen, client, teamPlayer, busy, requestedTeam, perform, refresh]);
+
+  const teamSurface =
+    screen === "arena" || screen === "quiz" || screen === "predict";
+  useEffect(() => {
+    if (!client || !teamPlayer || !teamSurface || !teamId) return;
+    let active = true;
+    void Promise.resolve(client.rpc("v1_my_team")).then(({ data, error }) => {
+      if (active && !error)
+        setMyTeam({ player: teamPlayer, team: data as TeamInvite | null });
+    });
+    return () => {
+      active = false;
+    };
+  }, [client, teamPlayer, teamSurface, teamId]);
+  const currentTeam =
+    myTeam && myTeam.player === teamPlayer && myTeam.team?.id === teamId
+      ? myTeam.team
+      : null;
   const linkedMatch = challengeLink?.match;
   const linkedMatchAvailable = Boolean(
     home?.matches.some((match) => match.id === linkedMatch),
@@ -635,6 +708,23 @@ export function V1App({ screen }: { screen: Screen }) {
                     now={gameNow}
                     signedIn={signedIn}
                   />
+                  {signedIn && teamPlayer && (
+                    <YourTeam
+                      key={teamPlayer}
+                      client={client}
+                      team={currentTeam}
+                      teams={home.teams}
+                      rank={
+                        currentRankings?.boards.teams.find(
+                          (row) => row.id === teamId,
+                        )?.rank
+                      }
+                      onChange={(team) => {
+                        setMyTeam({ player: teamPlayer, team });
+                        void perform(() => refresh(client));
+                      }}
+                    />
+                  )}
                   {signedIn && (
                     <section
                       className="level-card game-home-scores"
@@ -672,7 +762,14 @@ export function V1App({ screen }: { screen: Screen }) {
               ) : (
                 <>
                   {screen === "account" &&
-                    (registration ? (
+                    (createdTeam ? (
+                      <>
+                        <ShareTeam team={createdTeam} created />
+                        <Link className="button" href="/play">
+                          Enter the arena
+                        </Link>
+                      </>
+                    ) : registration ? (
                       <section className="panel registration-success">
                         <h1>You&apos;re in for the World Tour Finals 🏸</h1>
                         {registration === "confirm" && !signedIn && (
@@ -737,17 +834,13 @@ export function V1App({ screen }: { screen: Screen }) {
                                   ))}
                                 </select>
                               </label>
-                              <label>
-                                Team
-                                <select name="team">
-                                  <option value="">Independent fan</option>
-                                  {home.teams.map((team) => (
-                                    <option value={team.id} key={team.id}>
-                                      {team.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
+                              <TeamPicker
+                                key={signupTeam ?? "independent"}
+                                teams={home.teams}
+                                selected={home.teams.find(
+                                  (team) => team.id === signupTeam,
+                                )}
+                              />
                             </>
                           )}
                           <label>
@@ -1338,6 +1431,7 @@ export function V1App({ screen }: { screen: Screen }) {
                                           if (error) throw error;
                                           feedback("locked");
                                           setPick(null);
+                                          setFreshPrediction(true);
                                           await refresh(client);
                                         })
                                       }
@@ -1400,6 +1494,13 @@ export function V1App({ screen }: { screen: Screen }) {
               )}
             </>
           )}
+          {signedIn &&
+            teamPlayer &&
+            currentTeam &&
+            ((screen === "quiz" && attempt?.complete) ||
+              (screen === "predict" && freshPrediction)) && (
+              <TeamSharePrompt team={currentTeam} userId={teamPlayer} />
+            )}
           {signedIn && client && session && home && (
             <PwaControls
               key={session.user.id}

@@ -1284,3 +1284,67 @@
     margin-top: 8px;
   }
 }
+
+.v1 .team-picker {
+  min-width: 0;
+  border: 1px solid #52647b;
+  border-radius: 0.75rem;
+  padding: 0.6rem;
+}
+.v1 .team-picker legend {
+  padding-inline: 0.4rem;
+  font-weight: 800;
+}
+.v1 .team-choices {
+  display: grid;
+  gap: 0.4rem;
+}
+.v1 .team-choices label {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 44px;
+  padding-inline: 0.65rem;
+  border: 1px solid #52647b;
+  border-radius: 0.55rem;
+  cursor: pointer;
+}
+.v1 .team-choices input {
+  width: auto;
+  min-height: auto;
+  accent-color: #ff914c;
+}
+.v1 .team-choices label:has(:checked) {
+  background: #153657;
+  border-color: #ffb88d;
+}
+.v1 .your-team {
+  margin-block: 1rem;
+}
+.v1 .team-search ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.v1 .team-share-options,
+.v1 .team-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+.v1 .team-share-options label {
+  flex-basis: 100%;
+}
+.v1.team-invite-page {
+  display: grid;
+  align-items: center;
+  min-height: 100svh;
+  padding-block: 24px;
+}
+.v1.team-invite-page main {
+  width: min(100%, 36rem);
+  margin-inline: auto;
+}
