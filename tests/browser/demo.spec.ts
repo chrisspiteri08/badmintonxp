@@ -302,6 +302,7 @@ test("old account routes redirect safely and visitors never see setup details", 
     await expect(
       page.getByRole("heading", { name: "We’ll be back shortly." }),
     ).toBeVisible();
+    await expect(page.locator('a[href^="/demo"]')).toHaveCount(0);
     const text = await page.locator("body").innerText();
     expect(text).not.toMatch(
       /Application Configuration Error|How to fix|Error details|NEXT_PUBLIC|\.env|Supabase|server|database/i,
@@ -310,12 +311,33 @@ test("old account routes redirect safely and visitors never see setup details", 
   expect(errors).toEqual([]);
 });
 
-test("the arena, guest demo and artwork stay available", async ({
+test("the guest demo works by direct URL and stays out of public links and search indexing", async ({
   page,
   request,
 }) => {
   await page.goto("/play");
   await expect(page.locator(".v1")).toBeVisible();
+  await expect(page.locator('a[href^="/demo"]')).toHaveCount(0);
+  await page.goto("/");
+  await expect(page.locator('a[href^="/demo"]')).toHaveCount(0);
+  const sitemap = await request.get(origin + "/sitemap.xml");
+  expect(sitemap.status()).toBe(200);
+  const xml = await sitemap.text();
+  expect(xml).toContain("<loc>https://badmintonxp.com/play</loc>");
+  expect(xml).not.toMatch(/<loc>[^<]*\/demo(?:[/<]|$)/);
+  for (const route of [
+    "/demo",
+    "/demo/quiz",
+    "/demo/prediction",
+    "/demo/standings",
+    "/demo/progress",
+  ]) {
+    const response = await request.get(origin + route);
+    expect(response.status()).toBe(200);
+    expect(await response.text()).toContain(
+      '<meta name="robots" content="noindex"',
+    );
+  }
   await page.goto("/demo");
   await expect(page.getByTestId("lifetime-xp")).toHaveText("140 XP");
   await expect(

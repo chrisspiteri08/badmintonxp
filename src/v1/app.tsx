@@ -560,9 +560,6 @@ export function V1App({ screen }: { screen: Screen }) {
             <section className="panel">
               <h1>We’ll be back shortly.</h1>
               <p>The arena is taking a break. Please try again soon.</p>
-              <Link className="button primary" href="/demo">
-                Play the guest demo →
-              </Link>
             </section>
           ) : !home || waitingForAccount ? (
             !error && <ArenaSkeleton />
@@ -1437,9 +1434,6 @@ export function V1App({ screen }: { screen: Screen }) {
           )}
         <footer>
           <p>Independent fan game. No prizes or payments.</p>
-          <Link className="button" href="/demo">
-            Try the fictional guest demo
-          </Link>
         </footer>
       </div>
       <div id="pwa-install-slot" />

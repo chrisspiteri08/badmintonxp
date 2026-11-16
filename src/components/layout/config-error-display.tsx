@@ -1,8 +1,6 @@
 "use client";
-import Link from "next/link";
 import {
   Card,
-  CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
@@ -16,9 +14,6 @@ export const SupabaseConfigErrorDisplay = () => (
           The arena is taking a break. Please try again soon.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <Link href="/demo">Play the guest demo →</Link>
-      </CardContent>
     </Card>
   </div>
 );
