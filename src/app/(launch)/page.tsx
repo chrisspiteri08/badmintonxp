@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
+import { landingHeroUrl } from "@/launch/hero";
+import { publicV1Config } from "@/v1/config";
+
+export const dynamic = "force-dynamic";
 
 const headline = "Pick your country. Beat the world.";
 const title = `BadmintonXP | ${headline}`;
@@ -14,9 +19,21 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title, description },
 };
 
-export default function Landing() {
+export default async function Landing() {
+  const hero = await landingHeroUrl(publicV1Config(process.env));
   return (
     <main className="launch-hero" aria-labelledby="launch-title">
+      {hero && (
+        <Image
+          src={hero}
+          alt=""
+          fill
+          unoptimized
+          priority
+          sizes="100vw"
+          className="launch-art"
+        />
+      )}
       <div className="launch-intro">
         <h1 id="launch-title">{headline}</h1>
         <p className="launch-description">{description}</p>

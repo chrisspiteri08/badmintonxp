@@ -164,11 +164,13 @@ function AnimatedRankScore({ xp }: { xp: number }) {
 
 export function ArenaRankings({
   data,
+  hasTournament,
   profile,
   failed,
   ended,
 }: {
   data: TournamentRankings | null;
+  hasTournament: boolean;
   profile: Profile | null;
   failed: boolean;
   ended: boolean;
@@ -201,12 +203,12 @@ export function ArenaRankings({
         {!ended && <span className="arena-live-dot" aria-hidden="true" />}
         {ended ? "Final rankings" : "Live rankings"}
       </h2>
-      {failed ? (
+      {!hasTournament ? (
+        <p className="panel">Rankings open when the first quiz goes live</p>
+      ) : failed && !data ? (
         <p role="status">Rankings are temporarily unavailable.</p>
       ) : data === null ? (
         <ArenaSkeleton label="Loading rankings" />
-      ) : !rowsExist ? (
-        <p className="panel">Rankings open when the first quiz goes live.</p>
       ) : (
         <>
           <div
@@ -238,39 +240,47 @@ export function ArenaRankings({
                     <h3>
                       {names[league]} <span aria-hidden="true">↗</span>
                     </h3>
-                    <ol>
-                      {rows.slice(0, 3).map((row, index) => (
-                        <li
-                          key={row.id}
-                          data-place={index + 1}
-                          data-gained={gainers.includes(`${league}:${row.id}`)}
-                        >
-                          <b>#{row.rank}</b>
-                          <span>
-                            {league === "countries"
-                              ? entryName(row, league)
-                              : `${["🥇", "🥈", "🥉"][index]} ${row.name}`}
-                          </span>
-                          <AnimatedRankScore xp={row.xp} />
-                        </li>
-                      ))}
-                    </ol>
-                    {!rows.length && <p>No scores yet</p>}
-                    <p className="arena-own-rank">
-                      {profile ? (
-                        <>
-                          <strong>You</strong>
-                          {league !== "players" &&
-                            ` · Your ${titles[league].toLowerCase()}`}
-                          :{" "}
-                          {own
-                            ? `#${own.rank}${own.gap && above ? ` · ${own.gap} XP behind #${above.rank}` : ""}`
-                            : "Unranked"}
-                        </>
-                      ) : (
-                        "Sign in to join your country"
-                      )}
-                    </p>
+                    {rowsExist ? (
+                      <>
+                        <ol>
+                          {rows.slice(0, 3).map((row, index) => (
+                            <li
+                              key={row.id}
+                              data-place={index + 1}
+                              data-gained={gainers.includes(
+                                `${league}:${row.id}`,
+                              )}
+                            >
+                              <b>#{row.rank}</b>
+                              <span>
+                                {league === "countries"
+                                  ? entryName(row, league)
+                                  : `${["🥇", "🥈", "🥉"][index]} ${row.name}`}
+                              </span>
+                              <AnimatedRankScore xp={row.xp} />
+                            </li>
+                          ))}
+                        </ol>
+                        {!rows.length && <p>No scores yet</p>}
+                        <p className="arena-own-rank">
+                          {profile ? (
+                            <>
+                              <strong>You</strong>
+                              {league !== "players" &&
+                                ` · Your ${titles[league].toLowerCase()}`}
+                              :{" "}
+                              {own
+                                ? `#${own.rank}${own.gap && above ? ` · ${own.gap} XP behind #${above.rank}` : ""}`
+                                : "Unranked"}
+                            </>
+                          ) : (
+                            "Sign in to join your country"
+                          )}
+                        </p>
+                      </>
+                    ) : (
+                      <p>Rankings open when the first quiz goes live</p>
+                    )}
                   </Link>
                   {league !== "players" && (
                     <TopFansInfo

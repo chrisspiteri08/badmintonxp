@@ -344,47 +344,69 @@ export function V1App({ screen }: { screen: Screen }) {
     return () => window.clearTimeout(retry);
   }, [screen, attempt, remaining, busy, quizAction, perform]);
   const showRankings = screen === "standings" || screen === "arena";
+  const homeLoaded = home !== null;
   const rankingCountry = rankingProfile?.country;
   const rankingTeam = rankingProfile?.team_id;
   useEffect(() => {
-    if (!client || (!showRankings && (!rankingPlayer || !tournamentId))) return;
+    if (
+      !client ||
+      !homeLoaded ||
+      (!showRankings && (!rankingPlayer || !tournamentId))
+    )
+      return;
     let active = true;
+    let request: AbortController | undefined;
     const load = async () => {
-      const { data, error } = await client.rpc("v1_tournament_rankings");
-      if (!active) return;
-      setRankingsFailed(Boolean(error));
-      if (error) return;
-      const boards = data as TournamentRankings;
-      setRankings(boards);
-      if (
-        !rankingPlayer ||
-        !rankingCountry ||
-        session?.user.id !== rankingPlayer ||
-        eventXp === undefined ||
-        boards.tournament_id !== tournamentId
-      )
-        return;
-      const previous = priorRankings.current;
-      priorRankings.current = { player: rankingPlayer, xp: eventXp, boards };
-      if (previous?.player === rankingPlayer && eventXp > previous.xp) {
-        const notices = affiliationRankGains(previous.boards, boards, {
-          id: rankingPlayer,
-          country: rankingCountry,
-          team_id: rankingTeam ?? null,
-          username: "",
-        });
-        if (notices.length) setPendingRankToasts(notices);
+      request = new AbortController();
+      const controller = request;
+      const timeout = window.setTimeout(() => controller.abort(), 5000);
+      try {
+        const { data, error } = await client
+          .rpc("v1_tournament_rankings")
+          .abortSignal(controller.signal);
+        if (!active) return;
+        const boards = data as TournamentRankings | null;
+        if (error || !boards || boards.tournament_id !== tournamentId) {
+          setRankingsFailed(true);
+          return;
+        }
+        setRankingsFailed(false);
+        setRankings(boards);
+        if (
+          !rankingPlayer ||
+          !rankingCountry ||
+          session?.user.id !== rankingPlayer ||
+          eventXp === undefined
+        )
+          return;
+        const previous = priorRankings.current;
+        priorRankings.current = { player: rankingPlayer, xp: eventXp, boards };
+        if (previous?.player === rankingPlayer && eventXp > previous.xp) {
+          const notices = affiliationRankGains(previous.boards, boards, {
+            id: rankingPlayer,
+            country: rankingCountry,
+            team_id: rankingTeam ?? null,
+            username: "",
+          });
+          if (notices.length) setPendingRankToasts(notices);
+        }
+      } catch {
+        if (active) setRankingsFailed(true);
+      } finally {
+        window.clearTimeout(timeout);
       }
     };
     void load();
     const timer = setInterval(() => void load(), 30000);
     return () => {
       active = false;
+      request?.abort();
       clearInterval(timer);
     };
   }, [
     client,
     showRankings,
+    homeLoaded,
     session?.user.id,
     tournamentId,
     rankingPlayer,
@@ -548,6 +570,17 @@ export function V1App({ screen }: { screen: Screen }) {
             <>
               {screen === "arena" && (
                 <>
+                  {tournament &&
+                    !/^world tour finals(?: [0-9]{4})?$/i.test(
+                      tournament.name.trim().replace(/\s+/g, " "),
+                    ) && (
+                      <PreviewFeedback
+                        key={tournament.id}
+                        client={client}
+                        tournamentId={tournament.id}
+                        signedIn={signedIn}
+                      />
+                    )}
                   <section
                     className="arena-event-hero"
                     aria-labelledby="v1-event-title"
@@ -565,17 +598,6 @@ export function V1App({ screen }: { screen: Screen }) {
                         }}
                       />
                     )}
-                    {tournament &&
-                      !/^world tour finals(?: [0-9]{4})?$/i.test(
-                        tournament.name.trim().replace(/\s+/g, " "),
-                      ) && (
-                        <PreviewFeedback
-                          key={tournament.id}
-                          client={client}
-                          tournamentId={tournament.id}
-                          signedIn={signedIn}
-                        />
-                      )}
                     <div>
                       <h1 id="v1-event-title">
                         {tournament?.name || "The next rally"}
@@ -606,6 +628,7 @@ export function V1App({ screen }: { screen: Screen }) {
                   </section>
                   <ArenaRankings
                     data={currentRankings}
+                    hasTournament={Boolean(tournament)}
                     profile={signedIn ? home.profile : null}
                     failed={rankingsFailed}
                     ended={currentRankings?.final ?? false}

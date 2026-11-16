@@ -639,29 +639,32 @@ test.describe("arena in a non-UTC timezone", () => {
       route.fulfill({ json: home }),
     );
     let finalRankings = false;
+    let emptyRankings = false;
     await page.route("**/rest/v1/rpc/v1_tournament_rankings", (route) =>
       route.fulfill({
         json: {
           tournament_id: "event",
           final: finalRankings,
           past: [],
-          boards: {
-            countries: [
-              row("MY", "MY", 1, 240),
-              row("ID", "ID", 2, 210),
-              row("JP", "JP", 3, 160),
-            ],
-            teams: [
-              row("team1", "Neon Shuttles", 1, 230),
-              row("team2", "Court Crew", 2, 180),
-              row("team3", "Net Flyers", 3, 150),
-            ],
-            players: [
-              row("fan1", "ShuttleAce", 1, 80),
-              row("fan2", "NetNinja", 2, 70),
-              row("fan3", "RallyRider", 3, 60),
-            ],
-          },
+          boards: emptyRankings
+            ? { countries: [], teams: [], players: [] }
+            : {
+                countries: [
+                  row("MY", "MY", 1, 240),
+                  row("ID", "ID", 2, 210),
+                  row("JP", "JP", 3, 160),
+                ],
+                teams: [
+                  row("team1", "Neon Shuttles", 1, 230),
+                  row("team2", "Court Crew", 2, 180),
+                  row("team3", "Net Flyers", 3, 150),
+                ],
+                players: [
+                  row("fan1", "ShuttleAce", 1, 80),
+                  row("fan2", "NetNinja", 2, 70),
+                  row("fan3", "RallyRider", 3, 60),
+                ],
+              },
         },
       }),
     );
@@ -680,6 +683,9 @@ test.describe("arena in a non-UTC timezone", () => {
     const preview = page.getByRole("complementary", {
       name: "Preview edition",
     });
+    await expect(
+      page.locator(".preview-edition + .arena-event-hero"),
+    ).toBeVisible();
     await expect(preview).toContainText(
       "Preview edition · Help shape the game",
     );
@@ -792,6 +798,33 @@ test.describe("arena in a non-UTC timezone", () => {
     ).toBeVisible();
     await expect(page.locator(".arena-live-dot")).toHaveCount(0);
     await expect(page.getByText(/live now/)).toHaveCount(0);
+    emptyRankings = true;
+    finalRankings = false;
+    home.server_now = "2026-11-19T10:00:00Z";
+    await page.reload();
+    const emptyCards = page
+      .getByRole("region", { name: "Live rankings" })
+      .locator(".arena-rank-card");
+    await expect(
+      emptyCards.getByText("Rankings open when the first quiz goes live"),
+    ).toHaveCount(3);
+    await expect(
+      page.getByRole("status", { name: "Loading rankings" }),
+    ).toHaveCount(0);
+
+    // Leave the request unhandled until the client timeout cancels it.
+    await page.route("**/rest/v1/rpc/v1_tournament_rankings", () => {});
+    await page.reload();
+    await expect(
+      page.getByRole("status", { name: "Loading rankings" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Rankings are temporarily unavailable."),
+    ).toBeVisible({ timeout: 7000 });
+    await expect(
+      page.getByRole("status", { name: "Loading rankings" }),
+    ).toHaveCount(0);
+    await page.unroute("**/rest/v1/rpc/v1_tournament_rankings");
     home.tournament.name = "World Tour Finals 2026";
     await page.reload();
     await expect(

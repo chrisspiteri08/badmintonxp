@@ -1245,7 +1245,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.3rem 0.65rem;
-  align-self: start;
+  margin-bottom: 6px;
   border: 1px solid #52647b;
   border-radius: 0.65rem;
   font-size: 0.85rem;
@@ -1266,24 +1266,21 @@
   overflow-wrap: anywhere;
 }
 
-.v1 .arena-event-hero:has(.preview-edition) {
-  grid-template-rows: 1fr auto;
-  row-gap: 0.4rem;
-}
 @media (max-width: 600px) {
-  .v1 .arena-event-hero:has(.preview-edition) {
+  .v1 .preview-edition {
+    padding-block: 0;
+  }
+  .v1 .preview-edition + .arena-event-hero {
+    min-height: 120px;
     padding: 10px 12px;
   }
-  .v1 .arena-event-hero:has(.preview-edition) h1 {
+  .v1 .preview-edition + .arena-event-hero h1 {
     font-size: clamp(24px, 8vw, 32px);
   }
-}
-
-@media (max-width: 600px) {
-  .v1 .arena-event-hero:has(.preview-edition) + .arena-rankings {
-    margin-block: 10px;
+  .v1 .preview-edition ~ .arena-rankings {
+    margin-block: 8px;
   }
-  .v1 .arena-event-hero:has(.preview-edition) ~ .arena-challenges {
-    margin-top: 10px;
+  .v1 .preview-edition ~ .arena-challenges {
+    margin-top: 8px;
   }
 }

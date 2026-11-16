@@ -46,15 +46,30 @@
   letter-spacing: 0.12em;
 }
 .launch-hero {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex: 1;
   padding: 36px max(18px, calc((100% - 1120px) / 2));
-  background:
-    linear-gradient(90deg, #06152c 20%, #06152cdb 63%, #06152ca3),
-    url("/demo/badmintonxp-arena-unbranded.jpg") center 38% / cover;
+  background: linear-gradient(130deg, #06152c 15%, #143151);
   border-block: 1px solid #344c69;
 }
+.launch-hero .launch-art {
+  z-index: -1;
+  object-fit: cover;
+  object-position: center 38%;
+  opacity: 0.28;
+}
+.launch-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(90deg, #06152cbf, #06152c30);
+  pointer-events: none;
+}
 .launch-intro {
+  position: relative;
   align-self: center;
 }
 .launch-intro h1,
