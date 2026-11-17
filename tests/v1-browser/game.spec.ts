@@ -86,11 +86,13 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
     .getByRole("link", { name: "Register free" })
     .click();
   await page.getByLabel("Player name").fill(username);
-  await page.getByLabel("Country").selectOption("MY");
-  await page.getByRole("radio", { name: "Join an existing team" }).check();
-  await page.getByLabel("Choose a team").selectOption(f.team);
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill(pass);
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByLabel("Country").selectOption("MY");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("radio", { name: "Join an existing team" }).check();
+  await page.getByLabel("Choose a team").selectOption(f.team);
   await page
     .getByRole("button", { name: "Create account", exact: true })
     .click();
@@ -145,7 +147,7 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   );
   expect(sent).toBe(true);
   await feedback.getByRole("button", { name: "Close" }).click();
-  await page.goto("/play/admin");
+  await page.goto("/play/admin", { waitUntil: "domcontentloaded" });
   await expect(
     page.getByRole("heading", { name: "Players’ side." }),
   ).toBeVisible();
@@ -412,6 +414,7 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
 test("admin desk is role guarded and saves unpublished tournament drafts", async ({
   page,
 }, info) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const tag = randomUUID().slice(0, 8),
     f = await fixture(tag);
   await page.goto("/play/account");
@@ -433,7 +436,7 @@ test("admin desk is role guarded and saves unpublished tournament drafts", async
       ],
     }),
   );
-  await page.goto("/play/admin");
+  await page.goto("/play/admin", { waitUntil: "domcontentloaded" });
   await expect(
     page.getByRole("heading", { name: "Preview feedback" }),
   ).toBeVisible();
@@ -497,6 +500,7 @@ test("admin desk is role guarded and saves unpublished tournament drafts", async
 test("server timeout advances a real unanswered question and saves the final score", async ({
   page,
 }, info) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const tag = randomUUID().slice(0, 8),
     f = await fixture(tag);
   const c = local();
@@ -557,14 +561,23 @@ test("server timeout advances a real unanswered question and saves the final sco
     expect(timeoutResumes).toBe(0);
 
     // The browser clock cannot advance PostgreSQL's clock.
-    const { error } = await f.admin
+    const { data, error } = await f.admin
       .from("attempts")
       .update({ deadline: new Date(Date.now() - 1000).toISOString() })
-      .eq("quiz_id", f.quiz);
+      .eq("quiz_id", f.quiz)
+      .select("id")
+      .single();
     expect(error).toBeNull();
+    expect(data?.id).toBeTruthy();
   } finally {
     releaseRefresh();
   }
+  await expect
+    .poll(async () => {
+      await page.clock.runFor(300);
+      return timeoutResumes;
+    })
+    .toBeGreaterThan(0);
   await expect(page.getByTestId("v1-question")).toContainText("Round 2", {
     timeout: 22000,
   });
@@ -599,6 +612,7 @@ test("server timeout advances a real unanswered question and saves the final sco
 test("content editor sees readiness, repairs a draft question and publishes/settles without player access", async ({
   page,
 }, info) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const tag = randomUUID().slice(0, 8),
     f = await fixture(tag),
     ctx = local(),
@@ -618,7 +632,7 @@ test("content editor sees readiness, repairs a draft question and publishes/sett
   await page.getByLabel("Password", { exact: true }).fill(pass);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "You’re in." })).toBeVisible();
-  await page.goto("/play/admin");
+  await page.goto("/play/admin", { waitUntil: "domcontentloaded" });
   await expect(
     page.getByText(/Content editor — content and results only/),
   ).toBeVisible();
@@ -749,7 +763,7 @@ test("content editor sees readiness, repairs a draft question and publishes/sett
   expect(await page.locator("body").innerText()).not.toContain(f.email);
   await page.screenshot({
     path: path.resolve(`../../outputs/content-editor-${info.project.name}.png`),
-    fullPage: true,
+    animations: "disabled",
   });
 });
 
@@ -916,7 +930,7 @@ test("tournament hero checks the file and alt text, compresses uploads, and supp
   await page.getByLabel("Password", { exact: true }).fill(f.pass);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "You’re in." })).toBeVisible();
-  await page.goto("/play/admin");
+  await page.goto("/play/admin", { waitUntil: "domcontentloaded" });
   await page.getByText("Tournament hero", { exact: true }).click();
   const form = page.getByRole("form", { name: `Hero for ${event.name}` });
   const picker = form.locator('input[type="file"]');

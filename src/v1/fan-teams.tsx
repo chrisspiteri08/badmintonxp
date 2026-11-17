@@ -42,20 +42,21 @@ export function TeamPicker({
       <div className="team-choices">
         {(
           [
-            ["join", "Join an existing team", Users],
-            ["create", "Create a team", Plus],
-            ["independent", "Independent fan", Flag],
+            ["join", "Join", "Join an existing team", Users],
+            ["create", "Create", "Create a team", Plus],
+            ["independent", "Solo", "Independent fan", Flag],
           ] as const
-        ).map(([value, label, Icon]) => (
+        ).map(([value, label, accessibleLabel, Icon]) => (
           <label key={value}>
             <input
               type="radio"
+              aria-label={accessibleLabel}
               name="team-choice"
               value={value}
               checked={choice === value}
               onChange={() => setChoice(value)}
             />
-            <Icon size={19} aria-hidden="true" />
+            <Icon size={28} aria-hidden="true" />
             <span>{label}</span>
           </label>
         ))}
@@ -242,17 +243,40 @@ export function YourTeam({
         <h2>Your team</h2>
         {team ? (
           <>
-            <h3>{team.name}</h3>
-            <p>
-              {team.member_count}{" "}
-              {team.member_count === 1 ? "member" : "members"} · Tournament rank{" "}
-              {rank ? `#${rank}` : "—"}
-            </p>
+            <div className="team-card-heading">
+              <div>
+                <h3>{team.name}</h3>
+                <p>
+                  {team.member_count}{" "}
+                  {team.member_count === 1 ? "member" : "members"}
+                </p>
+              </div>
+              {rank ? (
+                <strong
+                  className="team-rank-medal"
+                  data-place={rank}
+                  aria-label={`Tournament rank #${rank}`}
+                >
+                  #{rank}
+                </strong>
+              ) : (
+                <small>Unranked</small>
+              )}
+            </div>
+            <div
+              className="team-slots"
+              role="meter"
+              aria-label="Scoring spots"
+              aria-valuemin={0}
+              aria-valuemax={10}
+              aria-valuenow={Math.min(team.member_count, 10)}
+            >
+              {Array.from({ length: 10 }, (_, index) => (
+                <span key={index} data-filled={index < team.member_count} />
+              ))}
+            </div>
             {team.member_count < 10 && (
-              <p>
-                {team.member_count} of 10 scoring spots filled. Invite{" "}
-                {10 - team.member_count} more.
-              </p>
+              <p>Invite {10 - team.member_count} more</p>
             )}
             <GameButton
               type="button"

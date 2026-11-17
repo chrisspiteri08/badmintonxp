@@ -24,7 +24,14 @@ test("team signup, invite switching and sharing without a native share sheet", a
     .eq("id", f.team)
     .maybeSingle();
   const target = legacy ? { ...legacy, member_count: 0 } : fixtureTeam;
-  const capture = (screen: string) => {
+  const capture = async (screen: string) => {
+    if (screen.startsWith("signup-")) {
+      await page.evaluate(() => {
+        if (document.activeElement instanceof HTMLElement)
+          document.activeElement.blur();
+        window.scrollTo(0, 0);
+      });
+    }
     const { width, height } = page.viewportSize()!;
     return page.screenshot({
       path: path.resolve(
@@ -47,7 +54,10 @@ test("team signup, invite switching and sharing without a native share sheet", a
     const home = await response.json();
     if (!home.teams.some((team: { id: string }) => team.id === target.id))
       home.teams.push(target);
-    if (home.profile) home.profile.team_id = fixtureTeam.id;
+    if (home.profile) {
+      home.profile.team_id = fixtureTeam.id;
+      home.lifetime_xp = 105;
+    }
     await route.fulfill({ response, json: home });
   });
   await page.route("**/rest/v1/rpc/v1_my_team", (route) =>
@@ -85,14 +95,27 @@ test("team signup, invite switching and sharing without a native share sheet", a
   ).toBeVisible();
   await capture("join");
   await page.getByRole("link", { name: `Join ${target.name}` }).click();
+  await page.getByLabel("Player name").fill("RallyFan");
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(pass);
+  await expect(page.getByLabel("Country", { exact: true })).not.toBeVisible();
+  await page.getByLabel("Password", { exact: true }).blur();
+  await capture("signup-name");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByLabel("Country", { exact: true }).selectOption("MY");
+  await expect(page.locator(".signup-flag")).toHaveText("🇲🇾");
+  await capture("signup-country");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByLabel("Player name")).toHaveValue("RallyFan");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByLabel("Country", { exact: true })).toHaveValue("MY");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(
     page.getByRole("radio", { name: "Join an existing team" }),
   ).toBeChecked();
   await expect(page.getByLabel("Choose a team")).toHaveValue(target.id);
   await page.getByLabel("Search teams").fill(target.name);
   await expect(page.getByRole("option", { name: target.name })).toHaveCount(1);
-  await page.getByLabel("Country", { exact: true }).selectOption("MY");
-  await expect(page.locator(".signup-flag")).toHaveText("🇲🇾");
   await page.getByRole("radio", { name: "Create a team" }).check();
   await page.getByLabel("Team name").fill(name);
   await page.getByLabel("Team name").scrollIntoViewIfNeeded();
@@ -148,12 +171,19 @@ test("team signup, invite switching and sharing without a native share sheet", a
   await page.goto("/play");
   const card = page.getByRole("region", { name: "Your team" });
   await expect(card.getByRole("heading", { name })).toBeVisible();
+  await expect(card.getByText("Invite 7 more")).toBeVisible();
+  await expect(card.getByLabel("Tournament rank #2")).toBeVisible();
   await expect(
-    card.getByText("3 of 10 scoring spots filled. Invite 7 more."),
-  ).toBeVisible();
-  await expect(card.getByText(/Tournament rank #2/)).toBeVisible();
+    card.getByRole("meter", { name: "Scoring spots" }),
+  ).toHaveAttribute("aria-valuenow", "3");
+  await expect(card.locator(".team-slots span")).toHaveCount(10);
+  await expect(page.getByTestId("v1-lifetime-xp")).toHaveText("105 XP");
   await card.scrollIntoViewIfNeeded();
   await capture("play-team");
+  const progress = page.getByRole("region", { name: "Player progress" });
+  await expect(progress).toContainText(/Rookie · [0-9]+ XP to Level 2/);
+  await progress.scrollIntoViewIfNeeded();
+  await capture("level-progress");
   await card.getByRole("button", { name: "Invite friends" }).click();
   await expect(page.getByRole("dialog", { name: "Team invite" })).toBeVisible();
   await page.getByRole("button", { name: "Close" }).click();

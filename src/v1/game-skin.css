@@ -233,3 +233,127 @@
   font-weight: 850;
   letter-spacing: 0.075em;
 }
+
+.v1 .signup-pane[hidden] {
+  display: none;
+}
+.v1 .signup-pane:not([hidden]) {
+  animation: signup-enter 180ms ease-out both;
+}
+.v1 .signup-pane[data-back="true"] {
+  --signup-offset: -14px;
+}
+@keyframes signup-enter {
+  from {
+    transform: translateX(var(--signup-offset, 14px));
+    opacity: 0.72;
+  }
+}
+.v1 .signup-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.v1 .signup-actions .wide {
+  flex: 1;
+}
+.v1 .team-choices.team-choices {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.v1 .team-choices.team-choices label {
+  aspect-ratio: 1;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px;
+  gap: 5px;
+  text-align: center;
+}
+.v1 .team-choices.team-choices label:has(:checked) {
+  background: linear-gradient(140deg, #4d2b31, #20314a);
+  box-shadow:
+    inset 0 0 14px #ff8c4d38,
+    0 0 12px #ff8c4d35;
+}
+.v1 .team-choices.team-choices input {
+  margin: 0;
+  width: 100%;
+}
+.v1 .team-card-heading,
+.v1 .game-level-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.v1 .team-card-heading h3,
+.v1 .team-card-heading p {
+  margin-block: 0 4px;
+}
+.v1 .team-rank-medal {
+  display: grid;
+  place-items: center;
+  flex: 0 0 53px;
+  aspect-ratio: 1;
+  border: 2px solid #b8daf8;
+  border-radius: 50%;
+  color: #152744;
+  background: linear-gradient(145deg, #e0eeff, #86b6dc);
+  box-shadow: 0 4px #223657;
+  font-size: 23px;
+  font-weight: 950;
+}
+.v1 .team-rank-medal[data-place="1"] {
+  background: linear-gradient(145deg, #fff2a9, #fbae42);
+  border-color: #ffe391;
+}
+.v1 .team-rank-medal[data-place="2"] {
+  background: linear-gradient(145deg, #f2f7ff, #a1b2c9);
+  border-color: #e5edfa;
+}
+.v1 .team-rank-medal[data-place="3"] {
+  background: linear-gradient(145deg, #ffcea2, #c78455);
+  border-color: #ffc392;
+}
+.v1 .team-slots {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 4px;
+  margin-block: 11px 8px;
+}
+.v1 .team-slots span {
+  display: block;
+  height: 13px;
+  border: 1px solid #576983;
+  border-radius: 3px;
+  background: #1c2f4c;
+}
+.v1 .team-slots [data-filled="true"] {
+  border-color: #ffbd81;
+  background: linear-gradient(#ffc177, #ff8549);
+  box-shadow: 0 0 8px #ff88495e;
+}
+.v1 .game-home-level .game-xp-track {
+  height: 14px;
+  border: 1px solid #526d90;
+  background: #061529;
+}
+.v1 .game-home-level .game-xp-track span {
+  box-shadow: 0 0 10px #ff9c65;
+}
+.v1 .game-level-label {
+  flex-wrap: wrap;
+}
+.v1 .lifetime-chip {
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: #19395b;
+  color: #ecf5ff;
+  font-size: 11px;
+  font-weight: 850;
+}
+@media (prefers-reduced-motion: reduce) {
+  .v1 .signup-pane:not([hidden]) {
+    animation: none;
+  }
+}

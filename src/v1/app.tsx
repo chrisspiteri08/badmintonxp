@@ -104,6 +104,8 @@ export function V1App({ screen }: { screen: Screen }) {
   const [freshAnswer, setFreshAnswer] = useState("");
   const [selectedQuiz, setSelectedQuiz] = useState("");
   const [signupStep, setSignupStep] = useState(1);
+  const [signupBack, setSignupBack] = useState(false);
+  const signupPane = useRef<HTMLElement>(null);
   const [signupCountry, setSignupCountry] = useState("");
   const [signupTeam, setSignupTeam] = useState<string | null>(null);
   const [signupInvite, setSignupInvite] = useState<string | null>(null);
@@ -442,8 +444,25 @@ export function V1App({ screen }: { screen: Screen }) {
     rankingTeam,
     eventXp,
   ]);
+  useEffect(() => {
+    if (authMode === "signup" && signupStep > 1) signupPane.current?.focus();
+  }, [authMode, signupStep]);
+
   const onAuth = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (authMode === "signup") {
+      const fields = signupPane.current?.querySelectorAll<
+        HTMLInputElement | HTMLSelectElement
+      >("input, select");
+      for (const field of fields ?? []) {
+        if (!field.reportValidity()) return;
+      }
+      if (signupStep < 3) {
+        setSignupBack(false);
+        setSignupStep(signupStep + 1);
+        return;
+      }
+    }
     const data = new FormData(event.currentTarget);
     void perform(async () => {
       if (!client) return;
@@ -487,6 +506,8 @@ export function V1App({ screen }: { screen: Screen }) {
       }
     });
   };
+  const lifetimeXp = home?.lifetime_xp ?? 0;
+  const playerLevel = levelFor(lifetimeXp);
   const teamPlayer = session?.user.id;
   const teamId = home?.profile?.team_id;
   const requestedTeam = session?.user.user_metadata.team_name_request;
@@ -736,15 +757,19 @@ export function V1App({ screen }: { screen: Screen }) {
                       aria-label="Player progress"
                     >
                       <div className="game-home-level">
-                        <strong>Level progress</strong>
+                        <div className="game-level-label">
+                          <strong>
+                            {playerLevel.title} · {250 - (lifetimeXp % 250)} XP
+                            to Level {playerLevel.level + 1}
+                          </strong>
+                          <span className="lifetime-chip">
+                            {lifetimeXp} Lifetime XP
+                          </span>
+                        </div>
                         <XPProgress
-                          xp={home.lifetime_xp}
+                          xp={lifetimeXp}
                           label="Lifetime XP toward next level"
                         />
-                        <small>
-                          {home.lifetime_xp} lifetime XP ·{" "}
-                          {250 - (home.lifetime_xp % 250)} XP to next level
-                        </small>
                       </div>
                       <div className="game-event-score">
                         <span>Event score</span>
@@ -815,126 +840,182 @@ export function V1App({ screen }: { screen: Screen }) {
                               ? "Back in the game."
                               : "Welcome back."}
                         </h1>
-                        <form onSubmit={onAuth}>
+                        <form
+                          onSubmit={onAuth}
+                          noValidate={authMode === "signup"}
+                        >
                           {authMode === "signup" && (
-                            <>
-                              <ol
-                                className="signup-steps"
-                                aria-label="Create your player"
-                              >
-                                {["Name", "Country", "Team"].map(
-                                  (label, index) => (
-                                    <li
-                                      key={label}
-                                      aria-current={
-                                        signupStep === index + 1
-                                          ? "step"
-                                          : undefined
-                                      }
-                                    >
-                                      <span>{index + 1}</span>
-                                      {label}
-                                    </li>
-                                  ),
-                                )}
-                              </ol>
-                              <label>
-                                Player name
-                                <input
-                                  name="username"
-                                  onFocus={() => setSignupStep(1)}
-                                  autoComplete="nickname"
-                                  minLength={3}
-                                  maxLength={24}
-                                  pattern="[A-Za-z0-9_]{3,24}"
-                                  required
-                                />
-                                <small>
-                                  3–24 letters, numbers or underscores.
-                                </small>
-                              </label>
-                              <label>
-                                Country
-                                <span className="signup-country">
-                                  {signupCountry && (
-                                    <span
-                                      className="signup-flag"
-                                      aria-hidden="true"
-                                    >
-                                      {String.fromCodePoint(
-                                        ...Array.from(
-                                          signupCountry,
-                                          (letter) =>
-                                            127397 + letter.charCodeAt(0),
-                                        ),
-                                      )}
-                                    </span>
-                                  )}
-                                  <select
-                                    name="country"
-                                    aria-label="Country"
-                                    defaultValue=""
-                                    required
-                                    onFocus={() => setSignupStep(2)}
-                                    onChange={(event) =>
-                                      setSignupCountry(event.target.value)
+                            <ol
+                              className="signup-steps"
+                              aria-label="Create your player"
+                            >
+                              {["Name", "Country", "Team"].map(
+                                (label, index) => (
+                                  <li
+                                    key={label}
+                                    aria-current={
+                                      signupStep === index + 1
+                                        ? "step"
+                                        : undefined
                                     }
                                   >
-                                    <option value="" disabled>
-                                      Choose your country
-                                    </option>
-                                    {countries.map(([code, name]) => (
-                                      <option value={code} key={code}>
-                                        {name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </span>
-                              </label>
-                              <TeamPicker
-                                key={signupTeam ?? "independent"}
-                                teams={home.teams}
-                                onFocus={() => setSignupStep(3)}
-                                selected={home.teams.find(
-                                  (team) => team.id === signupTeam,
-                                )}
-                              />
-                            </>
+                                    <span>{index + 1}</span>
+                                    {label}
+                                  </li>
+                                ),
+                              )}
+                            </ol>
                           )}
-                          <label>
-                            Email
-                            <input
-                              name="email"
-                              type="email"
-                              autoComplete="email"
-                              required
-                              maxLength={254}
-                            />
-                          </label>
-                          {authMode !== "forgot" && (
+                          <section
+                            className="signup-pane"
+                            tabIndex={-1}
+                            data-back={signupBack}
+                            hidden={authMode === "signup" && signupStep !== 1}
+                            ref={
+                              authMode === "signup" && signupStep === 1
+                                ? signupPane
+                                : undefined
+                            }
+                          >
+                            {authMode === "signup" && (
+                              <>
+                                {" "}
+                                <label>
+                                  Player name
+                                  <input
+                                    name="username"
+                                    autoComplete="nickname"
+                                    minLength={3}
+                                    maxLength={24}
+                                    pattern="[A-Za-z0-9_]{3,24}"
+                                    required
+                                  />
+                                  <small>
+                                    3–24 letters, numbers or underscores.
+                                  </small>
+                                </label>
+                              </>
+                            )}
                             <label>
-                              Password
+                              Email
                               <input
-                                name="password"
-                                type="password"
-                                autoComplete={
-                                  authMode === "signup"
-                                    ? "new-password"
-                                    : "current-password"
-                                }
-                                minLength={6}
-                                maxLength={128}
+                                name="email"
+                                type="email"
+                                autoComplete="email"
                                 required
+                                maxLength={254}
                               />
                             </label>
+                            {authMode !== "forgot" && (
+                              <>
+                                {" "}
+                                <label>
+                                  Password
+                                  <input
+                                    name="password"
+                                    type="password"
+                                    autoComplete={
+                                      authMode === "signup"
+                                        ? "new-password"
+                                        : "current-password"
+                                    }
+                                    minLength={6}
+                                    maxLength={128}
+                                    required
+                                  />
+                                </label>
+                              </>
+                            )}
+                          </section>
+                          {authMode === "signup" && (
+                            <>
+                              <section
+                                className="signup-pane"
+                                tabIndex={-1}
+                                data-back={signupBack}
+                                hidden={signupStep !== 2}
+                                ref={signupStep === 2 ? signupPane : undefined}
+                              >
+                                <label>
+                                  Country
+                                  <span className="signup-country">
+                                    {signupCountry && (
+                                      <span
+                                        className="signup-flag"
+                                        aria-hidden="true"
+                                      >
+                                        {String.fromCodePoint(
+                                          ...Array.from(
+                                            signupCountry,
+                                            (letter) =>
+                                              127397 + letter.charCodeAt(0),
+                                          ),
+                                        )}
+                                      </span>
+                                    )}
+                                    <select
+                                      name="country"
+                                      aria-label="Country"
+                                      defaultValue=""
+                                      required
+                                      onChange={(event) =>
+                                        setSignupCountry(event.target.value)
+                                      }
+                                    >
+                                      <option value="" disabled>
+                                        Choose your country
+                                      </option>
+                                      {countries.map(([code, name]) => (
+                                        <option value={code} key={code}>
+                                          {name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </span>
+                                </label>
+                              </section>
+                              <section
+                                className="signup-pane"
+                                tabIndex={-1}
+                                data-back={signupBack}
+                                hidden={signupStep !== 3}
+                                ref={signupStep === 3 ? signupPane : undefined}
+                              >
+                                <TeamPicker
+                                  key={signupTeam ?? "independent"}
+                                  teams={home.teams}
+                                  selected={home.teams.find(
+                                    (team) => team.id === signupTeam,
+                                  )}
+                                />
+                              </section>
+                            </>
                           )}
-                          <GameButton className="primary wide" disabled={busy}>
-                            {authMode === "signup"
-                              ? "Create account"
-                              : authMode === "forgot"
-                                ? "Send reset link"
-                                : "Sign in"}
-                          </GameButton>
+                          <div className="signup-actions">
+                            {authMode === "signup" && signupStep > 1 && (
+                              <GameButton
+                                type="button"
+                                onClick={() => {
+                                  setSignupBack(true);
+                                  setSignupStep(signupStep - 1);
+                                }}
+                              >
+                                Back
+                              </GameButton>
+                            )}
+                            <GameButton
+                              className="primary wide"
+                              disabled={busy}
+                            >
+                              {authMode === "signup"
+                                ? signupStep === 3
+                                  ? "Create account"
+                                  : "Next"
+                                : authMode === "forgot"
+                                  ? "Send reset link"
+                                  : "Sign in"}
+                            </GameButton>
+                          </div>
                         </form>
                         <div className="button-row">
                           <GameButton
@@ -942,6 +1023,8 @@ export function V1App({ screen }: { screen: Screen }) {
                               setAuthMode(
                                 authMode === "signup" ? "login" : "signup",
                               );
+                              setSignupStep(1);
+                              setSignupCountry("");
                               setMessage("");
                             }}
                           >

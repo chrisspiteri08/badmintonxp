@@ -20,7 +20,16 @@ test("landing shows the benefits and both registration links", async ({
   );
   const benefits = page.getByRole("region", { name: "Why play BadmintonXP" });
   await expect(page.locator(".launch-hero + .launch-benefits")).toBeVisible();
-  await expect(page.getByRole("listitem")).toHaveCount(4);
+  await expect(benefits.getByRole("listitem")).toHaveCount(4);
+  await expect(
+    page.getByRole("heading", { name: "How it plays" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "The World Tour Finals start 9 Dec. Get your spot.",
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".launch-country-race")).toBeVisible();
   for (const [title, copy] of [
     [
       "Play for your country",
@@ -74,15 +83,12 @@ test("landing shows the benefits and both registration links", async ({
       };
     }),
   ).toEqual({ columns: viewport.width === 360 ? 2 : 4, fits: true });
-  if (process.env.LAUNCH_BENEFITS_SCREENSHOTS === "1") {
-    await benefits.scrollIntoViewIfNeeded();
-  }
   await page.screenshot({
     path: path.resolve(
       process.env.LAUNCH_SCREENSHOT_DIR || "../../outputs",
       `${process.env.GAME_FEEL_SCREENSHOTS === "1" ? "landing" : "BadmintonXP-benefits"}-${viewport.width}x${viewport.height}.png`,
     ),
-    fullPage: process.env.LAUNCH_BENEFITS_SCREENSHOTS !== "1",
+    fullPage: true,
     animations: "disabled",
   });
 
@@ -97,7 +103,10 @@ test("landing shows the benefits and both registration links", async ({
   const image = await request.get(new URL(ogImage!).pathname);
   expect(image.status()).toBe(200);
   expect(image.headers()["content-type"]).toContain("image/png");
-  await benefits.getByRole("link", { name: "Register free" }).click();
+  await page
+    .getByRole("region", { name: "World Tour Finals registration" })
+    .getByRole("link", { name: "Register free" })
+    .click();
   await expect(page).toHaveURL(/\/play\/account\?mode=signup$/);
   await expect(page.locator(".v1")).toBeVisible();
 });
