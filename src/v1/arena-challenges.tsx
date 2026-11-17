@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GameButton } from "./game-button";
 import { Check, Clock3, Play, Target } from "lucide-react";
 import { deadlineLabel } from "./game-ui";
 import type { Home } from "./types";
@@ -87,11 +87,17 @@ export function ArenaChallenges({
               <li
                 key={item.id}
                 className="panel arena-challenge"
+                data-panel={item.kind === "Quiz" ? "quiz" : "prediction"}
                 data-state={["open", "upcoming", "done"][item.state]}
               >
                 <Icon size={22} aria-hidden="true" />
                 <div>
                   <span className="eyebrow">{item.kind}</span>
+                  {item.state === 0 && (
+                    <span className="arena-challenge-live" aria-label="Live">
+                      LIVE
+                    </span>
+                  )}
                   <h3>{item.name}</h3>
                   <p>
                     {item.state === 0 ? (
@@ -122,12 +128,12 @@ export function ArenaChallenges({
                   </p>
                 </div>
                 {item.state === 0 && (
-                  <Link
+                  <GameButton
                     className="button primary"
                     href={signedIn ? item.url : "/play/account"}
                   >
                     {item.action}
-                  </Link>
+                  </GameButton>
                 )}
                 {item.state === 1 && <Clock3 size={18} aria-hidden="true" />}
               </li>

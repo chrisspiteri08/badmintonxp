@@ -232,7 +232,11 @@ export function ArenaRankings({
               const own = ownEntry(rows, league, profile);
               const above = own && rows[rows.indexOf(own) - 1];
               return (
-                <div className="panel arena-rank-card" key={league}>
+                <div
+                  className="panel arena-rank-card"
+                  data-panel="rankings"
+                  key={league}
+                >
                   <Link
                     className="arena-rank-link"
                     href={`/play/standings?league=${league}`}
@@ -427,6 +431,7 @@ export function TournamentStandings({
                   return (
                     <section
                       className="panel race-card"
+                      data-panel="rankings"
                       key={league}
                       data-selected={league === mobileLeague}
                       aria-label={names[league]}
@@ -471,7 +476,7 @@ export function TournamentStandings({
             <p>The first event is on its way.</p>
           )}
           {data.past.length > 0 && (
-            <section className="panel race-past">
+            <section className="panel race-past" data-panel="rankings">
               <h2>Past champions</h2>
               {data.past.map((event) => (
                 <div key={event.id}>

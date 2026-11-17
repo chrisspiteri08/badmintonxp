@@ -52,6 +52,13 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
   page,
   request,
 }, info) => {
+  const gameFeel = process.env.GAME_FEEL_SCREENSHOTS === "1";
+  if (gameFeel)
+    await page.setViewportSize(
+      info.project.name === "mobile"
+        ? { width: 360, height: 800 }
+        : { width: 1440, height: 900 },
+    );
   const tag = randomUUID().slice(0, 8);
   const f = await fixture(tag);
   const email = `fan-${tag}@example.test`,
@@ -61,9 +68,11 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
     page.screenshot({
       path: path.resolve(
         process.env.V1_SCREENSHOT_DIR || "../../outputs/v1-screenshots",
-        `${info.project.name}-${screen}.png`,
+        gameFeel
+          ? `${screen}-${page.viewportSize()!.width}x${page.viewportSize()!.height}.png`
+          : `${info.project.name}-${screen}.png`,
       ),
-      fullPage: true,
+      fullPage: !gameFeel,
       animations: "disabled",
     });
   const errors: string[] = [];
@@ -209,6 +218,13 @@ test("real signup, email confirmation, profile, server quiz, locked prediction a
       .boundingBox();
     expect(lastAnswer!.y + lastAnswer!.height).toBeLessThan(tabs!.y);
   }
+  await expect(
+    page.getByRole("button", { name: "C 16", exact: true }),
+  ).toHaveClass(/game-button/);
+  await expect(page.locator(".quiz-panel")).toHaveAttribute(
+    "data-panel",
+    "quiz",
+  );
   await capture("quiz");
   // No answer key in any player question response before an answer is locked.
   const payload = await page.evaluate(async (id) => {

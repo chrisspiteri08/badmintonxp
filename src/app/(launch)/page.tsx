@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { GameButton } from "@/v1/game-button";
 import Image from "next/image";
 import { landingHeroUrl } from "@/launch/hero";
 import { publicV1Config } from "@/v1/config";
@@ -22,21 +22,25 @@ export const metadata: Metadata = {
 const benefits = [
   {
     icon: "🌍",
+    type: "rankings",
     title: "Play for your country",
     copy: "Every point you score lifts your nation in the live country rankings.",
   },
   {
     icon: "🎯",
+    type: "prediction",
     title: "Call the big match",
     copy: "Predict one featured match a day. Get it right for +20 XP.",
   },
   {
     icon: "⚡",
+    type: "quiz",
     title: "Daily badminton quiz",
     copy: "Quick questions every day of the tournament, easy to hard. +10 XP each.",
   },
   {
     icon: "👥",
+    type: "team",
     title: "Build your team",
     copy: "Start a team, invite friends, and climb together. Your top 10 count.",
   },
@@ -61,15 +65,19 @@ export default async function Landing() {
         <div className="launch-intro">
           <h1 id="launch-title">{headline}</h1>
           <p className="launch-description">{description}</p>
-          <Link className="launch-button" href="/play/account?mode=signup">
+          <GameButton
+            tone="primary"
+            className="launch-button"
+            href="/play/account?mode=signup"
+          >
             Register free
-          </Link>
+          </GameButton>
         </div>
       </section>
       <section className="launch-benefits" aria-label="Why play BadmintonXP">
         <ul className="launch-benefit-grid">
-          {benefits.map(({ icon, title, copy }) => (
-            <li className="launch-benefit" key={title}>
+          {benefits.map(({ icon, title, copy, type }) => (
+            <li className="launch-benefit" data-panel={type} key={title}>
               <span className="launch-benefit-icon" aria-hidden="true">
                 {icon}
               </span>
@@ -81,9 +89,13 @@ export default async function Landing() {
         <p className="launch-benefit-note">
           Free to play. Every tournament starts at 0.
         </p>
-        <Link className="launch-button" href="/play/account?mode=signup">
+        <GameButton
+          tone="primary"
+          className="launch-button"
+          href="/play/account?mode=signup"
+        >
           Register free
-        </Link>
+        </GameButton>
       </section>
     </main>
   );

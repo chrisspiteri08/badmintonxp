@@ -1,6 +1,7 @@
 "use client";
+import { GameBurst } from "@/v1/game-ui";
+import { GameButton } from "@/v1/game-button";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { friendlyError, v1Client } from "@/v1/client";
@@ -55,7 +56,8 @@ export function JoinTeam({ team }: { team: TeamInvite | null }) {
 
   return (
     <div className="demo v1 team-invite-page">
-      <main className="panel">
+      <main className="panel game-burst-host" data-panel="team">
+        {joined && <GameBurst />}
         <span className="eyebrow">BADMINTONXP · TEAM INVITE</span>
         {team ? (
           <>
@@ -67,9 +69,9 @@ export function JoinTeam({ team }: { team: TeamInvite | null }) {
             {joined ? (
               <>
                 <p role="status">You’re on {joined.name}.</p>
-                <Link className="button primary" href="/play">
+                <GameButton className="button primary" href="/play">
                   Enter the arena
-                </Link>
+                </GameButton>
               </>
             ) : auth?.signedIn ? (
               confirm ? (
@@ -78,33 +80,33 @@ export function JoinTeam({ team }: { team: TeamInvite | null }) {
                     Switch to {team.name}? XP you’ve already earned stays with
                     your previous team.
                   </p>
-                  <button
+                  <GameButton
                     className="primary"
                     disabled={busy}
                     onClick={() => void join(true)}
                   >
                     Switch team
-                  </button>
-                  <button disabled={busy} onClick={() => setConfirm(false)}>
+                  </GameButton>
+                  <GameButton disabled={busy} onClick={() => setConfirm(false)}>
                     Cancel
-                  </button>
+                  </GameButton>
                 </div>
               ) : (
-                <button
+                <GameButton
                   className="primary"
                   disabled={busy}
                   onClick={() => void join(false)}
                 >
                   Join {team.name}
-                </button>
+                </GameButton>
               )
             ) : auth ? (
-              <Link
+              <GameButton
                 className="button primary"
                 href={`/play/account?mode=signup&team=${team.id}&invite=${team.invite_code}`}
               >
                 Join {team.name}
-              </Link>
+              </GameButton>
             ) : (
               !error && <p role="status">Opening your invitation…</p>
             )}
@@ -113,9 +115,9 @@ export function JoinTeam({ team }: { team: TeamInvite | null }) {
         ) : (
           <>
             <h1>Team invitation unavailable</h1>
-            <Link className="button primary" href="/play">
+            <GameButton className="button primary" href="/play">
               Back to the arena
-            </Link>
+            </GameButton>
           </>
         )}
       </main>

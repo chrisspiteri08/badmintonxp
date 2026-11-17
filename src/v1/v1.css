@@ -1199,7 +1199,7 @@
   .v1 .quiz-panel:has(.v1-quiz-result) .game-quiz-art {
     min-height: 80px;
     gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 6px;
   }
   .v1 .v1-quiz-result > h2 {
     margin-block: 8px;

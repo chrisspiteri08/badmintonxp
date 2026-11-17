@@ -1,6 +1,8 @@
 "use client";
+import { GameButton } from "./game-button";
+import { GameBurst } from "./game-ui";
+import { Copy, Flag, MessageCircle, Plus, Users, X } from "lucide-react";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Team } from "./types";
@@ -22,9 +24,11 @@ export async function teamAction(
 export function TeamPicker({
   teams,
   selected,
+  onFocus,
 }: {
   teams: Team[];
   selected?: Team;
+  onFocus?: () => void;
 }) {
   const [choice, setChoice] = useState(selected ? "join" : "independent");
   const [search, setSearch] = useState("");
@@ -33,14 +37,16 @@ export function TeamPicker({
   );
 
   return (
-    <fieldset className="team-picker">
+    <fieldset className="team-picker" onFocus={onFocus}>
       <legend>Team</legend>
       <div className="team-choices">
-        {[
-          ["join", "Join an existing team"],
-          ["create", "Create a team"],
-          ["independent", "Independent fan"],
-        ].map(([value, label]) => (
+        {(
+          [
+            ["join", "Join an existing team", Users],
+            ["create", "Create a team", Plus],
+            ["independent", "Independent fan", Flag],
+          ] as const
+        ).map(([value, label, Icon]) => (
           <label key={value}>
             <input
               type="radio"
@@ -49,7 +55,8 @@ export function TeamPicker({
               checked={choice === value}
               onChange={() => setChoice(value)}
             />
-            {label}
+            <Icon size={19} aria-hidden="true" />
+            <span>{label}</span>
           </label>
         ))}
       </div>
@@ -117,7 +124,12 @@ export function ShareTeam({
   }
 
   return (
-    <section className="panel team-share" aria-label="Share team">
+    <section
+      className="panel team-share game-burst-host"
+      data-panel="team"
+      aria-label="Share team"
+    >
+      {created && <GameBurst />}
       <h2>
         {created ? "Your team is ready." : `Invite friends to ${team.name}`}
       </h2>
@@ -126,20 +138,24 @@ export function ShareTeam({
           ? "Invite friends — your top 10 fans count."
           : "Your top 10 fans count."}
       </p>
-      <button type="button" className="primary" onClick={() => void share()}>
+      <GameButton
+        type="button"
+        className="primary"
+        onClick={() => void share()}
+      >
         Share invite
-      </button>
+      </GameButton>
       {fallback && (
         <div className="team-share-options">
-          <a
+          <GameButton
             className="button"
             href={`https://wa.me/?text=${encodeURIComponent(text)}`}
             target="_blank"
             rel="noreferrer"
           >
-            WhatsApp
-          </a>
-          <button
+            <MessageCircle size={19} aria-hidden="true" /> WhatsApp
+          </GameButton>
+          <GameButton
             type="button"
             onClick={async () => {
               try {
@@ -150,16 +166,16 @@ export function ShareTeam({
               }
             }}
           >
-            Copy link
-          </button>
-          <a
+            <Copy size={19} aria-hidden="true" /> Copy link
+          </GameButton>
+          <GameButton
             className="button"
             href={`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`}
             target="_blank"
             rel="noreferrer"
           >
-            X
-          </a>
+            <X size={19} aria-hidden="true" /> X
+          </GameButton>
           <label>
             Invite link
             <input
@@ -218,7 +234,11 @@ export function YourTeam({
 
   return (
     <>
-      <section className="panel your-team" aria-label="Your team">
+      <section
+        className="panel your-team"
+        data-panel="team"
+        aria-label="Your team"
+      >
         <h2>Your team</h2>
         {team ? (
           <>
@@ -234,17 +254,17 @@ export function YourTeam({
                 {10 - team.member_count} more.
               </p>
             )}
-            <button
+            <GameButton
               type="button"
               className="primary"
               onClick={() => setShare(true)}
             >
               Invite friends
-            </button>
+            </GameButton>
           </>
         ) : (
           <div className="button-row">
-            <button
+            <GameButton
               type="button"
               className="primary"
               onClick={() => {
@@ -253,8 +273,8 @@ export function YourTeam({
               }}
             >
               Start a team
-            </button>
-            <button
+            </GameButton>
+            <GameButton
               type="button"
               onClick={() => {
                 setError("");
@@ -262,7 +282,7 @@ export function YourTeam({
               }}
             >
               Join a team
-            </button>
+            </GameButton>
           </div>
         )}
         {mode === "create" && (
@@ -276,9 +296,9 @@ export function YourTeam({
                 {error}
               </p>
             )}
-            <button type="submit" className="primary" disabled={busy}>
+            <GameButton type="submit" className="primary" disabled={busy}>
               Create team
-            </button>
+            </GameButton>
           </form>
         )}
         {mode === "join" && (
@@ -302,12 +322,12 @@ export function YourTeam({
                 )
                 .map((entry) => (
                   <li key={entry.id}>
-                    <Link
+                    <GameButton
                       className="button"
                       href={`/join/${entry.invite_code}`}
                     >
                       {entry.name}
-                    </Link>
+                    </GameButton>
                   </li>
                 ))}
             </ul>
@@ -350,7 +370,7 @@ function TeamShareDialog({
     >
       <ShareTeam team={team} created={created} />
       <form method="dialog">
-        <button>Close</button>
+        <GameButton>Close</GameButton>
       </form>
     </dialog>
   );
@@ -381,7 +401,7 @@ export function TeamSharePrompt({
     <>
       {visible && (
         <aside className="panel team-prompt" aria-label="Invite your team">
-          <button
+          <GameButton
             type="button"
             className="primary"
             onClick={() => {
@@ -390,10 +410,10 @@ export function TeamSharePrompt({
             }}
           >
             Invite your team
-          </button>
-          <button type="button" onClick={() => setVisible(false)}>
+          </GameButton>
+          <GameButton type="button" onClick={() => setVisible(false)}>
             Dismiss
-          </button>
+          </GameButton>
         </aside>
       )}
       {share && <TeamShareDialog team={team} onClose={() => setShare(false)} />}

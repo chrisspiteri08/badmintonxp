@@ -1,4 +1,5 @@
 "use client";
+import { GameButton } from "./game-button";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -18,6 +19,8 @@ import {
 } from "lucide-react";
 import {
   ArenaSkeleton,
+  CountUpXP,
+  GameBurst,
   deadlineLabel,
   levelFor,
   LevelCelebration,
@@ -100,6 +103,8 @@ export function V1App({ screen }: { screen: Screen }) {
   const previousAttempt = useRef<Attempt | null>(null);
   const [freshAnswer, setFreshAnswer] = useState("");
   const [selectedQuiz, setSelectedQuiz] = useState("");
+  const [signupStep, setSignupStep] = useState(1);
+  const [signupCountry, setSignupCountry] = useState("");
   const [signupTeam, setSignupTeam] = useState<string | null>(null);
   const [signupInvite, setSignupInvite] = useState<string | null>(null);
   const [myTeam, setMyTeam] = useState<{
@@ -575,9 +580,9 @@ export function V1App({ screen }: { screen: Screen }) {
               <XPMeter xp={home.lifetime_xp} />
             </Link>
           ) : client ? (
-            <Link className="button" href="/play/account">
+            <GameButton className="button" href="/play/account">
               Sign in
-            </Link>
+            </GameButton>
           ) : null}
           <SoundToggle sound={sound} onToggle={toggleSound} />
         </div>
@@ -755,9 +760,9 @@ export function V1App({ screen }: { screen: Screen }) {
                   <p>
                     Sign in to save your scores and compete with your people.
                   </p>
-                  <Link className="button primary" href="/play/account">
+                  <GameButton className="button primary" href="/play/account">
                     Sign in or create an account →
-                  </Link>
+                  </GameButton>
                 </section>
               ) : (
                 <>
@@ -765,9 +770,9 @@ export function V1App({ screen }: { screen: Screen }) {
                     (createdTeam ? (
                       <>
                         <ShareTeam team={createdTeam} created />
-                        <Link className="button" href="/play">
+                        <GameButton className="button" href="/play">
                           Enter the arena
-                        </Link>
+                        </GameButton>
                       </>
                     ) : registration ? (
                       <section className="panel registration-success">
@@ -779,23 +784,29 @@ export function V1App({ screen }: { screen: Screen }) {
                           </p>
                         )}
                         <LaunchCountdown />
-                        <Link className="button" href="/play">
+                        <GameButton className="button" href="/play">
                           Try the preview · Hong Kong Open
-                        </Link>
+                        </GameButton>
                       </section>
                     ) : signedIn ? (
                       <section className="panel">
                         <h1>You’re in.</h1>
                         <p>Welcome, {home.profile?.username}.</p>
-                        <Link className="button primary" href="/play/profile">
+                        <GameButton
+                          className="button primary"
+                          href="/play/profile"
+                        >
                           Set up your profile →
-                        </Link>
-                        <Link className="button" href="/play">
+                        </GameButton>
+                        <GameButton className="button" href="/play">
                           Enter the arena →
-                        </Link>
+                        </GameButton>
                       </section>
                     ) : (
-                      <section className="panel v1-form-panel">
+                      <section
+                        className="panel v1-form-panel"
+                        data-panel={authMode === "signup" ? "team" : undefined}
+                      >
                         <span className="eyebrow">YOUR NEXT RALLY</span>
                         <h1>
                           {authMode === "signup"
@@ -807,10 +818,31 @@ export function V1App({ screen }: { screen: Screen }) {
                         <form onSubmit={onAuth}>
                           {authMode === "signup" && (
                             <>
+                              <ol
+                                className="signup-steps"
+                                aria-label="Create your player"
+                              >
+                                {["Name", "Country", "Team"].map(
+                                  (label, index) => (
+                                    <li
+                                      key={label}
+                                      aria-current={
+                                        signupStep === index + 1
+                                          ? "step"
+                                          : undefined
+                                      }
+                                    >
+                                      <span>{index + 1}</span>
+                                      {label}
+                                    </li>
+                                  ),
+                                )}
+                              </ol>
                               <label>
                                 Player name
                                 <input
                                   name="username"
+                                  onFocus={() => setSignupStep(1)}
                                   autoComplete="nickname"
                                   minLength={3}
                                   maxLength={24}
@@ -823,20 +855,46 @@ export function V1App({ screen }: { screen: Screen }) {
                               </label>
                               <label>
                                 Country
-                                <select name="country" defaultValue="" required>
-                                  <option value="" disabled>
-                                    Choose your country
-                                  </option>
-                                  {countries.map(([code, name]) => (
-                                    <option value={code} key={code}>
-                                      {name}
+                                <span className="signup-country">
+                                  {signupCountry && (
+                                    <span
+                                      className="signup-flag"
+                                      aria-hidden="true"
+                                    >
+                                      {String.fromCodePoint(
+                                        ...Array.from(
+                                          signupCountry,
+                                          (letter) =>
+                                            127397 + letter.charCodeAt(0),
+                                        ),
+                                      )}
+                                    </span>
+                                  )}
+                                  <select
+                                    name="country"
+                                    aria-label="Country"
+                                    defaultValue=""
+                                    required
+                                    onFocus={() => setSignupStep(2)}
+                                    onChange={(event) =>
+                                      setSignupCountry(event.target.value)
+                                    }
+                                  >
+                                    <option value="" disabled>
+                                      Choose your country
                                     </option>
-                                  ))}
-                                </select>
+                                    {countries.map(([code, name]) => (
+                                      <option value={code} key={code}>
+                                        {name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </span>
                               </label>
                               <TeamPicker
                                 key={signupTeam ?? "independent"}
                                 teams={home.teams}
+                                onFocus={() => setSignupStep(3)}
                                 selected={home.teams.find(
                                   (team) => team.id === signupTeam,
                                 )}
@@ -870,16 +928,16 @@ export function V1App({ screen }: { screen: Screen }) {
                               />
                             </label>
                           )}
-                          <button className="primary wide" disabled={busy}>
+                          <GameButton className="primary wide" disabled={busy}>
                             {authMode === "signup"
                               ? "Create account"
                               : authMode === "forgot"
                                 ? "Send reset link"
                                 : "Sign in"}
-                          </button>
+                          </GameButton>
                         </form>
                         <div className="button-row">
-                          <button
+                          <GameButton
                             onClick={() => {
                               setAuthMode(
                                 authMode === "signup" ? "login" : "signup",
@@ -890,15 +948,15 @@ export function V1App({ screen }: { screen: Screen }) {
                             {authMode === "signup"
                               ? "I have an account"
                               : "Create an account"}
-                          </button>
-                          <button
+                          </GameButton>
+                          <GameButton
                             onClick={() => {
                               setAuthMode("forgot");
                               setMessage("");
                             }}
                           >
                             Forgot password?
-                          </button>
+                          </GameButton>
                         </div>
                         <p className="muted">
                           Your username, country, team and leaderboard totals
@@ -954,18 +1012,18 @@ export function V1App({ screen }: { screen: Screen }) {
                               required
                             />
                           </label>
-                          <button className="primary" disabled={busy}>
+                          <GameButton className="primary" disabled={busy}>
                             Save new password
-                          </button>
+                          </GameButton>
                         </form>
                       ) : (
                         <p>
                           Open the password reset link from your email on the
                           same browser where you requested it.
                           <br />
-                          <Link className="button" href="/play/account">
+                          <GameButton className="button" href="/play/account">
                             Request a new link
-                          </Link>
+                          </GameButton>
                         </p>
                       )}
                     </section>
@@ -1038,20 +1096,20 @@ export function V1App({ screen }: { screen: Screen }) {
                           Choose your team and country before playing. They lock
                           with your first quiz or prediction.
                         </p>
-                        <button className="primary" disabled={busy}>
+                        <GameButton className="primary" disabled={busy}>
                           Save profile
-                        </button>
+                        </GameButton>
                       </form>
                       <p>
                         Lifetime XP: <strong>{home.lifetime_xp}</strong> · This
                         event: <strong>{home.event_xp}</strong>
                       </p>
                       {(home.admin || home.content_editor) && (
-                        <Link className="button" href="/play/admin">
+                        <GameButton className="button" href="/play/admin">
                           Tournament admin →
-                        </Link>
+                        </GameButton>
                       )}
-                      <button
+                      <GameButton
                         onClick={() =>
                           void perform(async () => {
                             const { error } = await client.auth.signOut({
@@ -1067,7 +1125,7 @@ export function V1App({ screen }: { screen: Screen }) {
                         disabled={busy}
                       >
                         Sign out all sessions
-                      </button>
+                      </GameButton>
                     </section>
                   )}
                   {screen === "quiz" && signedIn && (
@@ -1120,7 +1178,7 @@ export function V1App({ screen }: { screen: Screen }) {
                                   )
                                     return null;
                                   return (
-                                    <button
+                                    <GameButton
                                       key={item.id}
                                       type="button"
                                       aria-pressed={item.id === quizId}
@@ -1149,7 +1207,7 @@ export function V1App({ screen }: { screen: Screen }) {
                                           </span>
                                         )}
                                       </span>
-                                    </button>
+                                    </GameButton>
                                   );
                                 })}
                               </div>
@@ -1157,6 +1215,7 @@ export function V1App({ screen }: { screen: Screen }) {
                           )}
                           <div
                             className="panel quiz-panel"
+                            data-panel="quiz"
                             data-live={quizStatus === "LIVE"}
                           >
                             <div className="game-card-art game-quiz-art">
@@ -1192,7 +1251,7 @@ export function V1App({ screen }: { screen: Screen }) {
                                   The clock keeps running if you leave. You can
                                   play each quiz once.
                                 </p>
-                                <button
+                                <GameButton
                                   className="primary wide"
                                   disabled={busy}
                                   onClick={() =>
@@ -1207,10 +1266,16 @@ export function V1App({ screen }: { screen: Screen }) {
                                     aria-hidden="true"
                                   />{" "}
                                   Start quiz
-                                </button>
+                                </GameButton>
                               </>
                             ) : attempt.complete ? (
-                              <div className="v1-quiz-result" role="status">
+                              <div
+                                className="v1-quiz-result game-burst-host"
+                                role="status"
+                              >
+                                {answerKey === freshAnswer && lastAnswer && (
+                                  <GameBurst />
+                                )}
                                 {lastAnswer && answerKey === freshAnswer && (
                                   <QuizFeedback
                                     key={answerKey}
@@ -1225,7 +1290,7 @@ export function V1App({ screen }: { screen: Screen }) {
                                   className="big-xp"
                                   data-testid="v1-quiz-score"
                                 >
-                                  +{attempt.score} XP
+                                  +<CountUpXP xp={attempt.score} /> XP
                                 </strong>
                                 <ol className="answer-review">
                                   {attempt.answers.map((a) => (
@@ -1243,12 +1308,12 @@ export function V1App({ screen }: { screen: Screen }) {
                                     </li>
                                   ))}
                                 </ol>
-                                <Link
+                                <GameButton
                                   className="button primary"
                                   href="/play/predict"
                                 >
                                   Make your match call →
-                                </Link>
+                                </GameButton>
                               </div>
                             ) : attempt.awaiting_next ? (
                               <div role="status" className="game-reveal">
@@ -1261,7 +1326,7 @@ export function V1App({ screen }: { screen: Screen }) {
                                 )}
                                 <Streak count={streak} />
                                 <p>{lastAnswer?.explanation}</p>
-                                <button
+                                <GameButton
                                   className="primary wide"
                                   disabled={busy}
                                   onClick={() =>
@@ -1271,7 +1336,7 @@ export function V1App({ screen }: { screen: Screen }) {
                                   }
                                 >
                                   Next question →
-                                </button>
+                                </GameButton>
                               </div>
                             ) : (
                               attempt.question && (
@@ -1348,6 +1413,7 @@ export function V1App({ screen }: { screen: Screen }) {
                         return (
                           <section
                             className="panel v1-match"
+                            data-panel="prediction"
                             key={m.id}
                             id={`match-${m.id}`}
                           >
@@ -1375,7 +1441,7 @@ export function V1App({ screen }: { screen: Screen }) {
                             </div>
                             <div className="answer-grid prediction-grid">
                               {[m.athlete_a, m.athlete_b].map((athlete, i) => (
-                                <button
+                                <GameButton
                                   key={athlete}
                                   disabled={
                                     busy ||
@@ -1398,7 +1464,7 @@ export function V1App({ screen }: { screen: Screen }) {
                                         ? "Not picked"
                                         : "MAKE YOUR CALL"}
                                   </small>
-                                </button>
+                                </GameButton>
                               ))}
                             </div>
                             {pick?.match.id === m.id &&
@@ -1416,7 +1482,8 @@ export function V1App({ screen }: { screen: Screen }) {
                                     pick.
                                   </p>
                                   <div className="button-row">
-                                    <button
+                                    <GameButton
+                                      tone="urgent"
                                       className="primary"
                                       disabled={busy}
                                       onClick={() =>
@@ -1437,13 +1504,13 @@ export function V1App({ screen }: { screen: Screen }) {
                                       }
                                     >
                                       Lock {pick.athlete}
-                                    </button>
-                                    <button
+                                    </GameButton>
+                                    <GameButton
                                       autoFocus
                                       onClick={() => setPick(null)}
                                     >
                                       Keep choosing
-                                    </button>
+                                    </GameButton>
                                   </div>
                                 </div>
                               )}
@@ -1485,9 +1552,9 @@ export function V1App({ screen }: { screen: Screen }) {
                       <section className="panel">
                         <h1>Players’ side.</h1>
                         <p>This area is reserved for tournament admins.</p>
-                        <Link className="button" href="/play">
+                        <GameButton className="button" href="/play">
                           Back to the arena →
-                        </Link>
+                        </GameButton>
                       </section>
                     ))}
                 </>

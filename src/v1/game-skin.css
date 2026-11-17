@@ -1,0 +1,235 @@
+.game-button.game-button {
+  --game-face: linear-gradient(155deg, #29496c, #112a49);
+  --game-edge: #07182c;
+  --game-border: #6783a3;
+  --game-ink: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 14px;
+  border: 1px solid var(--game-border);
+  border-bottom: 5px solid var(--game-edge);
+  border-radius: 12px;
+  background: var(--game-face);
+  color: var(--game-ink);
+  box-shadow: 0 2px 3px #0005;
+  font-weight: 850;
+  letter-spacing: 0.035em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+  transition:
+    transform 100ms ease,
+    filter 130ms ease;
+}
+.game-button.game-button[data-tone="primary"] {
+  --game-face: linear-gradient(155deg, #ffbb74, #ff894c);
+  --game-edge: #9f4023;
+  --game-border: #ffd29e;
+  --game-ink: #26132a;
+}
+.game-button.game-button[data-tone="urgent"] {
+  --game-face: linear-gradient(155deg, #b52c49, #8f1731);
+  --game-edge: #4a0f21;
+  --game-border: #ec8b9e;
+}
+.game-button.game-button:active:not(:disabled) {
+  transform: translateY(2px) scaleY(0.97);
+  box-shadow: 0 1px 1px #0005;
+}
+.game-button.game-button:focus-visible {
+  outline: 2px solid #ffd198;
+  outline-offset: 3px;
+}
+.game-button.game-button:disabled {
+  opacity: 0.66;
+}
+.v1 .answer-grid .game-button {
+  justify-content: start;
+  text-align: left;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.v1 .prediction-grid .game-button {
+  justify-content: center;
+}
+.v1 .game-button.wide {
+  display: flex;
+  width: 100%;
+}
+
+.v1 .panel[data-panel],
+.launch-benefit[data-panel] {
+  --panel-edge: #ff9d61;
+  position: relative;
+  border-top: 3px solid var(--panel-edge);
+  box-shadow: inset 0 6px 20px
+    color-mix(in srgb, var(--panel-edge) 13%, transparent);
+}
+.v1 .panel[data-panel]::after,
+.launch-benefit[data-panel]::after {
+  content: "";
+  position: absolute;
+  inset: -1px 8px auto auto;
+  width: 21px;
+  height: 9px;
+  background: var(--panel-edge);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 35% 100%);
+  pointer-events: none;
+}
+.v1 .panel[data-panel="prediction"],
+.launch-benefit[data-panel="prediction"] {
+  --panel-edge: #f65471;
+}
+.v1 .panel[data-panel="team"],
+.launch-benefit[data-panel="team"] {
+  --panel-edge: #72b9ff;
+}
+.v1 .panel[data-panel="rankings"],
+.launch-benefit[data-panel="rankings"] {
+  --panel-edge: #ffd179;
+}
+.v1 .game-status[data-state="LIVE"],
+.v1 .game-status[data-state="OPEN"],
+.v1 .arena-live-count,
+.v1 .arena-challenge[data-state="open"] > svg {
+  animation: hud-pulse 2.5s ease-in-out infinite;
+}
+@keyframes hud-pulse {
+  50% {
+    opacity: 0.8;
+    filter: brightness(1.35);
+  }
+}
+.v1 .game-card-meta {
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.v1 .game-meter {
+  font-variant-numeric: tabular-nums;
+}
+.game-burst-host {
+  position: relative;
+  isolation: isolate;
+}
+.v1 .game-burst-host .game-confetti {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-button.game-button {
+    transition: none;
+  }
+  .game-button.game-button:active:not(:disabled) {
+    transform: none;
+  }
+  .v1 .game-status[data-state],
+  .v1 .arena-live-count,
+  .v1 .arena-challenge[data-state="open"] > svg {
+    animation: none;
+  }
+}
+
+.v1 .signup-steps {
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.v1 .signup-steps li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #c8d7e9;
+}
+.v1 .signup-steps li span {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  border: 1px solid #7892ad;
+  border-radius: 50%;
+}
+.v1 .signup-steps [aria-current] span {
+  color: #231025;
+  background: #ffac72;
+  border-color: #ffce98;
+}
+.v1 .signup-country {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.v1 .signup-country select {
+  min-width: 0;
+  flex: 1;
+}
+.v1 .signup-flag {
+  font-size: 34px;
+  line-height: 1;
+}
+.v1 .team-choices label {
+  position: relative;
+  min-height: 48px;
+  color: #e8effa;
+  background: linear-gradient(145deg, #153454, #0d2541);
+  font-size: 13px;
+  font-weight: 800;
+}
+.v1 .team-choices input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.v1 .team-choices label:has(:focus-visible) {
+  outline: 2px solid #ffd198;
+  outline-offset: 2px;
+}
+.v1 .team-choices label:has(:checked) {
+  border-color: #ffa570;
+  color: #fff3e9;
+  box-shadow: inset 3px 0 #ff9d61;
+}
+.v1 .team-share-options.team-share-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.v1 .team-share-options .game-button {
+  flex-direction: column;
+  padding-inline: 4px;
+  font-size: clamp(9px, 2.8vw, 12px);
+  gap: 3px;
+}
+.v1 .team-share-options label,
+.v1 .team-share-options p {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.v1 .team-share-options input {
+  width: 100%;
+  min-width: 0;
+}
+
+.v1 .arena-challenge-live {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 1px 5px;
+  color: #ffdde4;
+  border: 1px solid #b9566e;
+  border-radius: 5px;
+  background: #511d33;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.075em;
+}

@@ -1,4 +1,5 @@
 "use client";
+import { GameButton } from "./game-button";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioLines, Flame, Medal, VolumeX } from "lucide-react";
@@ -12,9 +13,8 @@ export function levelFor(xp: number) {
 export function deadlineLabel(seconds: number, verb = "Closes") {
   if (seconds >= 3600)
     return `${verb} in ${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
-  if (seconds >= 60)
-    return `${verb} in ${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-  return `${verb} in ${seconds}s`;
+  const minutes = String(Math.floor(seconds / 60)).padStart(2, "0");
+  return `${verb} in ${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 export function ArenaSkeleton({
@@ -36,6 +36,46 @@ export function ArenaSkeleton({
   );
 }
 
+export function CountUpXP({ xp }: { xp: number }) {
+  const span = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const number = span.current;
+    if (
+      !number ||
+      xp <= 0 ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    let start: number | undefined;
+    let frame = 0;
+    const draw = (time: number) => {
+      start ??= time;
+      const progress = Math.min(1, (time - start) / 400);
+      number.textContent = String(Math.round(xp * progress));
+      if (progress < 1) frame = requestAnimationFrame(draw);
+    };
+    frame = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(frame);
+  }, [xp]);
+  return <span ref={span}>{xp}</span>;
+}
+
+export function GameBurst() {
+  return (
+    <div className="game-confetti" aria-hidden="true">
+      {Array.from({ length: 16 }, (_, index) => (
+        <i
+          key={index}
+          style={{
+            left: `${(index * 37) % 100}%`,
+            animationDelay: `${(index % 5) * 42}ms`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function XPMeter({ xp }: { xp: number }) {
   const { level, title } = levelFor(xp);
   return (
@@ -44,7 +84,7 @@ export function XPMeter({ xp }: { xp: number }) {
         <Medal size={14} aria-hidden="true" /> {title} · L{level}
       </span>
       <strong className="game-xp" data-testid="v1-lifetime-xp">
-        {xp} XP
+        <CountUpXP xp={xp} /> XP
       </strong>
       <XPProgress xp={xp} label="XP to next level" />
     </div>
@@ -110,9 +150,9 @@ export function LevelCelebration({
       <p>
         {levelFor((level - 1) * 250).title} · Level {level}
       </p>
-      <button className="primary" onClick={dismiss}>
+      <GameButton className="primary" onClick={dismiss}>
         Keep playing
-      </button>
+      </GameButton>
     </dialog>
   );
 }

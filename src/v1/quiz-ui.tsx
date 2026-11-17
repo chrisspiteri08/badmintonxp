@@ -1,4 +1,5 @@
 "use client";
+import { GameButton } from "./game-button";
 
 export function QuizTimer({ remaining }: { remaining: number }) {
   return (
@@ -38,14 +39,14 @@ export function QuizAnswers({
       {options.map((option, index) => {
         const label = String.fromCharCode(65 + index);
         return onAnswer ? (
-          <button
+          <GameButton
             key={index}
             disabled={disabled}
             onClick={() => onAnswer(index)}
           >
             <span>{label}</span>
             {option}
-          </button>
+          </GameButton>
         ) : (
           <div className="launch-answer" key={index}>
             <span>{label}</span>

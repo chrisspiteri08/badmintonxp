@@ -56,6 +56,7 @@ test("landing shows the benefits and both registration links", async ({
     exact: true,
   });
   await expect(register).toHaveCount(2);
+  await expect(register.first()).toHaveClass(/game-button/);
   for (const link of await register.all())
     await expect(link).toHaveAttribute("href", "/play/account?mode=signup");
   expect(
@@ -79,7 +80,7 @@ test("landing shows the benefits and both registration links", async ({
   await page.screenshot({
     path: path.resolve(
       process.env.LAUNCH_SCREENSHOT_DIR || "../../outputs",
-      `BadmintonXP-benefits-${viewport.width}x${viewport.height}.png`,
+      `${process.env.GAME_FEEL_SCREENSHOTS === "1" ? "landing" : "BadmintonXP-benefits"}-${viewport.width}x${viewport.height}.png`,
     ),
     fullPage: process.env.LAUNCH_BENEFITS_SCREENSHOTS !== "1",
     animations: "disabled",

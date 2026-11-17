@@ -91,9 +91,14 @@ test("team signup, invite switching and sharing without a native share sheet", a
   await expect(page.getByLabel("Choose a team")).toHaveValue(target.id);
   await page.getByLabel("Search teams").fill(target.name);
   await expect(page.getByRole("option", { name: target.name })).toHaveCount(1);
+  await page.getByLabel("Country", { exact: true }).selectOption("MY");
+  await expect(page.locator(".signup-flag")).toHaveText("🇲🇾");
   await page.getByRole("radio", { name: "Create a team" }).check();
   await page.getByLabel("Team name").fill(name);
   await page.getByLabel("Team name").scrollIntoViewIfNeeded();
+  await expect(page.locator(".signup-steps [aria-current=step]")).toHaveText(
+    "3Team",
+  );
   await capture("signup-team");
 
   // This confirmed account has the same signup metadata that the real form sends.
@@ -131,6 +136,13 @@ test("team signup, invite switching and sharing without a native share sheet", a
     );
   }
   await expect(page.getByRole("button", { name: "Copy link" })).toBeVisible();
+  const tileRows = await page
+    .locator(".team-share-options .game-button")
+    .evaluateAll((tiles) =>
+      tiles.map((tile) => tile.getBoundingClientRect().top),
+    );
+  expect(tileRows).toHaveLength(3);
+  expect(new Set(tileRows).size).toBe(1);
   await capture("share");
 
   await page.goto("/play");
