@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import path from "node:path";
 
-test("landing shows the benefits and both registration links", async ({
+test("landing shows the benefits and all registration links", async ({
   page,
   request,
 }, info) => {
@@ -64,7 +64,7 @@ test("landing shows the benefits and both registration links", async ({
     name: "Register free",
     exact: true,
   });
-  await expect(register).toHaveCount(2);
+  await expect(register).toHaveCount(4);
   await expect(register.first()).toHaveClass(/game-button/);
   for (const link of await register.all())
     await expect(link).toHaveAttribute("href", "/play/account?mode=signup");

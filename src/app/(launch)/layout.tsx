@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { LandingCTA, LandingSessionProvider } from "@/launch/session-cta";
 import "../demo/demo.css";
 import "@/v1/v1.css";
 import "./launch.css";
@@ -12,27 +13,30 @@ export default function LaunchLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="launch-site">
-      <header className="launch-header">
-        <Link href="/" className="launch-brand">
-          <Image
-            src="/demo/badmintonxp-crest-orange-transparent.png"
-            width={34}
-            height={42}
-            alt=""
-          />
-          Badminton<span>XP</span>
-        </Link>
-      </header>
-      {children}
-      <footer className="launch-footer">
-        <p>Independent fan game</p>
-        <nav aria-label="BadmintonXP information">
-          <Link href="/privacy">Privacy</Link>
-          <Link href="/terms">Terms</Link>
-          <Link href="/about">About</Link>
-        </nav>
-      </footer>
-    </div>
+    <LandingSessionProvider>
+      <div className="launch-site">
+        <header className="launch-header">
+          <Link href="/" className="launch-brand">
+            <Image
+              src="/demo/badmintonxp-crest-orange-transparent.png"
+              width={34}
+              height={42}
+              alt=""
+            />
+            Badminton<span>XP</span>
+          </Link>
+          <LandingCTA header />
+        </header>
+        {children}
+        <footer className="launch-footer">
+          <p>Independent fan game</p>
+          <nav aria-label="BadmintonXP information">
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
+            <Link href="/about">About</Link>
+          </nav>
+        </footer>
+      </div>
+    </LandingSessionProvider>
   );
 }

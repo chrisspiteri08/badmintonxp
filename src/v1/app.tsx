@@ -2,6 +2,7 @@
 import { GameButton } from "./game-button";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -88,6 +89,7 @@ const countries = [
 export function V1App({ screen }: { screen: Screen }) {
   const [client, setClient] = useState<SupabaseClient | null>(null);
   const [ready, setReady] = useState(false);
+  const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [home, setHome] = useState<Home | null>(null);
   const [error, setError] = useState("");
@@ -109,6 +111,8 @@ export function V1App({ screen }: { screen: Screen }) {
   const [signupCountry, setSignupCountry] = useState("");
   const [signupTeam, setSignupTeam] = useState<string | null>(null);
   const [signupInvite, setSignupInvite] = useState<string | null>(null);
+  const [accountEntryMode, setAccountEntryMode] = useState<string | null>(null);
+  const signupSubmitting = useRef(false);
   const [myTeam, setMyTeam] = useState<{
     player: string;
     team: TeamInvite | null;
@@ -124,7 +128,9 @@ export function V1App({ screen }: { screen: Screen }) {
     const query = new URLSearchParams(window.location.search);
     setChallengeLink({ quiz: query.get("quiz"), match: query.get("match") });
     if (screen === "account") {
-      if (query.get("mode") === "signup") setAuthMode("signup");
+      const mode = query.get("mode");
+      setAccountEntryMode(mode);
+      if (mode === "signup") setAuthMode("signup");
       setSignupTeam(query.get("team"));
       setSignupInvite(query.get("invite"));
     }
@@ -193,6 +199,7 @@ export function V1App({ screen }: { screen: Screen }) {
               }
               if (event === "SIGNED_OUT") {
                 setRegistration(null);
+                signupSubmitting.current = false;
                 setCreatedTeam(null);
                 setFreshPrediction(false);
                 signupRequest.current = null;
@@ -477,6 +484,7 @@ export function V1App({ screen }: { screen: Screen }) {
           "If that address has an account, a password reset link is on its way.",
         );
       } else if (authMode === "signup") {
+        signupSubmitting.current = true;
         const { data: result, error } = await client.auth.signUp({
           email,
           password,
@@ -490,7 +498,10 @@ export function V1App({ screen }: { screen: Screen }) {
             },
           },
         });
-        if (error) throw error;
+        if (error) {
+          signupSubmitting.current = false;
+          throw error;
+        }
         setRegistration(result.session ? "complete" : "confirm");
       } else {
         const { error } = await client.auth.signInWithPassword({
@@ -566,8 +577,22 @@ export function V1App({ screen }: { screen: Screen }) {
   }, [screen, linkedMatch, linkedMatchAvailable]);
   const tournament = home?.tournament;
   const signedIn = Boolean(session && home?.profile?.id === session.user.id);
+  const accountDestination =
+    screen === "account" &&
+    session &&
+    !signupSubmitting.current &&
+    (accountEntryMode === "signup" || accountEntryMode === "signin")
+      ? signupInvite && /^[a-f0-9]{12}$/i.test(signupInvite)
+        ? `/join/${signupInvite.toLowerCase()}`
+        : "/play"
+      : null;
+  useEffect(() => {
+    if (accountDestination) router.replace(accountDestination);
+  }, [accountDestination, router]);
   const waitingForAccount =
-    !ready || Boolean(client && (!home || (session && !signedIn)));
+    !ready ||
+    Boolean(accountDestination) ||
+    Boolean(client && (!home || (session && !signedIn)));
   const needsLogin =
     ["quiz", "predict", "profile", "admin"].includes(screen) && !signedIn;
   return (

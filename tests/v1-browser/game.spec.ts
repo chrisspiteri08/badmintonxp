@@ -985,3 +985,69 @@ test("tournament hero checks the file and alt text, compresses uploads, and supp
     .poll(() => saved.hero_image_url)
     .toBe("https://example.test/manual-hero.webp");
 });
+
+test("signed-in fans enter the arena directly and keep pending team invites", async ({
+  page,
+}) => {
+  const { admin } = local();
+  const email = `direct-arena-${randomUUID()}@example.test`;
+  const pass = password();
+  const { error } = await admin.auth.admin.createUser({
+    email,
+    password: pass,
+    email_confirm: true,
+  });
+  expect(error).toBeNull();
+  await page.goto("/play/account");
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(pass);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "You’re in." })).toBeVisible();
+
+  let releaseConfig!: () => void;
+  const configGate = new Promise<void>((resolve) => {
+    releaseConfig = resolve;
+  });
+  await page.route("**/api/v1/config", async (route) => {
+    await configGate;
+    await route.continue();
+  });
+  await page.goto("/");
+  try {
+    await expect(
+      page.getByRole("status", { name: "Checking session" }),
+    ).toHaveCount(4);
+    await expect(
+      page.getByRole("link", { name: "Register free", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "ENTER THE ARENA", exact: true }),
+    ).toHaveCount(0);
+  } finally {
+    releaseConfig();
+  }
+  const enter = page.getByRole("link", {
+    name: "ENTER THE ARENA",
+    exact: true,
+  });
+  await expect(enter).toHaveCount(4);
+  for (const link of await enter.all())
+    await expect(link).toHaveAttribute("href", "/play");
+  await expect(
+    page.getByRole("link", { name: "Register free", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("banner")
+    .getByRole("link", { name: "ENTER THE ARENA" })
+    .click();
+  await expect(page).toHaveURL(/\/play$/);
+  await expect(
+    page.getByRole("navigation", { name: "Fan arena" }),
+  ).toBeVisible();
+  for (const mode of ["signup", "signin"]) {
+    await page.goto(`/play/account?mode=${mode}`);
+    await expect(page).toHaveURL(/\/play$/);
+    await page.goto(`/play/account?mode=${mode}&invite=c0ffeefeed01`);
+    await expect(page).toHaveURL(/\/join\/c0ffeefeed01$/);
+  }
+});

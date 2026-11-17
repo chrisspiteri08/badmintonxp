@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { GameButton } from "@/v1/game-button";
+import { LandingCTA } from "@/launch/session-cta";
 import Image from "next/image";
 import { landingArena } from "@/launch/arena";
 import { ChallengeClock } from "@/launch/challenge-clock";
@@ -126,13 +126,7 @@ export default async function Landing() {
               </>
             )}
           </div>
-          <GameButton
-            tone="primary"
-            className="launch-button"
-            href="/play/account?mode=signup"
-          >
-            Register free
-          </GameButton>
+          <LandingCTA />
         </div>
       </section>
       <section className="launch-benefits" aria-label="Why play BadmintonXP">
@@ -151,6 +145,7 @@ export default async function Landing() {
         <p className="launch-benefit-note">
           Free to play. Every tournament starts at 0.
         </p>
+        <LandingCTA />
       </section>
       <section className="launch-how" aria-labelledby="launch-how-title">
         <h2 id="launch-how-title">How it plays</h2>
@@ -175,13 +170,7 @@ export default async function Landing() {
         aria-label="World Tour Finals registration"
       >
         <h2>The World Tour Finals start 9 Dec. Get your spot.</h2>
-        <GameButton
-          tone="primary"
-          className="launch-button"
-          href="/play/account?mode=signup"
-        >
-          Register free
-        </GameButton>
+        <LandingCTA />
       </section>
     </main>
   );

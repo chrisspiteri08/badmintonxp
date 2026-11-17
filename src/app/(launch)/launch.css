@@ -383,3 +383,24 @@
     transform: none;
   }
 }
+
+.launch-session-cta {
+  min-inline-size: 154px;
+}
+.launch-header .launch-header-cta {
+  min-inline-size: 132px;
+  padding-inline: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.launch-header {
+  gap: 8px;
+}
+.launch-session-cta.launch-cta-pending {
+  background: #17314d;
+  border-color: #53708d;
+  box-shadow: none;
+}
+.launch-benefits .launch-session-cta {
+  margin-top: 3px;
+}
