@@ -55,7 +55,31 @@ export function ArenaChallenges({
         : "Missed",
     };
   });
-  const challenges = [...quizzes, ...matches].sort(
+  const champions = (home.outrights ?? []).map((item) => {
+    const opens = item.opens_at ? Date.parse(item.opens_at) : 0;
+    const closes = Date.parse(item.closes_at);
+    const done = Boolean(item.settled_at || item.voided_at || closes <= now);
+    return {
+      id: item.id,
+      name: item.title,
+      kind: "Champion pick",
+      url: `/play/predict?outright=${encodeURIComponent(item.id)}`,
+      action: item.entry ? "Change pick" : "Pick",
+      opens,
+      closes,
+      state: done ? 2 : opens > now ? 1 : 0,
+      result: item.voided_at
+        ? "Voided"
+        : item.settled_at
+          ? item.entry?.option_id === item.winner_option_id
+            ? "Won · +20 XP"
+            : "Missed"
+          : item.entry
+            ? "Pick locked · awaiting champion"
+            : "Missed",
+    };
+  });
+  const challenges = [...quizzes, ...matches, ...champions].sort(
     (a, b) =>
       a.state - b.state ||
       (a.state === 0

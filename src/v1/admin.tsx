@@ -10,6 +10,7 @@ import {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { heroBucket, TournamentHeroForm } from "./tournament-hero";
 import { AdminFanTeams } from "./fan-teams";
+import { ChampionResults } from "./admin-outrights";
 import { AdminFeedback } from "./preview-feedback";
 import type { AdminData } from "./types";
 import { tournamentPublicationHeld } from "./domain";
@@ -101,10 +102,13 @@ export function Admin({
         fields.hero_image_url =
           bucket.getPublicUrl(uploadedPath).data.publicUrl;
       }
-      const { error } = await client.rpc("v1_admin_save", {
-        p_kind: kind,
-        p_data: fields,
-      });
+      const { error } = await client.rpc(
+        kind === "champion pick" ? "v1_admin_save_outright" : "v1_admin_save",
+        {
+          ...(kind === "champion pick" ? {} : { p_kind: kind }),
+          p_data: fields,
+        },
+      );
       if (error) {
         if (uploadedPath && error.code)
           await bucket.remove([uploadedPath]).catch(() => {});
@@ -118,25 +122,28 @@ export function Admin({
         setRemoveQuestion(null);
       }
       setNotice(
-        kind === "tournament_hero"
-          ? "Tournament hero saved."
-          : kind === "publish_quiz"
-            ? "Quiz published. Players can start it only when its tournament is published and its opening time arrives."
-            : kind === "publish_tournament"
-              ? "Tournament published as the current event. Quiz and prediction deadlines still apply."
-              : kind === "delete_question"
-                ? "Draft question removed. Check numbering before publishing."
-                : kind === "question" && fields.id
-                  ? "Draft question updated. Review it before publishing."
-                  : kind === "match" &&
-                      data?.tournaments.some(
-                        (event) =>
-                          event.id === fields.tournament_id && event.published,
-                      )
-                    ? "Match added to the published tournament."
-                    : kind === "season" || kind === "team"
-                      ? `${kind === "season" ? "Season" : "Team"} saved.`
-                      : "Saved as a draft. Review it before publishing.",
+        kind === "champion pick"
+          ? "Champion pick added."
+          : kind === "tournament_hero"
+            ? "Tournament hero saved."
+            : kind === "publish_quiz"
+              ? "Quiz published. Players can start it only when its tournament is published and its opening time arrives."
+              : kind === "publish_tournament"
+                ? "Tournament published as the current event. Quiz and prediction deadlines still apply."
+                : kind === "delete_question"
+                  ? "Draft question removed. Check numbering before publishing."
+                  : kind === "question" && fields.id
+                    ? "Draft question updated. Review it before publishing."
+                    : kind === "match" &&
+                        data?.tournaments.some(
+                          (event) =>
+                            event.id === fields.tournament_id &&
+                            event.published,
+                        )
+                      ? "Match added to the published tournament."
+                      : kind === "season" || kind === "team"
+                        ? `${kind === "season" ? "Season" : "Team"} saved.`
+                        : "Saved as a draft. Review it before publishing.",
       );
     });
   const submit = (kind: string) => (event: FormEvent<HTMLFormElement>) => {
@@ -147,6 +154,24 @@ export function Admin({
     for (const key of ["starts_at", "ends_at", "opens_at", "closes_at"])
       if (fields[key])
         fields[key] = new Date(String(fields[key])).toISOString();
+    if (kind === "champion pick") {
+      const options = String(fields.options ?? "")
+        .split(/\r?\n/)
+        .map((option) => option.trim())
+        .filter(Boolean);
+      if (options.length < 2 || options.length > 32) {
+        setNotice("Give two to 32 options.");
+        return;
+      }
+      if (
+        new Set(options.map((option) => option.toLowerCase())).size !==
+        options.length
+      ) {
+        setNotice("Options must be different.");
+        return;
+      }
+      fields.options = options;
+    }
     if (kind === "question") {
       if (editQuestion) fields.id = editQuestion.id;
       fields.options = [fields.a, fields.b, fields.c, fields.d];
@@ -175,7 +200,8 @@ export function Admin({
           disabled={
             busy ||
             (kind === "tournament" && !data?.seasons.length) ||
-            (kind === "match" && !matchTournaments.length) ||
+            ((kind === "match" || kind === "champion pick") &&
+              !matchTournaments.length) ||
             (kind === "quiz" && !draftTournaments.length) ||
             (kind === "question" && !draftQuizzes.length)
           }
@@ -335,6 +361,50 @@ export function Admin({
               <label>
                 Second athlete or pair
                 <input name="athlete_b" minLength={2} maxLength={80} required />
+              </label>
+              <label>
+                Predictions open (optional)
+                <input type="datetime-local" name="opens_at" />
+              </label>
+              <label>
+                Predictions close
+                <input type="datetime-local" name="closes_at" required />
+              </label>
+            </>,
+          )}
+          {form(
+            "4b. Add a champion pick",
+            "champion pick",
+            <>
+              {tournamentSelect(matchTournaments)}
+              <label>
+                Title
+                <input
+                  name="title"
+                  minLength={5}
+                  maxLength={120}
+                  placeholder="Who wins Men's Singles at the World Tour Finals?"
+                  required
+                />
+              </label>
+              <label>
+                Event label
+                <input
+                  name="event_label"
+                  minLength={2}
+                  maxLength={40}
+                  placeholder="Men's Singles"
+                  required
+                />
+              </label>
+              <label>
+                Options (one per line)
+                <textarea
+                  name="options"
+                  placeholder="Lakshya Sen (IND)"
+                  required
+                  rows={8}
+                />
               </label>
               <label>
                 Predictions open (optional)
@@ -577,6 +647,25 @@ export function Admin({
               </div>
             ))}
           </section>
+          <ChampionResults
+            items={data.outrights ?? []}
+            tournaments={data.tournaments}
+            now={clock + offset}
+            busy={busy}
+            run={(fn, args) =>
+              perform(async () => {
+                const { error } = await client.rpc(fn, args);
+                if (error) throw error;
+                await load();
+                await onSaved();
+                setNotice(
+                  fn === "v1_void_outright"
+                    ? "Champion pick voided."
+                    : "Champion confirmed.",
+                );
+              })
+            }
+          />
           <section className="panel v1-admin-section">
             <h2>Enter match results</h2>
             <p>

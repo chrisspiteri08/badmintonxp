@@ -38,7 +38,7 @@ export function friendlyError(error: unknown): string {
   if (message.includes("rate limit") || message.includes("too many"))
     return "Please wait a moment before trying again.";
   if (
-    /^(Tournament desk|That name|Check the fields|Number questions|Question not found|World Tour Finals|Sign in|Admin access|Quiz |Predictions |Choose |Your team|Match |Wait until|Invalid winner|Result already|Published |Add |Provide |The test connection|Unable to validate email)/.test(
+    /^(Champion |Picks |Pick |Options |Give |This pick|Tournament desk|That name|Check the fields|Number questions|Question not found|World Tour Finals|Sign in|Admin access|Quiz |Predictions |Choose |Your team|Match |Wait until|Invalid winner|Result already|Published |Add |Provide |The test connection|Unable to validate email)/.test(
       message,
     )
   )

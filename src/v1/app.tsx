@@ -37,6 +37,7 @@ import { friendlyError, v1Client } from "./client";
 import type { Attempt, Home, Match, Screen } from "./types";
 import { AdminPush, PwaControls } from "@/pwa/client";
 import { Admin } from "./admin";
+import { ChampionPicks } from "./outrights";
 import {
   ShareTeam,
   TeamPicker,
@@ -123,10 +124,15 @@ export function V1App({ screen }: { screen: Screen }) {
   const [challengeLink, setChallengeLink] = useState<{
     quiz: string | null;
     match: string | null;
+    outright: string | null;
   } | null>(null);
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
-    setChallengeLink({ quiz: query.get("quiz"), match: query.get("match") });
+    setChallengeLink({
+      quiz: query.get("quiz"),
+      match: query.get("match"),
+      outright: query.get("outright"),
+    });
     if (screen === "account") {
       const mode = query.get("mode");
       setAccountEntryMode(mode);
@@ -575,6 +581,17 @@ export function V1App({ screen }: { screen: Screen }) {
         ?.scrollIntoView({ block: "start" });
     }
   }, [screen, linkedMatch, linkedMatchAvailable]);
+  const linkedOutright = challengeLink?.outright;
+  const outrightAvailable = Boolean(
+    home?.outrights?.some((item) => item.id === linkedOutright),
+  );
+  useEffect(() => {
+    if (screen === "predict" && linkedOutright && outrightAvailable) {
+      document
+        .getElementById(`outright-${linkedOutright}`)
+        ?.scrollIntoView({ block: "start" });
+    }
+  }, [screen, linkedOutright, outrightAvailable]);
   const tournament = home?.tournament;
   const signedIn = Boolean(session && home?.profile?.id === session.user.id);
   const accountDestination =
@@ -1504,139 +1521,165 @@ export function V1App({ screen }: { screen: Screen }) {
                     </section>
                   )}
                   {screen === "predict" && signedIn && (
-                    <section className="challenge-section">
-                      <span className="eyebrow">THE MATCH CALL</span>
-                      <h1>Back your instinct.</h1>
-                      {home.matches.length === 0 && (
-                        <p className="panel">No matches announced yet.</p>
-                      )}
-                      {home.matches.map((m) => {
-                        const seconds = secondsUntil(m.closes_at);
-                        const opens = m.opens_at ? secondsUntil(m.opens_at) : 0;
-                        const matchStatus = m.winner
-                          ? "SETTLED"
-                          : m.entry || !seconds || opens
-                            ? "LOCKED"
-                            : "OPEN";
-                        return (
-                          <section
-                            className="panel v1-match"
-                            data-panel="prediction"
-                            key={m.id}
-                            id={`match-${m.id}`}
-                          >
-                            <div className="game-card-art game-match-art">
-                              <div className="game-card-meta">
-                                <span
-                                  className="game-status"
-                                  data-state={matchStatus}
-                                >
-                                  {matchStatus}
-                                </span>
-                                <span>
-                                  {m.winner
-                                    ? "Result confirmed"
-                                    : seconds
-                                      ? opens
-                                        ? deadlineLabel(opens, "Opens")
-                                        : deadlineLabel(seconds)
-                                      : "Entries closed"}
-                                </span>
-                              </div>
-                              <h2>
-                                {m.athlete_a} <span>vs</span> {m.athlete_b}
-                              </h2>
-                            </div>
-                            <div className="answer-grid prediction-grid">
-                              {[m.athlete_a, m.athlete_b].map((athlete, i) => (
-                                <GameButton
-                                  key={athlete}
-                                  disabled={
-                                    busy ||
-                                    !!m.entry ||
-                                    !!m.winner ||
-                                    seconds === 0 ||
-                                    opens > 0
-                                  }
-                                  aria-pressed={m.entry?.pick === athlete}
-                                  onClick={() => setPick({ match: m, athlete })}
-                                >
-                                  <span className="athlete-number">
-                                    0{i + 1}
+                    <>
+                      <ChampionPicks
+                        items={home.outrights ?? []}
+                        now={gameNow}
+                        busy={busy}
+                        save={(id, option) =>
+                          perform(async () => {
+                            const { error } = await client.rpc(
+                              "v1_pick_outright",
+                              { p_outright_id: id, p_option_id: option },
+                            );
+                            if (error) throw error;
+                            await refresh(client);
+                          })
+                        }
+                      />
+                      <section className="challenge-section">
+                        <span className="eyebrow">THE MATCH CALL</span>
+                        <h1>Back your instinct.</h1>
+                        {home.matches.length === 0 && (
+                          <p className="panel">No matches announced yet.</p>
+                        )}
+                        {home.matches.map((m) => {
+                          const seconds = secondsUntil(m.closes_at);
+                          const opens = m.opens_at
+                            ? secondsUntil(m.opens_at)
+                            : 0;
+                          const matchStatus = m.winner
+                            ? "SETTLED"
+                            : m.entry || !seconds || opens
+                              ? "LOCKED"
+                              : "OPEN";
+                          return (
+                            <section
+                              className="panel v1-match"
+                              data-panel="prediction"
+                              key={m.id}
+                              id={`match-${m.id}`}
+                            >
+                              <div className="game-card-art game-match-art">
+                                <div className="game-card-meta">
+                                  <span
+                                    className="game-status"
+                                    data-state={matchStatus}
+                                  >
+                                    {matchStatus}
                                   </span>
-                                  <strong>{athlete}</strong>
-                                  <small>
-                                    {m.entry?.pick === athlete
-                                      ? "YOUR LOCKED PICK ✓"
-                                      : m.entry
-                                        ? "Not picked"
-                                        : "MAKE YOUR CALL"}
-                                  </small>
-                                </GameButton>
-                              ))}
-                            </div>
-                            {pick?.match.id === m.id &&
-                              !m.entry &&
-                              !m.winner &&
-                              seconds > 0 &&
-                              !opens && (
-                                <div
-                                  className="reset-confirm"
-                                  role="group"
-                                  aria-label="Confirm prediction"
-                                >
-                                  <p>
-                                    Lock {pick.athlete}? You can’t change your
-                                    pick.
-                                  </p>
-                                  <div className="button-row">
+                                  <span>
+                                    {m.winner
+                                      ? "Result confirmed"
+                                      : seconds
+                                        ? opens
+                                          ? deadlineLabel(opens, "Opens")
+                                          : deadlineLabel(seconds)
+                                        : "Entries closed"}
+                                  </span>
+                                </div>
+                                <h2>
+                                  {m.athlete_a} <span>vs</span> {m.athlete_b}
+                                </h2>
+                              </div>
+                              <div className="answer-grid prediction-grid">
+                                {[m.athlete_a, m.athlete_b].map(
+                                  (athlete, i) => (
                                     <GameButton
-                                      tone="urgent"
-                                      className="primary"
-                                      disabled={busy}
+                                      key={athlete}
+                                      disabled={
+                                        busy ||
+                                        !!m.entry ||
+                                        !!m.winner ||
+                                        seconds === 0 ||
+                                        opens > 0
+                                      }
+                                      aria-pressed={m.entry?.pick === athlete}
                                       onClick={() =>
-                                        void perform(async () => {
-                                          const { error } = await client.rpc(
-                                            "v1_predict",
-                                            {
-                                              p_match_id: m.id,
-                                              p_pick: pick.athlete,
-                                            },
-                                          );
-                                          if (error) throw error;
-                                          feedback("locked");
-                                          setPick(null);
-                                          setFreshPrediction(true);
-                                          await refresh(client);
-                                        })
+                                        setPick({ match: m, athlete })
                                       }
                                     >
-                                      Lock {pick.athlete}
+                                      <span className="athlete-number">
+                                        0{i + 1}
+                                      </span>
+                                      <strong>{athlete}</strong>
+                                      <small>
+                                        {m.entry?.pick === athlete
+                                          ? "YOUR LOCKED PICK ✓"
+                                          : m.entry
+                                            ? "Not picked"
+                                            : "MAKE YOUR CALL"}
+                                      </small>
                                     </GameButton>
-                                    <GameButton
-                                      autoFocus
-                                      onClick={() => setPick(null)}
-                                    >
-                                      Keep choosing
-                                    </GameButton>
+                                  ),
+                                )}
+                              </div>
+                              {pick?.match.id === m.id &&
+                                !m.entry &&
+                                !m.winner &&
+                                seconds > 0 &&
+                                !opens && (
+                                  <div
+                                    className="reset-confirm"
+                                    role="group"
+                                    aria-label="Confirm prediction"
+                                  >
+                                    <p>
+                                      Lock {pick.athlete}? You can’t change your
+                                      pick.
+                                    </p>
+                                    <div className="button-row">
+                                      <GameButton
+                                        tone="urgent"
+                                        className="primary"
+                                        disabled={busy}
+                                        onClick={() =>
+                                          void perform(async () => {
+                                            const { error } = await client.rpc(
+                                              "v1_predict",
+                                              {
+                                                p_match_id: m.id,
+                                                p_pick: pick.athlete,
+                                              },
+                                            );
+                                            if (error) throw error;
+                                            feedback("locked");
+                                            setPick(null);
+                                            setFreshPrediction(true);
+                                            await refresh(client);
+                                          })
+                                        }
+                                      >
+                                        Lock {pick.athlete}
+                                      </GameButton>
+                                      <GameButton
+                                        autoFocus
+                                        onClick={() => setPick(null)}
+                                      >
+                                        Keep choosing
+                                      </GameButton>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            <p role="status" data-testid="v1-prediction-status">
-                              {m.winner
-                                ? m.entry?.pick === m.winner
-                                  ? `${m.winner} wins! You called it. +20 XP`
+                                )}
+                              <p
+                                role="status"
+                                data-testid="v1-prediction-status"
+                              >
+                                {m.winner
+                                  ? m.entry?.pick === m.winner
+                                    ? `${m.winner} wins! You called it. +20 XP`
+                                    : m.entry
+                                      ? `${m.winner} wins. Better luck next time.`
+                                      : `${m.winner} wins. No entry this time.`
                                   : m.entry
-                                    ? `${m.winner} wins. Better luck next time.`
-                                    : `${m.winner} wins. No entry this time.`
-                                : m.entry
-                                  ? `Your ${m.entry.pick} pick is locked. Waiting for the result.`
-                                  : "A correct call earns 20 XP."}
-                            </p>
-                          </section>
-                        );
-                      })}
-                    </section>
+                                    ? `Your ${m.entry.pick} pick is locked. Waiting for the result.`
+                                    : "A correct call earns 20 XP."}
+                              </p>
+                            </section>
+                          );
+                        })}
+                      </section>
+                    </>
                   )}
                   {screen === "standings" && (
                     <TournamentStandings
@@ -1684,7 +1727,8 @@ export function V1App({ screen }: { screen: Screen }) {
               played={Boolean(
                 attempt?.complete ||
                 home.quizzes.some((quiz) => quiz.attempt?.complete) ||
-                home.matches.some((match) => match.entry),
+                home.matches.some((match) => match.entry) ||
+                (home.outrights ?? []).some((item) => item.entry),
               )}
               resultScreen={
                 (screen === "quiz" && Boolean(attempt?.complete)) ||

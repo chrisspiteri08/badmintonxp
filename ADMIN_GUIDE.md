@@ -127,3 +127,15 @@ The desk does not expose SQL errors, API keys or server diagnostics. Business me
 ## Deploying this update
 
 For an existing v1 project, run **only** `supabase/migrations/202611100001_content_editors.sql` once in that project's SQL Editor. Then upload the new Node 22 ZIP using the rollback process in `V1_SETUP.md` and restart. Existing settings, six-character password minimum, `/demo`, health endpoint and the World Tour Finals hold are preserved. A fresh project instead applies all migrations in filename order (or the combined initial schema). No service key is needed by the app or assistant. Cloud SQL and upload are owner actions; they were not performed by the developer.
+
+## Champion picks
+
+Apply `202611190001_outright_picks.sql` before deploying this frontend.
+Champion picks are optional and do not block tournament publication.
+
+1. Open **4b. Add a champion pick**. Choose the tournament, enter its title and event label, and list 2–32 distinct options, one per line.
+2. Enter the opening time if needed and the closing time. Times use your device timezone. Fans can change their choice until closing.
+3. After closing, open **Enter champion results**, choose the winning option and confirm the real champion. Correct picks add 20 XP once to the tournament ledger.
+4. To cancel an unsettled item, choose **Void this pick** and confirm. It remains visible as Voided and awards no XP.
+
+Settled is final. Confirmed champions cannot be changed or voided. Items with entries cannot be edited. Void an unsettled item and create a replacement if its options are wrong.

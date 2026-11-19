@@ -1348,3 +1348,28 @@
   width: min(100%, 36rem);
   margin-inline: auto;
 }
+
+.v1 .champion-pick {
+  margin-block: 18px;
+  scroll-margin-top: 12px;
+}
+.v1 .champion-options {
+  display: grid;
+  gap: 10px;
+  margin-block: 14px;
+}
+.v1 .champion-options .game-button {
+  text-align: left;
+  justify-content: flex-start;
+  text-transform: none;
+}
+.v1 .champion-options [aria-pressed="true"] {
+  border-color: #ffb77d;
+  box-shadow: inset 0 0 16px #ff9d6133;
+  color: #ffcca6;
+}
+@media (min-width: 640px) {
+  .v1 .champion-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

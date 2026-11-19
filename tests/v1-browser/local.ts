@@ -67,7 +67,7 @@ export async function fixture(tag: string) {
   };
   const teamName = "Neon Shuttles";
   const team = sql(
-    "insert into public.teams(name) values('Neon Shuttles') on conflict(name) do update set name=excluded.name returning id",
+    "insert into public.teams(name) values('Neon Shuttles') on conflict(lower(btrim(name))) where archived_at is null do update set name=excluded.name returning id",
   ).split("\n")[0];
   const season = await save("season", { name: `Test season ${tag}` });
   const tournament = await save("tournament", {

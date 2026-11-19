@@ -46,6 +46,21 @@ export type Match = {
   winner: string | null;
   entry: null | { pick: string };
 };
+export type OutrightOption = { id: string; position: number; label: string };
+export type Outright = {
+  id: string;
+  tournament_id?: string;
+  title: string;
+  event_label: string;
+  opens_at?: string | null;
+  closes_at: string;
+  winner_option_id: string | null;
+  settled_at: string | null;
+  voided_at: string | null;
+  options: OutrightOption[];
+  entry: null | { option_id: string; updated_at: string };
+  pick_count?: number;
+};
 export type Home = {
   server_now: string;
   profile: Profile | null;
@@ -55,6 +70,7 @@ export type Home = {
   tournament: Tournament | null;
   quizzes: Quiz[];
   matches: Match[];
+  outrights: Outright[];
   lifetime_xp: number;
   event_xp: number;
 };
@@ -85,6 +101,7 @@ export type AdminData = {
   seasons: Team[];
   tournaments: Tournament[];
   matches: Match[];
+  outrights: Outright[];
   quizzes: Quiz[];
   questions: Array<Review & { id: string; quiz_id: string }>;
   players: Array<Profile & { email: string }>;

@@ -117,7 +117,7 @@ test("v1: every app table has RLS and clients cannot read answer keys", async ()
       "select relname,relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and relkind='r'",
     )
   ).rows;
-  assert.equal(tables.length, 20);
+  assert.equal(tables.length, 23);
   assert.ok(tables.every((t) => t.relrowsecurity));
   await asUser(alice, async () => {
     await assert.rejects(
@@ -1076,4 +1076,289 @@ test("fan teams validate names, limit creation, join by invite, and moderate wit
     { team_id: created.id, xp: 10 },
   );
   await asUser(member, async () => assert.equal(await rpc("v1_my_team"), null));
+});
+
+test("outright picks: change until close, server deadline, idempotent 20 XP, void, rankings", async () => {
+  const captain = "a0000000-0000-0000-0000-000000000001";
+  const rival = "a1000000-0000-0000-0000-000000000002";
+  const editor = "a2000000-0000-0000-0000-000000000003";
+  await db.query(
+    "insert into auth.users(id,email) values($1,'champion@example.test'),($2,'rival@example.test'),($3,'editor-champion@example.test')",
+    [captain, rival, editor],
+  );
+  await db.query("insert into private.content_editors(user_id) values($1)", [
+    editor,
+  ]);
+  await db.query(
+    "update public.profiles set team_id=$1,country='MT' where id=$2",
+    [team, captain],
+  );
+  const payload = {
+    tournament_id: tournament,
+    title: "Who wins the test championship?",
+    event_label: "Singles",
+    opens_at: null,
+    closes_at: "2099-01-01T00:00:00Z",
+    options: ["Aster (MT)", "Blaze (MY)", "Cedar (JP)"],
+  };
+  let item;
+  await asUser(
+    null,
+    () =>
+      assert.rejects(
+        rpc("v1_admin_save_outright", [payload]),
+        /permission denied/,
+      ),
+    "anon",
+  );
+  await asUser(captain, () =>
+    assert.rejects(rpc("v1_admin_save_outright", [payload]), /Tournament desk/),
+  );
+  await asUser(editor, async () => {
+    await assert.rejects(
+      rpc("v1_admin_save_outright", [{ ...payload, options: ["One"] }]),
+      /two/,
+    );
+    await assert.rejects(
+      rpc("v1_admin_save_outright", [
+        { ...payload, options: ["Aster", "aster"] },
+      ]),
+      /different/,
+    );
+    await assert.rejects(
+      rpc("v1_admin_save_outright", [{ ...payload, closes_at: "2020-01-01" }]),
+      /future/,
+    );
+    item = await rpc("v1_admin_save_outright", [payload]);
+    assert.equal(
+      await rpc("v1_admin_save_outright", [{ ...payload, id: item }]),
+      item,
+    );
+  });
+  const options = (
+    await db.query(
+      "select * from public.outright_options where outright_id=$1 order by position",
+      [item],
+    )
+  ).rows;
+  await asUser(captain, async () => {
+    await rpc("v1_pick_outright", [item, options[0].id]);
+    await rpc("v1_pick_outright", [item, options[1].id]);
+    assert.equal(
+      (await db.query("select * from public.outright_picks")).rows.length,
+      1,
+    );
+    await assert.rejects(
+      db.query(
+        "insert into public.outrights(tournament_id,title,event_label,closes_at) values($1,'Direct entry','Singles',now())",
+        [tournament],
+      ),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query(
+        "insert into public.outright_options(outright_id,position,label) values($1,4,'Direct option')",
+        [item],
+      ),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query(
+        "insert into public.outright_picks(user_id,outright_id,option_id,country) values($1,$2,$3,'MT')",
+        [captain, item, options[0].id],
+      ),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query("update public.outrights set title='Hacked title'"),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query("update public.outright_options set label='Hacked option'"),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query("update public.outright_picks set country='JP'"),
+      /permission denied/,
+    );
+    await assert.rejects(rpc("v1_profile", ["Champion", "JP", team]), /locked/);
+    await assert.rejects(
+      rpc("v1_settle_outright", [item, options[1].id]),
+      /Tournament desk/,
+    );
+  });
+  await asUser(rival, async () => {
+    assert.equal(
+      (await db.query("select * from public.outright_picks")).rows.length,
+      0,
+    );
+    await rpc("v1_pick_outright", [item, options[0].id]);
+  });
+  await asUser(editor, async () => {
+    await assert.rejects(
+      rpc("v1_admin_save_outright", [{ ...payload, id: item }]),
+      /entries/,
+    );
+    await assert.rejects(
+      rpc("v1_settle_outright", [item, options[1].id]),
+      /Wait until/,
+    );
+    assert.equal(
+      (await rpc("v1_admin_snapshot")).outrights.find((o) => o.id === item)
+        .pick_count,
+      2,
+    );
+    assert.equal(
+      (await db.query("select * from public.outright_picks")).rows.length,
+      0,
+    );
+  });
+  await db.query(
+    "update public.outrights set closes_at=clock_timestamp()-interval '1 second' where id=$1",
+    [item],
+  );
+  await asUser(captain, () =>
+    assert.rejects(rpc("v1_pick_outright", [item, options[0].id]), /closed/),
+  );
+  await asUser(editor, async () => {
+    await rpc("v1_settle_outright", [item, options[1].id]);
+    await rpc("v1_settle_outright", [item, options[1].id]);
+    await assert.rejects(
+      rpc("v1_settle_outright", [item, options[0].id]),
+      /already final/,
+    );
+    await assert.rejects(rpc("v1_void_outright", [item]), /already final/);
+  });
+  const ledger = (
+    await db.query(
+      "select user_id,team_id,country,xp from public.xp_ledger where source_type='outright' and source_id=$1 order by user_id",
+      [item],
+    )
+  ).rows;
+  assert.deepEqual(
+    ledger.map((row) => row.xp),
+    [20, 0],
+  );
+  assert.equal(ledger[0].team_id, team);
+  assert.equal(ledger[0].country, "MT");
+  await asUser(captain, async () => {
+    assert.equal((await rpc("v1_home")).event_xp, 20);
+    assert.equal(
+      (await rpc("v1_home")).outrights.find((o) => o.id === item).entry
+        .option_id,
+      options[1].id,
+    );
+  });
+  const boards = (
+    await scalar("select private.tournament_boards($1) value", [tournament])
+  ).value;
+  assert.ok(boards.countries.find((row) => row.id === "MT").xp >= 20);
+  assert.ok(boards.teams.find((row) => row.id === team).xp >= 20);
+
+  let future, voided, frozen, pending;
+  await asUser(editor, async () => {
+    future = await rpc("v1_admin_save_outright", [
+      { ...payload, opens_at: "2098-01-01", title: "Future test champion" },
+    ]);
+    voided = await rpc("v1_admin_save_outright", [
+      { ...payload, title: "Voided test champion" },
+    ]);
+    pending = await rpc("v1_admin_save_outright", [
+      { ...payload, title: "Pending test champion" },
+    ]);
+    frozen = await rpc("v1_admin_save", [
+      "tournament",
+      {
+        name: "Champion freeze test",
+        season_id: season,
+        starts_at: "2020-01-01",
+        ends_at: "2099-01-01",
+      },
+    ]);
+  });
+  const futureOption = (
+    await scalar(
+      "select id from public.outright_options where outright_id=$1 limit 1",
+      [future],
+    )
+  ).id;
+  await asUser(captain, () =>
+    assert.rejects(rpc("v1_pick_outright", [future, futureOption]), /not open/),
+  );
+  const voidOption = (
+    await scalar(
+      "select id from public.outright_options where outright_id=$1 limit 1",
+      [voided],
+    )
+  ).id;
+  await asUser(editor, () => rpc("v1_void_outright", [voided]));
+  await asUser(captain, () =>
+    assert.rejects(rpc("v1_pick_outright", [voided, voidOption]), /closed/),
+  );
+  await asUser(editor, () =>
+    assert.rejects(rpc("v1_settle_outright", [voided, voidOption]), /voided/),
+  );
+  assert.equal(
+    (
+      await scalar(
+        "select count(*)::integer n from public.xp_ledger where source_id=$1",
+        [voided],
+      )
+    ).n,
+    0,
+  );
+
+  await db.query("update public.outrights set tournament_id=$1 where id=$2", [
+    frozen,
+    pending,
+  ]);
+  await db.query(
+    "update public.tournaments set published=true, ends_at=clock_timestamp()-interval '1 second' where id=$1",
+    [frozen],
+  );
+  await db.query(
+    "insert into public.xp_ledger(user_id,tournament_id,season_id,country,source_type,source_id,xp) values($1,$2,$3,'MT','quiz',gen_random_uuid(),10)",
+    [captain, frozen, season],
+  );
+  await rpc("v1_tournament_rankings");
+  assert.equal(
+    (
+      await scalar(
+        "select count(*)::integer n from private.tournament_results where tournament_id=$1",
+        [frozen],
+      )
+    ).n,
+    0,
+  );
+  await db.query(
+    "update public.outrights set closes_at=clock_timestamp()-interval '1 second' where id=$1",
+    [pending],
+  );
+  const pendingOption = (
+    await scalar(
+      "select id from public.outright_options where outright_id=$1 limit 1",
+      [pending],
+    )
+  ).id;
+  await asUser(captain, () =>
+    db.query("select id from public.outright_picks where outright_id=$1", [
+      pending,
+    ]),
+  );
+  // A pick made before the event ended, settled afterwards, remains in the frozen totals.
+  await db.query(
+    "insert into public.outright_picks(user_id,outright_id,option_id,country) values($1,$2,$3,'MT')",
+    [captain, pending, pendingOption],
+  );
+  await asUser(editor, () =>
+    rpc("v1_settle_outright", [pending, pendingOption]),
+  );
+  await rpc("v1_tournament_rankings");
+  const snapshot = (
+    await scalar(
+      "select standings from private.tournament_results where tournament_id=$1",
+      [frozen],
+    )
+  ).standings;
+  assert.equal(snapshot.players.find((row) => row.id === captain).xp, 30);
 });
