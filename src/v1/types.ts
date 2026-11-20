@@ -1,4 +1,5 @@
 export type Screen =
+  | "smash-up"
   | "arena"
   | "account"
   | "reset"

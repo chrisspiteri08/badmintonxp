@@ -656,7 +656,7 @@
     z-index: 5;
     inset: auto 0 0;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 2px;
     margin: 0;
     height: var(--tab-clearance);

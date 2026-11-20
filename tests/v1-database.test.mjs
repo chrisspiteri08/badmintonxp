@@ -117,7 +117,7 @@ test("v1: every app table has RLS and clients cannot read answer keys", async ()
       "select relname,relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and relkind='r'",
     )
   ).rows;
-  assert.equal(tables.length, 23);
+  assert.equal(tables.length, 24);
   assert.ok(tables.every((t) => t.relrowsecurity));
   await asUser(alice, async () => {
     await assert.rejects(
@@ -1361,4 +1361,251 @@ test("outright picks: change until close, server deadline, idempotent 20 XP, voi
     )
   ).standings;
   assert.equal(snapshot.players.find((row) => row.id === captain).xp, 30);
+});
+
+test("Smash Up: personal XP milestones, isolation, validation, RLS and public boards", async () => {
+  const fan = "b0000000-0000-0000-0000-000000000001",
+    other = "b1000000-0000-0000-0000-000000000001";
+  await db.query(
+    'insert into auth.users(id,email,raw_user_meta_data) values($1,\'smash@example.test\',\'{"username":"SmashFan","country":"MT"}\'),($2,\'other@example.test\',\'{"username":"SmashOther","country":"MY"}\')',
+    [fan, other],
+  );
+  await db.query("update public.profiles set team_id=$1 where id=$2", [
+    team,
+    fan,
+  ]);
+  const { hitsRequiredForLevel } = await import("../src/v1/smash-engine.ts");
+  for (let level = 1; level <= 99; level++)
+    assert.equal(
+      (await scalar("select private.game_hits_for_level($1) n", [level])).n,
+      hitsRequiredForLevel(level),
+    );
+  await assert.rejects(
+    asUser(null, () => rpc("v1_game_start"), "anon"),
+    /permission denied/,
+  );
+  const before = await asUser(fan, () => rpc("v1_home"));
+  const scopedBoards = async () => {
+    const rows = [];
+    for (const scope of ["event", "season"])
+      for (const league of ["players", "teams", "countries"])
+        rows.push(
+          (
+            await db.query("select * from public.v1_leaderboard($1,$2,$3)", [
+              tournament,
+              scope,
+              league,
+            ])
+          ).rows,
+        );
+    return rows;
+  };
+  const snapshots = async () => ({
+    scoped: await scopedBoards(),
+    publicRankings: await rpc("v1_tournament_rankings"),
+    boards: (
+      await scalar("select private.tournament_boards($1) value", [tournament])
+    ).value,
+    frozen: (
+      await db.query(
+        "select * from private.tournament_results order by tournament_id",
+      )
+    ).rows,
+  });
+  const standings = await snapshots();
+  async function start(user = fan, age = 0) {
+    await db.query(
+      "update public.game_runs set started_at=clock_timestamp()-interval '4 seconds' where user_id=$1 and started_at>clock_timestamp()-interval '3 seconds'",
+      [user],
+    );
+    const r = await asUser(user, () => rpc("v1_game_start"));
+    if (age)
+      await db.query(
+        "update public.game_runs set started_at=clock_timestamp()-$1*interval '1 millisecond' where id=$2",
+        [age, r.run_id],
+      );
+    return r;
+  }
+  async function finish(level, hits, duration, user = fan) {
+    const r = await start(user, duration);
+    return {
+      run: r,
+      result: await asUser(user, () =>
+        rpc("v1_game_finish", [r.run_id, level, hits, duration]),
+      ),
+    };
+  }
+  const first = await finish(1, 5, 6000);
+  assert.equal(first.result.xp_added, 5);
+  assert.deepEqual(
+    await asUser(fan, () =>
+      rpc("v1_game_finish", [first.run.run_id, 99, 99999, 0]),
+    ),
+    first.result,
+  );
+  assert.equal((await finish(1, 6, 7000)).result.xp_added, 0);
+  assert.equal((await finish(2, 11, 12000)).result.xp_added, 5);
+  const third = await finish(3, 24, 26000);
+  assert.equal(third.result.xp_added, 10);
+  assert.equal(third.result.xp_today, 20);
+  const reset = third.result.resets_at;
+  assert.equal(
+    (await finish(25, hitsRequiredForLevel(25) + 1, 900000)).result.xp_added,
+    0,
+  );
+  assert.equal(
+    (await asUser(fan, () => rpc("v1_game_status"))).resets_at,
+    reset,
+  );
+  const ledger = (
+    await db.query(
+      "select * from public.xp_ledger where user_id=$1 and source_type='game'",
+      [fan],
+    )
+  ).rows;
+  assert.equal(ledger.length, 3);
+  assert.equal(
+    ledger.reduce((n, r) => n + r.xp, 0),
+    20,
+  );
+  for (const r of ledger) {
+    assert.equal(r.tournament_id, null);
+    assert.equal(r.season_id, null);
+    assert.equal(r.team_id, team);
+    assert.equal(r.country, "MT");
+  }
+  const after = await asUser(fan, () => rpc("v1_home"));
+  assert.equal(after.lifetime_xp, before.lifetime_xp + 20);
+  assert.equal(after.event_xp, before.event_xp);
+  assert.deepEqual(await snapshots(), standings);
+  for (const [level, hits, claimed, age] of [
+    [1, 1000, 6000, 6000],
+    [3, 1, 6000, 6000],
+    [1, 5, 900000, 6000],
+    [1, 5, 1801000, 1801000],
+    [0, 1, 6000, 6000],
+    [1, 5, 1000, 30000],
+  ]) {
+    const r = await start(fan, age);
+    const result = await asUser(fan, () =>
+      rpc("v1_game_finish", [r.run_id, level, hits, claimed]),
+    );
+    assert.equal(result.accepted, false);
+    assert.equal(result.xp_added, 0);
+    assert.ok(result.reason);
+  }
+  await assert.rejects(
+    asUser(other, () => rpc("v1_game_finish", [first.run.run_id, 1, 5, 6000])),
+    /Run not found/,
+  );
+  assert.equal(
+    (
+      await asUser(other, () =>
+        db.query("select * from public.game_runs where user_id=$1", [fan]),
+      )
+    ).rows.length,
+    0,
+  );
+  for (const table of ["game_runs", "xp_ledger"])
+    for (const operation of [
+      `insert into public.${table} default values`,
+      `update public.${table} set country='GB'`,
+      `delete from public.${table}`,
+    ])
+      await assert.rejects(
+        asUser(fan, () => db.exec(operation)),
+        /permission denied/,
+      );
+  await finish(2, 12, 14000, other);
+  const board = await asUser(fan, () => rpc("v1_smash_leaderboard", ["today"]));
+  assert.equal(board.me.username, "SmashFan");
+  assert.equal(board.rows.filter((r) => r.username === "SmashFan").length, 1);
+  const publicBoard = await asUser(
+    null,
+    () => rpc("v1_smash_leaderboard", ["all"]),
+    "anon",
+  );
+  assert.equal(publicBoard.me, null);
+  assert.doesNotMatch(
+    JSON.stringify(publicBoard),
+    /"(?:email|user_id|id|team_id|duration_ms)"/,
+  );
+  const countries = await asUser(
+    null,
+    async () =>
+      (await db.query("select * from public.v1_smash_country_board()")).rows,
+    "anon",
+  );
+  assert.equal(countries.find((r) => r.country === "MT").top_fan, "SmashFan");
+  assert.equal(countries.find((r) => r.country === "MT").fans, 1);
+  await db.query(
+    "update public.profiles set username='SmashRenamed' where id=$1",
+    [fan],
+  );
+  assert.equal(
+    (await asUser(fan, () => rpc("v1_smash_leaderboard", ["all"]))).me.username,
+    "SmashRenamed",
+  );
+  await db.query(
+    "update public.game_runs set xp_window_started_at=clock_timestamp()-interval '25 hours' where user_id=$1",
+    [fan],
+  );
+  assert.equal((await asUser(fan, () => rpc("v1_game_status"))).xp_today, 0);
+  assert.equal((await finish(3, 24, 26000)).result.xp_added, 20);
+  // Ending an event with game rows present freezes only its tournament XP.
+  const freezeEvent = (
+    await scalar(
+      "insert into public.tournaments(season_id,name,starts_at,ends_at,published) values($1,'Smash isolation fixture',clock_timestamp()-interval '2 hours',clock_timestamp()+interval '1 hour',true) returning id",
+      [season],
+    )
+  ).id;
+  await db.query(
+    "insert into public.xp_ledger(user_id,tournament_id,season_id,country,source_type,source_id,xp) values($1,$2,$3,'MT','quiz',gen_random_uuid(),10)",
+    [fan, freezeEvent, season],
+  );
+  await db.query(
+    "update public.tournaments set ends_at=clock_timestamp()-interval '1 second' where id=$1",
+    [freezeEvent],
+  );
+  await db.query(
+    "update public.xp_ledger set awarded_at=clock_timestamp()-interval '2 seconds' where tournament_id=$1",
+    [freezeEvent],
+  );
+  await rpc("v1_tournament_rankings");
+  const frozenBoard = (
+    await scalar(
+      "select standings from private.tournament_results where tournament_id=$1",
+      [freezeEvent],
+    )
+  ).standings;
+  assert.equal(frozenBoard.players.find((r) => r.id === fan).xp, 10);
+  for (const name of ["v1_game_status", "v1_game_finish"])
+    await assert.rejects(
+      asUser(
+        null,
+        () =>
+          name === "v1_game_status"
+            ? rpc(name)
+            : rpc(name, [first.run.run_id, 1, 5, 6000]),
+        "anon",
+      ),
+      /permission denied/,
+    );
+  const quick = await start(other);
+  await assert.rejects(
+    asUser(other, () => rpc("v1_game_start")),
+    /Give it a moment/,
+  );
+  await db.query(
+    "update public.game_runs set started_at=clock_timestamp()-interval '10 seconds' where id=$1",
+    [quick.run_id],
+  );
+  await db.query(
+    "insert into public.game_runs(user_id,country,day,started_at) select $1,'MY',(clock_timestamp() at time zone 'utc')::date,clock_timestamp()-interval '1 hour' from generate_series(1,300)",
+    [other],
+  );
+  await assert.rejects(
+    asUser(other, () => rpc("v1_game_start")),
+    /Come back tomorrow/,
+  );
 });

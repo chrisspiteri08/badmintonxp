@@ -195,8 +195,19 @@ export function QuizFeedback({
   );
 }
 
-type Cue = "correct" | "wrong" | "timeout" | "locked" | "level";
+type Cue =
+  | "hit"
+  | "smash"
+  | "miss"
+  | "correct"
+  | "wrong"
+  | "timeout"
+  | "locked"
+  | "level";
 const tones: Record<Cue, number[]> = {
+  hit: [520],
+  smash: [660, 880],
+  miss: [150],
   correct: [523, 784],
   wrong: [220, 165],
   timeout: [130, 130],

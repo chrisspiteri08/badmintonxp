@@ -1,6 +1,7 @@
 "use client";
 import { GameButton } from "./game-button";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -17,6 +18,7 @@ import {
   Play,
   Target,
   Trophy,
+  Zap,
 } from "lucide-react";
 import {
   ArenaSkeleton,
@@ -58,6 +60,7 @@ import {
   TournamentStandings,
   type TournamentRankings,
 } from "./tournament-rankings";
+const SmashGame = dynamic(() => import("./smash-game"), { ssr: false });
 const eventDates = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
@@ -66,6 +69,7 @@ const navigation = [
   ["Arena", "/play", House],
   ["Quiz", "/play/quiz", Play],
   ["Predict", "/play/predict", Target],
+  ["Smash Up", "/play/smash-up", Zap],
   ["Rankings", "/play/standings", Trophy],
   ["Profile", "/play/profile", CircleUserRound],
 ] as const;
@@ -695,7 +699,16 @@ export function V1App({ screen }: { screen: Screen }) {
               {message}
             </p>
           )}
-          {!ready ? (
+          {screen === "smash-up" ? (
+            <SmashGame
+              client={client}
+              userId={session?.user.id ?? null}
+              feedback={feedback}
+              onBank={() => {
+                if (client) void refresh(client).catch(() => {});
+              }}
+            />
+          ) : !ready ? (
             <ArenaSkeleton />
           ) : !client ? (
             <section className="panel">

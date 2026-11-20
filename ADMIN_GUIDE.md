@@ -139,3 +139,15 @@ Champion picks are optional and do not block tournament publication.
 4. To cancel an unsettled item, choose **Void this pick** and confirm. It remains visible as Voided and awards no XP.
 
 Settled is final. Confirmed champions cannot be changed or voided. Items with entries cannot be edited. Void an unsettled item and create a replacement if its options are wrong.
+
+## Smash Up
+
+Smash Up is a one-thumb arcade rally at `/play/smash-up`. Guests can play and share a local best. Only signed-in BadmintonXP fans can record runs on the separate Today, All-time and Countries boards; emails are never exposed there. Today/Countries use the UTC calendar day.
+
+Lifetime XP uses **a personal 24-hour window**, beginning with the first XP-earning finish: 5 XP after five hits, another 5 XP on reaching Level 2, and 10 XP on reaching Level 3. Each milestone is recorded once per window, with a hard cap of 20 XP. Replays can earn missed milestones without moving the reset time. Last-played time is recorded separately. These points never affect tournament or season standings, including team and country standings.
+
+Apply `202611200001_smash_up.sql` before deploying the frontend. This task does not apply it to production. Before the migration, or when the database is unavailable, the game remains playable; unavailable XP and leaderboard panels are hidden. A failed finish is retried once before a quiet failure message.
+
+Browser scores are forgeable: the server cannot replay inputs. Server-issued run IDs, authenticated ownership, start-rate limits, 300 starts per UTC day, clock/duration checks, minimum hit counts and the unique milestone ledger keys bound lifetime XP to 20 per personal 24 hours. A plausible fabricated run after several minutes of idling can still pass. Treat the separate Smash Up board as for fun. Admins can inspect `game_runs`; a hide-run tool is out of scope. Future hardening could replay a compact input log against the same seeded engine server-side.
+
+Null-scope audit: all existing event/season ledger readers filter by `tournament_id` or `season_id`; null game scopes are excluded. Lifetime totals sum all rows and include them. The leaderboard joins profiles and optionally teams, never tournaments/seasons. Tournament freeze snapshots use the same event filter. No existing home, profile, admin or tournament-ranking SQL functions were changed.

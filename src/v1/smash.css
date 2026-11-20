@@ -1,0 +1,180 @@
+.v1 .smash-game {
+  width: min(100%, 700px);
+  margin: auto;
+  padding-bottom: 20px;
+}
+.v1 .smash-court {
+  height: min(640px, calc(100svh - 180px));
+  min-height: 430px;
+  position: relative;
+  background: #081b34;
+  border: 1px solid #35506e;
+  border-radius: 22px;
+  overflow: hidden;
+  touch-action: none;
+}
+.v1 .smash-court canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.v1 .smash-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  background: #081b34ed;
+  overflow: auto;
+}
+.v1 .smash-overlay h1 {
+  font-size: clamp(36px, 8vw, 60px);
+  margin: 0;
+  color: #ffb278;
+}
+.v1 .smash-overlay h2 {
+  font-size: 22px;
+  margin: 0;
+}
+.v1 .smash-overlay p {
+  margin: 0;
+  max-width: 420px;
+}
+.v1 .smash-overlay small {
+  font-size: 12px;
+  color: #c5d4e3;
+}
+.v1 .smash-guest {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+}
+.v1 .smash-guest .game-button {
+  padding: 12px;
+  min-height: 48px;
+  background: #ff894c;
+  color: #081b34;
+  border-radius: 12px;
+  font-weight: 800;
+}
+.v1 .smash-hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  background: #081b34df;
+  padding: 12px;
+  border-radius: 12px;
+  pointer-events: none;
+}
+.v1 .smash-action {
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+  min-width: 110px;
+  min-height: 56px;
+}
+.v1 .smash-countdown {
+  position: absolute;
+  top: 38%;
+  left: 45%;
+  font-size: 70px;
+  color: #ffb278;
+  pointer-events: none;
+}
+.v1 .smash-board {
+  margin-top: 16px;
+}
+.v1 .smash-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+}
+.v1 .smash-tabs button {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 12px;
+  background: #163657;
+  color: #fff;
+  border: 1px solid #57718c;
+  font-weight: 800;
+}
+.v1 .smash-tabs [aria-selected="true"] {
+  background: #ff894c;
+  color: #081b34;
+}
+.v1 .smash-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-bottom: 1px solid #35506e;
+}
+.v1 .smash-row span {
+  flex: 1;
+}
+.v1 .smash-row small {
+  display: block;
+  color: #c5d4e3;
+}
+.v1 .smash-row.is-you,
+.v1 .smash-you {
+  background: #603520;
+  border-radius: 8px;
+  padding: 12px;
+}
+@media (max-width: 400px) {
+  .v1 .demo-nav a {
+    font-size: 9px;
+    white-space: nowrap;
+  }
+  .v1 .smash-overlay {
+    padding: 16px;
+    gap: 9px;
+  }
+  .v1 .smash-overlay h2 {
+    font-size: 18px;
+  }
+  .v1 .smash-court {
+    min-height: 470px;
+  }
+}
+
+.v1 .smash-action[data-ready="true"] {
+  animation: smash-ready 1s ease-in-out infinite alternate;
+}
+@keyframes smash-ready {
+  to {
+    box-shadow:
+      0 4px 0 #a33a18,
+      0 0 24px #ff894c99;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v1 .smash-action[data-ready="true"] {
+    animation: none;
+  }
+}
+
+.v1 .smash-tabs button[role="tab"] {
+  padding: 8px;
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.v1 .smash-tabs button[aria-selected="true"],
+.v1 .smash-tabs button[aria-selected="true"]:hover {
+  background: #ff894c;
+  color: #081b34;
+}

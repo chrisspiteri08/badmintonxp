@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { V1App } from "@/v1/app";
 import type { Screen } from "@/v1/types";
 const screens = [
+  "smash-up",
   "account",
   "reset",
   "quiz",
