@@ -24,6 +24,8 @@ import {
   type GameStatus,
 } from "./smash-api";
 import "./smash.css";
+import { createSmashRenderer } from "./smash-render";
+import { worldTransform, progressFraction } from "./smash-visuals";
 const url = "https://badmintonxp.com/play/smash-up";
 const empty = {
   level: 1,
@@ -33,6 +35,8 @@ const empty = {
   ready: false,
   armed: false,
   countdown: 0,
+  serving: false,
+  slamming: false,
   wind: 0,
 };
 export default function SmashGame({
@@ -128,6 +132,8 @@ export default function SmashGame({
       ready: g.ready,
       armed: g.armed,
       countdown: 0,
+      serving: false,
+      slamming: false,
       wind: g.gust,
     });
     try {
@@ -178,44 +184,10 @@ export default function SmashGame({
   useEffect(() => {
     const node = canvas.current;
     if (!node) return;
-    const ctx = node.getContext("2d");
-    if (!ctx) return;
+    const renderer = createSmashRenderer(node);
     const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-    const particles = Array.from({ length: 40 }, () => ({
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      life: 0,
-    }));
-    const burst = (x: number, y: number) => {
-      if (reduced.matches) return;
-      let count = 0;
-      for (const particle of particles)
-        if (particle.life <= 0 && count < 8) {
-          particle.x = x;
-          particle.y = y;
-          particle.vx = Math.cos(count * 0.8) * 85;
-          particle.vy = Math.sin(count * 0.8) * 85;
-          particle.life = 0.3;
-          count++;
-        }
-    };
     const input = { target: 180 };
-    const dash = [4, 5],
-      noDash: number[] = [];
-    let renderWidth = 1,
-      renderHeight = 1;
-    const resize = () => {
-      const ratio = Math.min(2, devicePixelRatio || 1);
-      renderWidth = Math.round(node.clientWidth * ratio);
-      renderHeight = Math.round(node.clientHeight * ratio);
-      node.width = renderWidth;
-      node.height = renderHeight;
-    };
-    const sizing = new ResizeObserver(resize);
-    sizing.observe(node);
-    resize();
+    const previousHud = { ...empty };
     let frame = 0,
       last = 0,
       accumulator = 0,
@@ -264,7 +236,7 @@ export default function SmashGame({
       last = now;
       const g = game.current;
       if (g && active.current && !paused.current && now >= resumeAt.current) {
-        accumulator += dt;
+        accumulator += dt * (g.phase === "slam" ? 0.35 : 1);
         while (accumulator >= STEP) {
           target.current = Math.max(
             0,
@@ -275,116 +247,52 @@ export default function SmashGame({
           accumulator -= STEP;
           if (g.events & HIT) {
             feedbackRef.current(g.events & SMASH ? "smash" : "hit");
-            burst(g.x, 550);
           }
           if (g.events & MISS) {
             feedbackRef.current("miss");
-            burst(g.x, 600);
           }
+          renderer.event(g, reduced.matches);
           if (g.phase === "over") {
             finishRef.current();
             break;
           }
         }
       } else accumulator = 0;
-      if (g && active.current && now - lastHud > 80) {
+      if (g && active.current && now - lastHud > 84) {
         lastHud = now;
-        setHud({
-          level: g.level,
-          hits: g.hits,
-          levelHits: g.levelHits,
-          score: scoreOf(g),
-          ready: g.ready,
-          armed: g.armed,
-          countdown:
-            g.phase === "serve"
+        const countdown =
+          now < resumeAt.current
+            ? 1
+            : g.phase === "serve" && g.level === 1
               ? Math.ceil(g.delay)
-              : now < resumeAt.current
-                ? 1
-                : 0,
-          wind: g.gust,
-        });
+              : 0;
+        const serving = g.phase === "serve" && g.level > 1;
+        const slamming = g.phase === "slam";
+        const wind = Math.round(g.gust * 100) / 100;
+        if (
+          previousHud.hits !== g.hits ||
+          previousHud.level !== g.level ||
+          previousHud.countdown !== countdown ||
+          previousHud.ready !== g.ready ||
+          previousHud.armed !== g.armed ||
+          previousHud.wind !== wind ||
+          previousHud.serving !== serving ||
+          previousHud.slamming !== slamming
+        ) {
+          previousHud.level = g.level;
+          previousHud.hits = g.hits;
+          previousHud.levelHits = g.levelHits;
+          previousHud.score = scoreOf(g);
+          previousHud.ready = g.ready;
+          previousHud.armed = g.armed;
+          previousHud.countdown = countdown;
+          previousHud.wind = wind;
+          previousHud.serving = serving;
+          previousHud.slamming = slamming;
+          setHud({ ...previousHud });
+        }
       }
-      const width = renderWidth,
-        height = renderHeight;
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = "#081b34";
-      ctx.fillRect(0, 0, width, height);
-      const scale = Math.min(width / 360, height / 640);
-      ctx.setTransform(
-        scale,
-        0,
-        0,
-        scale,
-        (width - 360 * scale) / 2,
-        (height - 640 * scale) / 2,
-      );
-      if (g?.phase === "slam" && g.delay > 0.25 && !reduced.matches)
-        ctx.translate(Math.sin(now) * 2, Math.cos(now) * 2);
-      ctx.fillStyle = "#112a49";
-      ctx.fillRect(18, 90, 324, 510);
-      ctx.strokeStyle = "#8295aa";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(25, 100, 310, 500);
-      ctx.beginPath();
-      ctx.moveTo(25, 350);
-      ctx.lineTo(335, 350);
-      ctx.moveTo(180, 100);
-      ctx.lineTo(180, 600);
-      ctx.stroke();
-      ctx.setLineDash(dash);
-      ctx.beginPath();
-      ctx.moveTo(0, 320);
-      ctx.lineTo(360, 320);
-      ctx.stroke();
-      ctx.setLineDash(noDash);
-      if (g?.phase === "slam" && g.delay > 0.25 && !reduced.matches) {
-        ctx.fillStyle = "#fff3";
-        ctx.fillRect(0, 0, 360, 640);
-      }
-      const x = g?.x ?? 180,
-        y = g?.y ?? 120,
-        racket = g?.racket ?? 180,
-        config = levelConfig(g?.level ?? 1);
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(racket - 4, 568, 8, 30);
-      ctx.fillStyle = "#ec3543";
-      ctx.beginPath();
-      ctx.ellipse(
-        racket,
-        560,
-        config.width / 2,
-        g?.squash ? 5 : 9,
-        0,
-        0,
-        Math.PI * 2,
-      );
-      ctx.fill();
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate((g?.vx ?? 0) * 0.003);
-      ctx.fillStyle = "#fff";
-      ctx.beginPath();
-      ctx.moveTo(-9, -18);
-      ctx.lineTo(9, -18);
-      ctx.lineTo(5, 1);
-      ctx.lineTo(-5, 1);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = "#ff894c";
-      ctx.beginPath();
-      ctx.arc(0, 2, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-      if (!reduced.matches)
-        for (const p of particles)
-          if (p.life > 0) {
-            p.life -= dt;
-            p.x += p.vx * dt;
-            p.y += p.vy * dt;
-            ctx.fillStyle = "#ffb278";
-            ctx.fillRect(p.x, p.y, 3, 3);
-          }
+      renderer.draw(g, paused.current ? 0 : dt, reduced.matches);
       frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);
@@ -392,7 +300,7 @@ export default function SmashGame({
       active.current = false;
       cancelAnimationFrame(frame);
       observer.disconnect();
-      sizing.disconnect();
+
       document.removeEventListener("visibilitychange", hidden);
       window.removeEventListener("blur", pause);
       window.removeEventListener("pagehide", pause);
@@ -471,9 +379,9 @@ export default function SmashGame({
           onPointerMove={(e) => {
             if (e.currentTarget.hasPointerCapture(e.pointerId)) {
               const previous = Number(e.currentTarget.dataset.dragX);
-              const scale = Math.min(
-                e.currentTarget.clientWidth / 360,
-                e.currentTarget.clientHeight / 640,
+              const { scale } = worldTransform(
+                e.currentTarget.clientWidth,
+                e.currentTarget.clientHeight,
               );
               target.current = Math.max(
                 0,
@@ -486,17 +394,41 @@ export default function SmashGame({
         {phase === "playing" && (
           <>
             <div className="smash-hud">
-              <strong>Level {hud.level}</strong>
-              <span>
-                {hud.levelHits} / {levelConfig(hud.level).target} hits
+              <strong className="smash-level">
+                <span aria-hidden="true">L{hud.level}</span>
+                <span className="sr-only">Level {hud.level}</span>
+              </strong>
+              <div
+                className="smash-progress"
+                role="progressbar"
+                aria-label="Level hit target"
+                aria-valuemin={0}
+                aria-valuemax={levelConfig(hud.level).target}
+                aria-valuenow={Math.min(
+                  hud.levelHits,
+                  levelConfig(hud.level).target,
+                )}
+                data-full={hud.ready}
+              >
+                <i
+                  style={{
+                    transform: `scaleX(${progressFraction(hud.levelHits, levelConfig(hud.level).target)})`,
+                  }}
+                />
+                <span key={hud.hits}>
+                  {hud.levelHits}/{levelConfig(hud.level).target}
+                </span>
+              </div>
+              <span className="smash-score">
+                Score <b>{hud.score}</b>
               </span>
-              <span>Score {hud.score}</span>
               {hud.level >= 5 && (
-                <span aria-label="Wind">
+                <span className="smash-wind" aria-label="Wind">
                   Wind{" "}
                   <span
                     style={{
                       display: "inline-block",
+                      opacity: 0.4 + Math.abs(hud.wind) * 0.6,
                       transform: `scaleX(${0.3 + Math.abs(hud.wind) * 1.7})`,
                     }}
                   >
@@ -506,17 +438,23 @@ export default function SmashGame({
                 </span>
               )}
             </div>
-            <GameButton
-              tone="primary"
-              className="smash-action"
-              data-ready={hud.ready && !hud.armed}
-              disabled={!hud.ready || isPaused}
-              onClick={() => {
-                if (game.current) armSmash(game.current);
-              }}
-            >
-              {hud.armed ? "ARMED" : "SMASH"}
-            </GameButton>
+            {hud.slamming && (
+              <span className="sr-only smash-moment" role="status">
+                SMASH!
+              </span>
+            )}
+            {hud.serving && !isPaused && (
+              <div className="smash-level-card" role="status">
+                <strong>Level {hud.level}</strong>
+                <span>
+                  {hud.level === 5
+                    ? "Wind incoming"
+                    : hud.level >= 6
+                      ? "Wind gets stronger"
+                      : "Faster shuttle"}
+                </span>
+              </div>
+            )}
             <span className="sr-only" aria-live="polite">
               {hud.ready ? "Smash ready" : ""}
             </span>
@@ -544,16 +482,66 @@ export default function SmashGame({
             <p className="eyebrow">KEEP THE RALLY ALIVE</p>
             <h1>Smash Up</h1>
             {phase === "ready" ? (
-              <p>
-                Drag to move your racket. Keep the shuttle up. Hit the target,
-                then tap SMASH.
-              </p>
+              <div className="smash-howto" aria-label="How to play">
+                <span>
+                  <b aria-hidden="true">
+                    <svg width="28" height="30" viewBox="0 0 28 30" fill="none">
+                      <ellipse
+                        cx="13"
+                        cy="10"
+                        rx="9"
+                        ry="7"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                      />
+                      <path
+                        d="M7 7h12M6 11h14M10 4v12M15 4v12M13 17v10"
+                        stroke="currentColor"
+                        strokeWidth="1.3"
+                      />
+                      <path
+                        d="M10 25h6"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                    </svg>
+                  </b>
+                  Drag
+                </span>
+                <span>
+                  <b aria-hidden="true">
+                    <svg width="28" height="30" viewBox="0 0 28 30" fill="none">
+                      <path d="M4 3h20l-6 17h-8L4 3Z" fill="white" />
+                      <path
+                        d="m8 4 4 15m2-15v15m6-15-4 15"
+                        stroke="#8295aa"
+                        strokeWidth="1"
+                      />
+                      <circle cx="14" cy="23" r="5" fill="currentColor" />
+                    </svg>
+                  </b>
+                  Keep it up
+                </span>
+                <span>
+                  <b aria-hidden="true">ϟ</b>SMASH
+                </span>
+              </div>
             ) : (
               <>
-                <h2>
-                  Level {hud.level} · {hud.hits} hits · Score {hud.score}
-                </h2>
-                {newBest && <strong>New best!</strong>}
+                <div className="smash-result-stats" aria-label="Your result">
+                  <span>
+                    <b>{hud.level}</b>Level
+                  </span>
+                  <span>
+                    <b>{hud.hits}</b>hits
+                  </span>
+                  <span>
+                    <b>{hud.score}</b>Score
+                  </span>
+                </div>
+                {newBest && (
+                  <strong className="smash-best-ribbon">New best!</strong>
+                )}
                 <GameButton tone="primary" onClick={() => void share()}>
                   {copied ? "Copied!" : "Share score"}
                 </GameButton>
@@ -573,7 +561,7 @@ export default function SmashGame({
                   ? "Play"
                   : "Play again"}
             </GameButton>
-            <p>
+            <p className="smash-best-chip">
               Personal best · {best} · Level {bestLevel}
             </p>
             {userId ? (
@@ -597,6 +585,23 @@ export default function SmashGame({
           </div>
         )}
       </div>
+      {phase === "playing" && (
+        <GameButton
+          tone={hud.armed ? "urgent" : "primary"}
+          className="smash-action"
+          data-ready={hud.ready && !hud.armed}
+          disabled={!hud.ready || isPaused}
+          onClick={() => {
+            if (game.current) armSmash(game.current);
+          }}
+        >
+          {hud.armed
+            ? "ARMED · next hit smashes"
+            : hud.ready
+              ? "SMASH!"
+              : `SMASH · ${Math.max(0, levelConfig(hud.level).target - hud.levelHits)} to go`}
+        </GameButton>
+      )}
       {phase !== "playing" && (board || countries) && (
         <section
           className="panel smash-board"

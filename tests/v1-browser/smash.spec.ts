@@ -140,6 +140,9 @@ async function rally(
   await page.mouse.move(mouseX, box.y + box.height / 2);
   await page.mouse.down();
   let lit = false,
+    mid = false,
+    burst = false,
+    levelCard = false,
     wind = false;
   for (let i = 0; i < 2200; i++) {
     const state = await canvas.evaluate((node) => {
@@ -162,6 +165,7 @@ async function rally(
             on++;
           }
           if (
+            y > c.height - 90 * Math.min(c.width / 360, c.height / 560) &&
             d.data[j] > 220 &&
             d.data[j + 1] > 35 &&
             d.data[j + 1] < 75 &&
@@ -179,7 +183,7 @@ async function rally(
     mouseX += state.dx;
     await page.mouse.move(mouseX, box.y + box.height / 2);
     const smash = page.getByRole("button", {
-      name: /^(SMASH|ARMED)$/,
+      name: /^(SMASH|ARMED)/,
       exact: true,
     });
     if (!(await smash.count()))
@@ -187,6 +191,28 @@ async function rally(
         "Scripted rally missed: " +
           (await page.locator(".smash-overlay").textContent()),
       );
+    if (
+      !mid &&
+      (await page.locator(".smash-progress span").textContent()) === "3/10"
+    ) {
+      await capture("mid-rally");
+      mid = true;
+    }
+    if (!burst && (await page.locator(".smash-moment").count())) {
+      await capture("smash-burst");
+      burst = true;
+    }
+    if (
+      !levelCard &&
+      (await page.locator(".smash-level-card").count()) &&
+      (await page.locator(".smash-level-card strong").textContent()) ===
+        "Level 2"
+    ) {
+      await expect(page.locator(".smash-countdown")).toHaveCount(0);
+      await page.clock.runFor(300);
+      await capture("level-2");
+      levelCard = true;
+    }
     if (await smash.isEnabled()) {
       if (!lit) {
         await capture("smash-lit");
@@ -194,13 +220,17 @@ async function rally(
       }
       await page.keyboard.press("Space");
     }
-    const level = await page.locator(".smash-hud strong").textContent();
+    const level = await page
+      .locator(".smash-hud strong .sr-only")
+      .textContent();
     if (
       level === `Level ${goal}` &&
       (goal < 5 ||
-        !(
-          await page.getByLabel("Wind", { exact: true }).textContent()
-        )?.includes("0%"))
+        Number(
+          (await page.getByLabel("Wind", { exact: true }).textContent())?.match(
+            /\d+/,
+          )?.[0] ?? 0,
+        ) >= 25)
     ) {
       if (goal >= 5 && !wind) {
         await capture("playing-wind");
@@ -211,7 +241,16 @@ async function rally(
     await page.clock.runFor(150);
   }
   await page.mouse.up();
-  await expect(page.locator(".smash-hud strong")).toHaveText(`Level ${goal}`);
+  expect({ mid, burst, levelCard, lit, wind }).toEqual({
+    mid: true,
+    burst: true,
+    levelCard: true,
+    lit: true,
+    wind: true,
+  });
+  await expect(page.locator(".smash-hud strong .sr-only")).toHaveText(
+    `Level ${goal}`,
+  );
 }
 for (const authenticated of [false, true])
   test(`Smash Up ${authenticated ? "signed-in XP fixture" : "guest sharing, lifecycle and sixth tab"}`, async ({
@@ -225,14 +264,19 @@ for (const authenticated of [false, true])
     const capture = (name: string) =>
       page.screenshot({
         path: path.resolve(
-          process.env.V1_SCREENSHOT_DIR || "../../outputs/smash-up",
+          process.env.V1_SCREENSHOT_DIR || "../../outputs/smash-up-polish",
           `${authenticated ? "fan" : "guest"}-${name}-${page.viewportSize()!.width}x${page.viewportSize()!.height}.png`,
         ),
-        animations: "disabled",
+        animations: "allow",
+        // Freeze the CSS slide at its readable middle frame; game time is untouched.
+        style:
+          ".smash-level-card { animation-delay: -400ms !important; animation-play-state: paused !important; }",
       });
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await setup(page, authenticated);
+    if (authenticated)
+      await page.emulateMedia({ reducedMotion: "no-preference" });
     await expect(
       page.getByRole("navigation", { name: "Fan arena" }).getByRole("link"),
     ).toHaveCount(6);
@@ -304,6 +348,12 @@ for (const authenticated of [false, true])
     } else {
       await expect(page.getByText("0/20 XP this window")).toBeVisible();
       await page.getByRole("button", { name: "Play", exact: true }).click();
+      const action = page.locator(".smash-action");
+      await expect(page.locator(".smash-court .smash-action")).toHaveCount(0);
+      await expect(action).toBeDisabled();
+      const courtBox = (await page.locator(".smash-court").boundingBox())!,
+        barBox = (await action.boundingBox())!;
+      expect(barBox.y).toBeGreaterThanOrEqual(courtBox.y + courtBox.height);
       await rally(page, 5, capture);
       await lose(page);
       await expect(

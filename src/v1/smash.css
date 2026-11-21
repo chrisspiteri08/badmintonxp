@@ -1,17 +1,20 @@
 .v1 .smash-game {
-  width: min(100%, 700px);
+  width: min(100%, 760px);
   margin: auto;
-  padding-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 24px;
 }
 .v1 .smash-court {
-  height: min(640px, calc(100svh - 180px));
-  min-height: 430px;
+  height: clamp(420px, calc(100svh - 310px), 740px);
   position: relative;
-  background: #081b34;
-  border: 1px solid #35506e;
+  border: 1px solid #456382;
   border-radius: 22px;
   overflow: hidden;
   touch-action: none;
+  background: #081b34;
+  box-shadow: inset 0 0 40px #ff894c15;
 }
 .v1 .smash-court canvas {
   display: block;
@@ -27,36 +30,77 @@
   justify-content: center;
   flex-direction: column;
   gap: 12px;
-  padding: 24px;
+  padding: 20px;
   text-align: center;
-  background: #081b34ed;
+  background: linear-gradient(#06162bd9, #081b34b8);
   overflow: auto;
 }
 .v1 .smash-overlay h1 {
-  font-size: clamp(36px, 8vw, 60px);
+  font-size: clamp(38px, 8vw, 64px);
+  line-height: 1;
   margin: 0;
-  color: #ffb278;
-}
-.v1 .smash-overlay h2 {
-  font-size: 22px;
-  margin: 0;
+  font-style: italic;
+  letter-spacing: -2px;
+  background: linear-gradient(135deg, #ffcb85, #ff894c 55%, #ff5365);
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 0 #67262f);
 }
 .v1 .smash-overlay p {
   margin: 0;
-  max-width: 420px;
+  max-width: 440px;
 }
 .v1 .smash-overlay small {
+  font-size: 11px;
+  color: #d1deed;
+  line-height: 1.5;
+  max-width: 440px;
+}
+.v1 .smash-overlay .eyebrow {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #ffb278;
+}
+.v1 .smash-overlay > .game-button {
+  min-width: 180px;
+  min-height: 50px;
+}
+.v1 .smash-howto {
+  display: flex;
+  gap: 22px;
+  margin: 10px 0;
+  color: #fff;
   font-size: 12px;
-  color: #c5d4e3;
+  font-weight: 800;
+}
+.v1 .smash-howto span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.v1 .smash-howto b {
+  font-size: 27px;
+  color: #ffb278;
+  line-height: 1.2;
+}
+.v1 .smash-best-chip {
+  border: 1px solid #8295aa80;
+  background: #081b34bb;
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 12px;
 }
 .v1 .smash-guest {
   display: flex;
+  align-items: center;
   flex-direction: column;
-  gap: 10px;
-  font-size: 14px;
+  gap: 8px;
+  font-size: 12px;
+  max-width: 380px;
 }
 .v1 .smash-guest .game-button {
-  padding: 12px;
+  padding: 10px 18px;
   min-height: 48px;
   background: #ff894c;
   color: #081b34;
@@ -65,43 +109,172 @@
 }
 .v1 .smash-hud {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: space-between;
-  background: #081b34df;
-  padding: 12px;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  background: #081b34bb;
+  padding: 5px 8px;
   border-radius: 12px;
   pointer-events: none;
+  height: 40px;
+  font-size: 12px;
 }
-.v1 .smash-action {
+.v1 .smash-level {
+  background: linear-gradient(#f55059, #be2338);
+  border-radius: 99px;
+  text-align: center;
+  padding: 5px 0;
+  font-size: 14px;
+  box-shadow: 0 2px 0 #80152e;
+}
+.v1 .smash-progress {
+  position: relative;
+  height: 22px;
+  background: #031329;
+  border: 1px solid #ffffff60;
+  border-radius: 6px;
+  overflow: hidden;
+  isolation: isolate;
+}
+.v1 .smash-progress i {
   position: absolute;
-  bottom: 15px;
-  right: 15px;
-  min-width: 110px;
-  min-height: 56px;
+  inset: 0;
+  background: linear-gradient(90deg, #ec3543, #ff894c);
+  transform-origin: left;
+  z-index: -1;
+}
+.v1 .smash-progress span {
+  display: block;
+  text-align: center;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+  text-shadow: 0 1px 3px #000;
+  animation: smash-counter 0.16s ease-out;
+}
+.v1 .smash-progress[data-full="true"] {
+  border-color: #ffc187;
+  box-shadow: 0 0 12px #ff894c88;
+}
+.v1 .smash-score {
+  white-space: nowrap;
+  font-size: 11px;
+}
+.v1 .smash-score b {
+  font-size: 17px;
+  color: #ffca8c;
+}
+.v1 .smash-wind {
+  grid-column: 1/-1;
+  justify-self: end;
+  background: #081b34bb;
+  padding: 3px 9px;
+  border-radius: 0 0 8px 8px;
+  font-size: 11px;
+  color: #d6ebff;
+}
+.v1 .smash-action.game-button {
+  position: static;
+  width: 100%;
+  min-height: 64px;
+  font-size: 19px;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+  border-radius: 16px;
+}
+.v1 .smash-action.game-button:disabled {
+  background: #526278;
+  color: #f4f7fb;
+  opacity: 1;
+  box-shadow: 0 5px 0 #283951;
+}
+.v1 .smash-action[data-ready="true"] {
+  animation: smash-ready 1s ease-in-out infinite alternate;
 }
 .v1 .smash-countdown {
   position: absolute;
-  top: 38%;
-  left: 45%;
-  font-size: 70px;
-  color: #ffb278;
+  top: 35%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 80px;
+  color: #ffca8c;
+  pointer-events: none;
+  text-shadow: 0 4px #b42c39;
+}
+.v1 .smash-level-card {
+  position: absolute;
+  top: 30%;
+  left: 15%;
+  right: 15%;
+  padding: 24px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+  background: linear-gradient(135deg, #b8263aee, #102e50ee);
+  border: 2px solid #ffb278;
+  border-radius: 20px;
+  box-shadow: 0 6px 0 #041426;
+  animation: smash-level 1.2s both;
   pointer-events: none;
 }
+.v1 .smash-level-card strong {
+  font-size: 36px;
+  font-style: italic;
+}
+.v1 .smash-level-card span {
+  font-size: 13px;
+  color: #ffddbb;
+}
+.v1 .smash-result-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: min(100%, 340px);
+}
+.v1 .smash-result-stats span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-radius: 12px;
+  padding: 10px;
+  background: #102e50dd;
+  border: 1px solid #62829d;
+  font-size: 11px;
+}
+.v1 .smash-result-stats b {
+  font-size: 28px;
+  color: #ffca8c;
+  line-height: 1;
+}
+.v1 .smash-best-ribbon {
+  background: #e63946;
+  color: #fff;
+  transform: rotate(-3deg);
+  padding: 3px 18px;
+  font-size: 12px;
+  border-radius: 4px;
+}
 .v1 .smash-board {
-  margin-top: 16px;
+  margin-top: 4px;
 }
 .v1 .smash-tabs {
   display: flex;
   gap: 8px;
   margin: 14px 0;
 }
-.v1 .smash-tabs button {
+.v1 .smash-tabs button[role="tab"] {
   flex: 1;
+  padding: 8px;
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.4;
   min-height: 48px;
   border-radius: 12px;
   background: #163657;
@@ -109,7 +282,8 @@
   border: 1px solid #57718c;
   font-weight: 800;
 }
-.v1 .smash-tabs [aria-selected="true"] {
+.v1 .smash-tabs button[aria-selected="true"],
+.v1 .smash-tabs button[aria-selected="true"]:hover {
   background: #ff894c;
   color: #081b34;
 }
@@ -133,48 +307,86 @@
   border-radius: 8px;
   padding: 12px;
 }
+@keyframes smash-counter {
+  50% {
+    transform: scale(1.18);
+  }
+}
+@keyframes smash-ready {
+  to {
+    box-shadow:
+      0 5px 0 #a33a18,
+      0 0 24px #ff894c99;
+  }
+}
+@keyframes smash-level {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  20%,
+  80% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+@media (max-width: 600px) {
+  .v1 .smash-court {
+    height: calc(100svh - 235px);
+    min-height: 400px;
+  }
+  .v1 .smash-overlay {
+    gap: 9px;
+    padding: 15px;
+  }
+  .v1 .smash-howto {
+    margin: 5px 0;
+  }
+  .v1 .smash-game {
+    gap: 10px;
+  }
+}
 @media (max-width: 400px) {
   .v1 .demo-nav a {
     font-size: 9px;
     white-space: nowrap;
   }
-  .v1 .smash-overlay {
-    padding: 16px;
-    gap: 9px;
+  .v1 .smash-overlay h1 {
+    font-size: 38px;
   }
-  .v1 .smash-overlay h2 {
-    font-size: 18px;
+  .v1 .smash-overlay .game-button {
+    min-height: 48px;
   }
-  .v1 .smash-court {
-    min-height: 470px;
-  }
-}
-
-.v1 .smash-action[data-ready="true"] {
-  animation: smash-ready 1s ease-in-out infinite alternate;
-}
-@keyframes smash-ready {
-  to {
-    box-shadow:
-      0 4px 0 #a33a18,
-      0 0 24px #ff894c99;
+  .v1 .smash-result-stats b {
+    font-size: 24px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .v1 .smash-action[data-ready="true"] {
+  .v1 .smash-action[data-ready="true"],
+  .v1 .smash-progress span,
+  .v1 .smash-level-card {
     animation: none;
   }
 }
 
-.v1 .smash-tabs button[role="tab"] {
-  padding: 8px;
-  min-width: 0;
-  white-space: nowrap;
-  font-size: 13px;
-  line-height: 1.4;
+.v1 .smash-overlay {
+  justify-content: safe center;
 }
-.v1 .smash-tabs button[aria-selected="true"],
-.v1 .smash-tabs button[aria-selected="true"]:hover {
-  background: #ff894c;
+.v1 .smash-howto b {
+  height: 32px;
+  display: grid;
+  place-items: center;
+}
+.v1 .smash-overlay .game-button[data-tone="primary"]:hover,
+.v1 .smash-action[data-tone="primary"]:not(:disabled):hover {
+  background: #ff9d65;
   color: #081b34;
+}
+.v1 .smash-action[data-tone="urgent"]:hover {
+  background: #e63d51;
+  color: #fff;
 }
