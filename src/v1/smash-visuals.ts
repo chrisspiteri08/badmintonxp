@@ -23,8 +23,9 @@ export function worldTransform(
   w: number,
   h: number,
   out = { scale: 1, x: 0, y: 0 },
+  pixelRatio = 1,
 ) {
-  out.scale = Math.min(w / 360, h / 560);
+  out.scale = Math.min((w - 24 * pixelRatio) / 360, h / 560);
   out.x = (w - 360 * out.scale) / 2;
   out.y = h - 600 * out.scale;
   return out;
@@ -35,3 +36,10 @@ export function pointerWorldX(
 ) {
   return (x - transform.x) / transform.scale;
 }
+
+// Present the unchanged 120..560 rally as far baseline -> near service area.
+// X is never independently clamped: the shared viewport padding keeps the
+// existing engine bounds, visible head and pointer mapping in agreement.
+export const rallyViewY = (y: number) => 96 + (y - 120) * (378 / 440);
+export const shuttleDepth = (y: number) =>
+  clamp(0.48 + 0.52 * ((y - 120) / 440), 0.48, 1);

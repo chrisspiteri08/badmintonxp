@@ -141,6 +141,7 @@ async function rally(
   await page.mouse.down();
   let lit = false,
     mid = false,
+    great = false,
     burst = false,
     levelCard = false,
     wind = false;
@@ -165,7 +166,8 @@ async function rally(
             on++;
           }
           if (
-            y > c.height - 90 * Math.min(c.width / 360, c.height / 560) &&
+            y >
+              c.height - 165 * Math.min((c.width - 24) / 360, c.height / 560) &&
             d.data[j] > 220 &&
             d.data[j + 1] > 35 &&
             d.data[j + 1] < 75 &&
@@ -197,6 +199,13 @@ async function rally(
     ) {
       await capture("mid-rally");
       mid = true;
+    }
+    if (
+      !great &&
+      (await page.locator(".smash-progress span").textContent()) === "10/10"
+    ) {
+      await capture("great-pop");
+      great = true;
     }
     if (!burst && (await page.locator(".smash-moment").count())) {
       await capture("smash-burst");
@@ -241,8 +250,9 @@ async function rally(
     await page.clock.runFor(150);
   }
   await page.mouse.up();
-  expect({ mid, burst, levelCard, lit, wind }).toEqual({
+  expect({ mid, great, burst, levelCard, lit, wind }).toEqual({
     mid: true,
+    great: true,
     burst: true,
     levelCard: true,
     lit: true,
@@ -264,7 +274,7 @@ for (const authenticated of [false, true])
     const capture = (name: string) =>
       page.screenshot({
         path: path.resolve(
-          process.env.V1_SCREENSHOT_DIR || "../../outputs/smash-up-polish",
+          process.env.V1_SCREENSHOT_DIR || "../../outputs/smash-up-round2",
           `${authenticated ? "fan" : "guest"}-${name}-${page.viewportSize()!.width}x${page.viewportSize()!.height}.png`,
         ),
         animations: "allow",

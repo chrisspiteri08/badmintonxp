@@ -10,6 +10,8 @@ import {
   popForHits,
   worldTransform,
   pointerWorldX,
+  rallyViewY,
+  shuttleDepth,
 } from "../src/v1/smash-visuals.ts";
 import { levelConfig } from "../src/v1/smash-engine.ts";
 test("badminton court geometry and service line proportions", () => {
@@ -63,4 +65,40 @@ test("bottom anchored mapping and inverse pointer mapping at different screen sh
     const out = { scale: 0, x: 0, y: 0 };
     assert.equal(worldTransform(w, h, out), out);
   }
+});
+
+test("near racket stays centred and inside the viewport at all engine limits", () => {
+  for (const dpr of [1, 2]) {
+    const t = worldTransform(328 * dpr, 565 * dpr, undefined, dpr);
+    assert.equal(180 * t.scale + t.x, 164 * dpr);
+    for (let level = 1; level <= 99; level++) {
+      const rx = levelConfig(level).width / 2;
+      for (const x of [rx, 360 - rx])
+        for (const angle of [-20, 0, 20]) {
+          const radians = (angle * Math.PI) / 180;
+          const headExtent = Math.hypot(
+            rx * Math.cos(radians),
+            rx * 0.42 * Math.sin(radians),
+          );
+          const extent = Math.max(
+            headExtent,
+            41 * Math.abs(Math.sin(radians)) + 4,
+          );
+          assert.ok((x - extent) * t.scale + t.x >= 12 * dpr - 1e-9);
+          assert.ok((x + extent) * t.scale + t.x <= 316 * dpr + 1e-9);
+        }
+    }
+    const centreY = rallyViewY(558) * t.scale + t.y;
+    assert.ok(centreY - 26 * t.scale > 12 * dpr);
+    assert.ok(centreY + 42 * t.scale < 553 * dpr);
+  }
+});
+test("rallies map from the far baseline to the near court without changing physics", () => {
+  assert.equal(rallyViewY(120), 96);
+  assert.equal(rallyViewY(560), 474);
+  assert.equal((rallyViewY(560) - 96) / 504, 0.75);
+  assert.equal(shuttleDepth(120), 0.48);
+  assert.equal(shuttleDepth(560), 1);
+  assert.equal(shuttleDepth(-100), 0.48);
+  assert.equal(shuttleDepth(900), 1);
 });
