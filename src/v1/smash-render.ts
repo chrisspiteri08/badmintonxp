@@ -1,12 +1,10 @@
 import { HIT, SMASH, MISS, levelConfig, type Game } from "./smash-engine";
 import {
-  COURT_FRACTIONS,
-  courtPoint,
   headHalfWidth,
   popForHits,
   racketTilt,
-  rallyViewY,
-  shuttleDepth,
+  sceneY,
+  floorProximity,
   shuttleAngle,
   worldTransform,
 } from "./smash-visuals";
@@ -138,9 +136,8 @@ export function createSmashRenderer(canvas: HTMLCanvasElement) {
     trailIndex = 0,
     trailCount = 0,
     trailAge = 0;
-  let opponentX = 180,
-    swingAge = 9,
-    previousVy = 0;
+  let dropAge = 9,
+    dropX = 180;
   let hitX = 180;
   let hitAge = 9,
     smashAge = 9,
@@ -152,14 +149,6 @@ export function createSmashRenderer(canvas: HTMLCanvasElement) {
     oldRacket = 180,
     velocity = 0,
     spin = 0;
-  function line(f1: number, a1: number, f2: number, a2: number) {
-    const a = courtPoint(f1, a1),
-      b = courtPoint(f2, a2);
-    bg.beginPath();
-    bg.moveTo(a.x, a.y);
-    bg.lineTo(b.x, b.y);
-    bg.stroke();
-  }
   function resize() {
     const nextRatio = Math.min(2, devicePixelRatio || 1),
       w = Math.round(canvas.clientWidth * nextRatio),
@@ -216,46 +205,49 @@ export function createSmashRenderer(canvas: HTMLCanvasElement) {
       transform.x,
       transform.y,
     );
-    const surface = bg.createLinearGradient(0, 96, 0, 600);
-    surface.addColorStop(0, "#123459");
-    surface.addColorStop(1, "#174070");
-    bg.fillStyle = surface;
-    bg.beginPath();
-    bg.moveTo(62, 96);
-    bg.lineTo(298, 96);
-    bg.lineTo(350, 600);
-    bg.lineTo(10, 600);
-    bg.closePath();
-    bg.fill();
-    bg.strokeStyle = "#ffffffe6";
-    bg.lineWidth = 2;
-    for (const f of COURT_FRACTIONS) if (f !== 0.5) line(f, 0, f, 1);
-    for (const a of [0, 0.075, 0.925, 1]) line(0, a, 1, a);
-    line(0, 0.5, 0.352, 0.5);
-    line(0.648, 0.5, 1, 0.5);
-    const left = courtPoint(0.5, 0),
-      right = courtPoint(0.5, 1),
-      y = left.y;
-    bg.fillStyle = "#041a32aa";
-    bg.fillRect(left.x, y, right.x - left.x, 16);
-    bg.strokeStyle = "#ffffff40";
-    bg.lineWidth = 0.6;
-    for (let x = left.x; x < right.x; x += 8) {
+    // Flat practice-wall panels, no court markings or perspective.
+    bg.strokeStyle = "#93b2cd10";
+    bg.lineWidth = 1;
+    for (
+      let y = Math.floor(-transform.y / transform.scale / 68) * 68;
+      y < 600;
+      y += 68
+    ) {
       bg.beginPath();
-      bg.moveTo(x, y);
-      bg.lineTo(Math.min(right.x, x + 16), y + 16);
-      bg.moveTo(x, y + 16);
-      bg.lineTo(Math.min(right.x, x + 16), y);
+      bg.moveTo(-1000, y);
+      bg.lineTo(1360, y);
       bg.stroke();
+      const offset = (Math.floor(y / 68) % 2) * 75;
+      for (let x = -1000 + offset; x < 1360; x += 150) {
+        bg.beginPath();
+        bg.moveTo(x, y);
+        bg.lineTo(x, y + 68);
+        bg.stroke();
+      }
     }
-    bg.fillStyle = "#fff";
-    bg.fillRect(left.x - 4, y - 2, right.x - left.x + 8, 3);
-    for (const x of [left.x - 5, right.x + 5]) {
-      bg.fillStyle = "#ec3543";
-      bg.fillRect(x - 2, y - 9, 4, 32);
-      bg.fillStyle = "#fff";
-      bg.fillRect(x - 2, y - 3, 4, 7);
-      bg.fillRect(x - 2, y + 12, 4, 7);
+    bg.textAlign = "center";
+    bg.fillStyle = "#d5e6f117";
+    bg.font = "italic 900 40px sans-serif";
+    bg.fillText("SMASH UP", 180, 280);
+    bg.font = "700 11px sans-serif";
+    bg.fillStyle = "#b4cee41c";
+    bg.fillText("SOLO PRACTICE", 180, 305);
+    const floor = bg.createLinearGradient(0, 600, 0, 628);
+    floor.addColorStop(0, "#19384b");
+    floor.addColorStop(1, "#071522");
+    bg.fillStyle = floor;
+    bg.fillRect(-1000, 600, 2360, 1000);
+    bg.fillStyle = "#ff894c";
+    bg.fillRect(-1000, 598, 2360, 3);
+    bg.fillStyle = "#ec3543";
+    for (let x = -1000; x < 1360; x += 48) {
+      bg.beginPath();
+      bg.moveTo(x, 604);
+      bg.lineTo(x + 20, 604);
+      bg.lineTo(x + 12, 614);
+      bg.lineTo(x - 8, 614);
+      bg.closePath();
+      bg.fill();
     }
     bg.restore();
   }
@@ -286,15 +278,17 @@ export function createSmashRenderer(canvas: HTMLCanvasElement) {
       if (!reduced) emit(g.x, 550, g.events & SMASH ? 18 : 10);
     }
     if (g.events & SMASH) smashAge = 0;
-    if (g.events & MISS && !reduced) emit(g.x, 600, 10);
+    if (g.events & MISS) {
+      dropAge = 0;
+      dropX = g.x;
+      if (!reduced) emit(g.x, 600, 10);
+    }
   }
   function reset() {
     trailCount = 0;
     trailAge = 0;
     hitAge = smashAge = popAge = 9;
-    opponentX = 180;
-    swingAge = 9;
-    previousVy = 0;
+    dropAge = 9;
     oldRacket = 180;
     tilt = velocity = angle = spin = 0;
   }
@@ -305,18 +299,7 @@ export function createSmashRenderer(canvas: HTMLCanvasElement) {
       previousGame = g;
     }
     resize();
-    swingAge += dt;
-    if (
-      g &&
-      ((g.phase === "serve" && g.delay < 0.3) ||
-        (g.phase === "playing" && previousVy < 0 && g.vy >= 0))
-    )
-      swingAge = 0;
-    if (g && g.y < 240)
-      opponentX +=
-        (Math.max(90, Math.min(270, g.x)) - opponentX) *
-        (1 - Math.exp(-dt * 5));
-    previousVy = g?.vy ?? 0;
+    dropAge += dt;
     hitAge += dt;
     smashAge += dt;
     popAge += dt;
@@ -381,62 +364,19 @@ export function createSmashRenderer(canvas: HTMLCanvasElement) {
         ctx.stroke();
       }
     }
-    // Anonymous opponent behind the far service line; decorative only.
-    ctx.save();
-    ctx.translate(opponentX, 84);
-    ctx.fillStyle = "#0a203a";
-    ctx.strokeStyle = "#d7e6f5";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(0, -23, 7, 0, TAU);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-9, -10);
-    ctx.lineTo(9, -10);
-    ctx.lineTo(12, 13);
-    ctx.lineTo(-12, 13);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-6, 13);
-    ctx.lineTo(-12, 28);
-    ctx.moveTo(6, 13);
-    ctx.lineTo(13, 28);
-    ctx.moveTo(-8, -5);
-    ctx.lineTo(-17, 7);
-    ctx.stroke();
-    ctx.save();
-    ctx.translate(8, -5);
-    ctx.rotate(
-      reduced
-        ? -0.4
-        : -0.4 + Math.sin(Math.min(1, swingAge / 0.25) * Math.PI) * 1.1,
-    );
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(18, -8);
-    ctx.lineTo(23, -21);
-    ctx.stroke();
-    ctx.drawImage(heads[0], 5, -42, 38.5, 17.5);
-    ctx.restore();
-    ctx.restore();
     if (!reduced)
       for (let i = 0; i < trailCount; i++) {
-        const k = (trailIndex - 1 - i + 6) % 6,
-          depth = shuttleDepth(trailY[k]);
+        const k = (trailIndex - 1 - i + 6) % 6;
         ctx.globalAlpha = (1 - i / 6) * 0.14;
         ctx.save();
-        ctx.translate(trailX[k], rallyViewY(trailY[k]));
+        ctx.translate(trailX[k], sceneY(trailY[k]));
         ctx.rotate(trailAngles[k]);
-        ctx.scale(depth, depth);
         ctx.drawImage(shuttle, -26.666, -40, 53.333, 66.666);
         ctx.restore();
       }
     ctx.globalAlpha = 1;
     ctx.save();
-    ctx.translate(racket, rallyViewY(558));
+    ctx.translate(racket, sceneY(558));
     ctx.rotate(
       tilt + (Math.max(-1, Math.min(1, velocity / 2200)) * Math.PI) / 30,
     );
@@ -484,17 +424,18 @@ export function createSmashRenderer(canvas: HTMLCanvasElement) {
     }
     ctx.restore();
     ctx.save();
-    const depth = shuttleDepth(y),
-      viewY = rallyViewY(y);
+    const nearFloor = floorProximity(y),
+      shadowWidth = 20 + nearFloor * 40;
+    ctx.globalAlpha = 0.25 + nearFloor * 0.45;
     ctx.drawImage(
       shadow,
-      x - 25 * depth,
-      viewY + 11 * depth,
-      50 * depth,
-      14 * depth,
+      x - shadowWidth / 2,
+      603,
+      shadowWidth,
+      6 + nearFloor * 8,
     );
-    ctx.translate(x, viewY);
-    ctx.scale(depth, depth);
+    ctx.globalAlpha = 1;
+    ctx.translate(x, sceneY(y));
     ctx.drawImage(halo, -28, -28, 56, 56);
     ctx.rotate(angle);
     ctx.drawImage(shuttle, -26.666, -40, 53.333, 66.666); // cork centre is the simulation position
@@ -517,7 +458,7 @@ export function createSmashRenderer(canvas: HTMLCanvasElement) {
           ctx.globalAlpha = Math.max(0, p.life / p.max);
           ctx.fillStyle = p.white ? "#fff" : "#ff894c";
           ctx.save();
-          ctx.translate(p.x, rallyViewY(p.y));
+          ctx.translate(p.x, sceneY(p.y));
           ctx.rotate(p.life * 8);
           ctx.fillRect(-1, -4, 2, 8);
           ctx.restore();
@@ -526,7 +467,7 @@ export function createSmashRenderer(canvas: HTMLCanvasElement) {
       if (hitAge < 0.07) {
         ctx.fillStyle = "#ffffff80";
         ctx.beginPath();
-        ctx.arc(hitX, rallyViewY(550), 22 * (hitAge / 0.07), 0, TAU);
+        ctx.arc(hitX, sceneY(550), 22 * (hitAge / 0.07), 0, TAU);
         ctx.fill();
       }
       if (smashAge < 0.09) {
@@ -537,7 +478,7 @@ export function createSmashRenderer(canvas: HTMLCanvasElement) {
     if (pop && popAge < 0.6) {
       ctx.save();
       ctx.globalAlpha = 1 - Math.pow(popAge / 0.6, 2);
-      ctx.translate(popX, rallyViewY(520) - (reduced ? 0 : popAge * 50));
+      ctx.translate(popX, sceneY(520) - (reduced ? 0 : popAge * 50));
       if (!reduced) {
         const scale = 0.75 + 0.25 * Math.min(1, popAge / 0.1);
         ctx.scale(scale, scale);
@@ -550,6 +491,24 @@ export function createSmashRenderer(canvas: HTMLCanvasElement) {
       ctx.strokeText(pop, 0, 0);
       ctx.fillStyle = "#fff";
       ctx.fillText(pop, 0, 0);
+      ctx.restore();
+    }
+    if (dropAge < 0.4) {
+      ctx.save();
+      ctx.globalAlpha = reduced ? 1 : 1 - dropAge / 0.4;
+      ctx.fillStyle = "#ff4355";
+      ctx.fillRect(-1000, 595, 2360, 7);
+      ctx.restore();
+      ctx.save();
+      ctx.font = "900 30px sans-serif";
+      ctx.textAlign = "center";
+      ctx.lineWidth = 5;
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#9b253d";
+      ctx.fillStyle = "#fff";
+      const labelX = Math.max(78, Math.min(282, dropX));
+      ctx.strokeText("Dropped!", labelX, 543);
+      ctx.fillText("Dropped!", labelX, 543);
       ctx.restore();
     }
     if (g?.phase === "slam") {

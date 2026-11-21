@@ -37,6 +37,7 @@ const empty = {
   countdown: 0,
   serving: false,
   slamming: false,
+  dropped: false,
   wind: 0,
 };
 export default function SmashGame({
@@ -134,6 +135,7 @@ export default function SmashGame({
       countdown: 0,
       serving: false,
       slamming: false,
+      dropped: false,
       wind: g.gust,
     });
     try {
@@ -268,6 +270,7 @@ export default function SmashGame({
               : 0;
         const serving = g.phase === "serve" && g.level > 1;
         const slamming = g.phase === "slam";
+        const dropped = g.phase === "missed";
         const wind = Math.round(g.gust * 100) / 100;
         if (
           previousHud.hits !== g.hits ||
@@ -277,7 +280,8 @@ export default function SmashGame({
           previousHud.armed !== g.armed ||
           previousHud.wind !== wind ||
           previousHud.serving !== serving ||
-          previousHud.slamming !== slamming
+          previousHud.slamming !== slamming ||
+          previousHud.dropped !== dropped
         ) {
           previousHud.level = g.level;
           previousHud.hits = g.hits;
@@ -289,6 +293,7 @@ export default function SmashGame({
           previousHud.wind = wind;
           previousHud.serving = serving;
           previousHud.slamming = slamming;
+          previousHud.dropped = dropped;
           setHud({ ...previousHud });
         }
       }
@@ -371,7 +376,7 @@ export default function SmashGame({
         <canvas
           ref={canvas}
           role="img"
-          aria-label={`Smash Up court. Level ${hud.level}, ${hud.hits} hits. Drag to move your racket.`}
+          aria-label={`Smash Up practice hall. Level ${hud.level}, ${hud.hits} hits. Drag to move your racket.`}
           onPointerDown={(e) => {
             e.currentTarget.setPointerCapture(e.pointerId);
             e.currentTarget.dataset.dragX = String(e.clientX);
@@ -438,6 +443,11 @@ export default function SmashGame({
                 </span>
               )}
             </div>
+            {hud.dropped && (
+              <span className="sr-only smash-drop-state" role="status">
+                Dropped!
+              </span>
+            )}
             {hud.slamming && (
               <span className="sr-only smash-moment" role="status">
                 SMASH!
@@ -556,7 +566,7 @@ export default function SmashGame({
               onClick={() => void start()}
             >
               {starting
-                ? "Opening court…"
+                ? "Getting ready…"
                 : phase === "ready"
                   ? "Play"
                   : "Play again"}

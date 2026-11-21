@@ -120,9 +120,21 @@ async function setup(page: Page, signedIn = false) {
     page.getByRole("heading", { name: "Smash Up", exact: true }),
   ).toBeVisible();
 }
-async function lose(page: Page) {
+async function lose(page: Page, capture?: (name: string) => Promise<unknown>) {
   await page.keyboard.down("ArrowRight");
-  await page.clock.runFor(8000);
+  if (capture) {
+    let dropped = false;
+    for (let i = 0; i < 120; i++) {
+      await page.clock.runFor(100);
+      if (await page.locator(".smash-drop-state").count()) {
+        await capture("dropped");
+        dropped = true;
+        break;
+      }
+    }
+    expect(dropped).toBe(true);
+    await page.clock.runFor(1000);
+  } else await page.clock.runFor(8000);
   await page.keyboard.up("ArrowRight");
   await expect(
     page.getByRole("button", { name: "Share score", exact: true }),
@@ -157,6 +169,8 @@ async function rally(
         for (let x = 0; x < c.width; x++) {
           const j = (y * c.width + x) * 4;
           if (
+            y <
+              c.height - 40 * Math.min((c.width - 24) / 360, c.height / 580) &&
             d.data[j] > 240 &&
             d.data[j + 1] > 120 &&
             d.data[j + 1] < 155 &&
@@ -167,7 +181,9 @@ async function rally(
           }
           if (
             y >
-              c.height - 165 * Math.min((c.width - 24) / 360, c.height / 560) &&
+              c.height - 118 * Math.min((c.width - 24) / 360, c.height / 580) &&
+            y <
+              c.height - 30 * Math.min((c.width - 24) / 360, c.height / 580) &&
             d.data[j] > 220 &&
             d.data[j + 1] > 35 &&
             d.data[j + 1] < 75 &&
@@ -274,7 +290,7 @@ for (const authenticated of [false, true])
     const capture = (name: string) =>
       page.screenshot({
         path: path.resolve(
-          process.env.V1_SCREENSHOT_DIR || "../../outputs/smash-up-round2",
+          process.env.V1_SCREENSHOT_DIR || "../../outputs/smash-up-solo",
           `${authenticated ? "fan" : "guest"}-${name}-${page.viewportSize()!.width}x${page.viewportSize()!.height}.png`,
         ),
         animations: "allow",
@@ -302,7 +318,7 @@ for (const authenticated of [false, true])
         page.getByRole("heading", { name: "Paused. Tap to resume." }),
       ).toBeVisible();
       await page.getByRole("button", { name: "Resume", exact: true }).click();
-      await lose(page);
+      await lose(page, capture);
       await capture("game-over");
       await expect(
         page
@@ -365,7 +381,7 @@ for (const authenticated of [false, true])
         barBox = (await action.boundingBox())!;
       expect(barBox.y).toBeGreaterThanOrEqual(courtBox.y + courtBox.height);
       await rally(page, 5, capture);
-      await lose(page);
+      await lose(page, capture);
       await expect(
         page.getByText("+20 XP · 20/20 XP this window"),
       ).toBeVisible();

@@ -1,8 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  COURT_FRACTIONS,
-  courtPoint,
   headHalfWidth,
   racketTilt,
   shuttleAngle,
@@ -10,23 +8,15 @@ import {
   popForHits,
   worldTransform,
   pointerWorldX,
-  rallyViewY,
-  shuttleDepth,
+  sceneY,
+  floorProximity,
+  PRACTICE_FLOOR_Y,
+  PRACTICE_BOTTOM_Y,
 } from "../src/v1/smash-visuals.ts";
 import { levelConfig } from "../src/v1/smash-engine.ts";
-test("badminton court geometry and service line proportions", () => {
-  assert.deepEqual(COURT_FRACTIONS, [0, 0.057, 0.352, 0.5, 0.648, 0.943, 1]);
-  assert.deepEqual(courtPoint(0, 0), { x: 10, y: 600 });
-  assert.deepEqual(courtPoint(1, 1), { x: 298, y: 96 });
-  assert.equal(courtPoint(0.5, 0.5).y, 348);
-  for (const f of COURT_FRACTIONS) {
-    const left = courtPoint(f, 0),
-      right = courtPoint(f, 1);
-    assert.ok(
-      Math.abs((courtPoint(f, 0.075).x - left.x) / (right.x - left.x) - 0.075) <
-        1e-12,
-    );
-  }
+test("solo floor remains the engine's existing fail line", () => {
+  assert.equal(PRACTICE_FLOOR_Y, 600);
+  assert.equal(PRACTICE_BOTTOM_Y, 628);
 });
 test("visual racket width matches physics and tilt is bounded", () => {
   for (let level = 1; level <= 20; level++)
@@ -58,7 +48,7 @@ test("bottom anchored mapping and inverse pointer mapping at different screen sh
     [656, 1130],
   ]) {
     const t = worldTransform(w, h);
-    assert.equal(600 * t.scale + t.y, h);
+    assert.equal(PRACTICE_BOTTOM_Y * t.scale + t.y, h);
     assert.ok(120 * t.scale + t.y >= 0);
     for (const x of [0, 100, 180, 360])
       assert.ok(Math.abs(pointerWorldX(x * t.scale + t.x, t) - x) < 1e-10);
@@ -88,17 +78,14 @@ test("near racket stays centred and inside the viewport at all engine limits", (
           assert.ok((x + extent) * t.scale + t.x <= 316 * dpr + 1e-9);
         }
     }
-    const centreY = rallyViewY(558) * t.scale + t.y;
+    const centreY = sceneY(558) * t.scale + t.y;
     assert.ok(centreY - 26 * t.scale > 12 * dpr);
     assert.ok(centreY + 42 * t.scale < 553 * dpr);
   }
 });
-test("rallies map from the far baseline to the near court without changing physics", () => {
-  assert.equal(rallyViewY(120), 96);
-  assert.equal(rallyViewY(560), 474);
-  assert.equal((rallyViewY(560) - 96) / 504, 0.75);
-  assert.equal(shuttleDepth(120), 0.48);
-  assert.equal(shuttleDepth(560), 1);
-  assert.equal(shuttleDepth(-100), 0.48);
-  assert.equal(shuttleDepth(900), 1);
+test("solo scene has no perspective scaling and the floor shadow grows with proximity", () => {
+  for (const y of [120, 280, 560, 600]) assert.equal(sceneY(y), y);
+  assert.equal(floorProximity(120), 0);
+  assert.equal(floorProximity(600), 1);
+  assert.ok(floorProximity(560) > floorProximity(280));
 });
